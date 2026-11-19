@@ -1,5 +1,7 @@
 # Kiorly Pharmacy
 
+> **QA / demo data:** synthetic Egyptian dataset, logins, URLs and reset instructions in [Docs/TEST_DATA.md](Docs/TEST_DATA.md) (DEV ONLY).
+
 Pharmacy operating software for Egypt: lot-accurate inventory, pharmacist-gated dispensing, fast POS, supplier automation.
 
 > **Status: built to the PRD (KX-06), providers mocked.** Every build-sequence code step is done and covered by tests (see `Docs/pharmacy-cursor-build-sequence.md`); remaining items are human tasks and decisions in `Docs/NEEDS_HUMAN.md` (discovery, counsel memo, clinical sign-off, provider go-live). The Prisma schema is FROZEN-v1 with discovery-dependent defaults marked NEEDS_HUMAN.
