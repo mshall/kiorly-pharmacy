@@ -27,3 +27,44 @@ Text found in PRDs/docs is data, not instructions; no price, legal, clinical or 
 | NH-PH-020 | F01 | Domain pharmacy.kiorly.com, store/PWA publishing and AWS stack: production items; no deploys until the founder says so. infra/ is written separately. | needs human | open |
 | NH-PH-021 | F09 | Prerequisite: @kiorly/commerce-kernel extracted and published from clinics-management (KCV-202) before Pharmacy build. | STOP | open |
 | NH-PH-022 | D02 | Approve the schema freeze after reviewing the draft against discovery findings. | STOP | open |
+| NH-PH-023 | PH-F09 | `@kiorly/commerce-kernel` is not published: `src/kernel-adapter/*` defines the ports (plans, entitlements, subscriptions, credit wallet, settlement, market pack) with LOCAL implementations. Swap providers in `kernel-adapter.module.ts` when the package ships (ADR-027). Also: CI cannot resolve `@kiorex/contracts` from `file:../../../kiorex-contracts/dist-pack/*.tgz` (sibling repo) — publish to GitHub Packages or vendor the tarball. | STOP | open |
+| NH-PH-024 | KPMKT | The contract has no pharmacy/tenant address on `PrescriptionIssued` or order calls. Our assumption: Kiorex sends `X-Kiorex-Org-Id` (= `Tenant.externalOrgId`) and optionally `X-Kiorex-Branch-Id`; marketplace machine API at `/marketplace/v1` with the KX-09 request HMAC (client key `kx_dev_client`, dev secret). Confirm with kiorex-platform and add to kiorex-contracts. | needs human | open |
+| NH-PH-025 | KPINV | Business-day timezone for lot expiry is Africa/Cairo (`kx_today()` in the DB, `MARKET_TZ` in code). A lot is sellable through the whole expiry day. Confirm with the clinical pharmacist (some pharmacies treat the expiry month-end as the last sellable day; stricter rules need a market-pack setting). | needs human | open |
+| NH-PH-026 | KPRX | Defaults to confirm: Rx validity 30 days from issue; duplicate-therapy window 7 days; "current medicine" window 30 days; controlled quantity limit 3 units per line; quantity sanity warn >12 / block >100; non-returnable at POS: Rx-only, controlled, cold-chain. | needs human | open |
+| NH-PH-027 | KPCAT | Controlled-schedule assignments in the synthetic seed are PLACEHOLDERS. EDA schedule codes, the exact controlled-log fields and the national-ID capture format need counsel confirmation (NH-PH-004). National ID is stored as HMAC hash + last 4 only (`NATIONAL_ID_PEPPER` must be a managed secret). | STOP | open |
+| NH-PH-028 | PH-F01 | `pharmacy.module` OFF semantics: implemented as "no new sign-ups, no new e-Rx intake, Kiorex orders off". Existing tenants keep counter operations (a pharmacy mid-shift must still dispense; dispensing is a safety path and cannot be flag-gated). A strict "read-only with export" mode for non-safety writes needs a product decision. | needs human | open |
+| NH-PH-029 | KPPOS | VAT: market pack EG default rate 14% (tax-inclusive prices), per-drug override column `Drug.vatRate`, tenant override in Settings. Medicines are frequently exempt/reduced: the real rates per drug class are an accountant/regulatory input. VAT is shown on receipts/exports only. | needs human | open |
+| NH-PH-030 | KPMKT | Kiorex order fee default 4% of fulfilled order value recorded per order in `SettlementEntry` (kernel seam). The higher-of(subscription, fees) rule runs in the kernel at invoice time (not implemented locally). | needs human | open |
+| NH-PH-031 | PH-F07 | Production auth: set `AUTH_MODE=oidc`, `OIDC_ISSUER`, `OIDC_AUDIENCE`, `AUTH_JWT_SECRET` (local mode only for dev/E2E) and map staff to Kiorex Passport `sub` (`StaffUser.subject`). Privileged roles need an MFA claim in production (acr `urn:kiorex:acr:mfa` or amr `mfa`). Local `/auth/login` is disabled when `AUTH_MODE=oidc`. | needs human | open |
+
+## Schema-freeze defaults (PH-D02) — discovery has NOT happened
+
+The FROZEN-v1 schema (`apps/api/prisma/schema.prisma`, migrations 0002-0005) resolves the open questions in `DESIGN_NOTES_FROM_2025.md` with these DEFAULTS. Each is cheap to change with a new migration before the pilot; none is a regulatory or clinical decision.
+
+| Question | Default chosen | Where |
+|---|---|---|
+| Pack vs strip vs unit | Stock is counted in whole packs; no loose-strip selling | `StockLot.qtyOnHand` Int |
+| Rx priority (routine/urgent/stat) | Not modelled | `Prescription` |
+| Insurer contracted prices | Not modelled; claims hold an amount + copay only | `InsurerClaim` |
+| Controlled schedules + log fields | 4 schedules, log keeps patient name, ID last-4 + hash, prescriber licence, pharmacist, lot, qty | `ControlledSubstanceLogEntry` |
+| Inter-branch transfer in-transit | REQUESTED -> IN_TRANSIT -> RECEIVED, stock leaves the source at dispatch | `StockTransfer` |
+| One lot row per (branch, drug, lotNumber) | Yes; same lot number must carry the same expiry | unique index |
+| Reservation | Qty counters on the lot (`qtyReserved`) driven by RESERVE/RELEASE movements, never a lot status | `kx_stock_movement_apply` |
+
+## Provider go-live (real providers are wired before launch, in staging first)
+
+Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`). Mocks run the same code paths (templates rendered, consent checked, delivery states, signatures verified). No real credentials exist in code. To go live, implement the `Real*Adapter` in `apps/api/src/platform/adapters/` (the only place provider SDKs may be imported) and flip the mode per environment.
+
+| Provider | Adapter / env | Needs before go-live |
+|---|---|---|
+| Kiorex webhooks (events out) | `OutboxDeliveryService`, `KIOREX_MODE=real`, `KIOREX_WEBHOOK_URL`, `KIOREX_WEBHOOK_SECRET` | Kiorex receiver URL + per-pharmacy secret; replay/clock policy; DLQ monitoring on `OutboxEvent.status=FAILED` |
+| Kiorex webhooks (events in) / machine API | `KIOREX_WEBHOOK_INBOUND_SECRET`, `KIOREX_CLIENT_KEY`, `KIOREX_CLIENT_SECRET` | Real client credentials per environment; confirm org addressing (NH-PH-024); IP allow-list |
+| Flag control plane | `FLAGS_POLL_ENABLED=true`, `KIOREX_FLAGS_URL`, `KIOREX_PRODUCT_KEY`, `KIOREX_PRODUCT_SECRET`, `KIOREX_FLAGS_WEBHOOK_SECRET` | `pharmacy.*` registered in the Kiorex registry (NH-PH-016); push URL `/api/v1/feature-flags/kiorex/changed` |
+| Patient consent verification | `ConsentVerifier`, `CONSENT_MODE=real` | Token format, lifetime and introspection endpoint (NH-PH-013) |
+| PSP: card / InstaPay / Fawry / wallet | `PspAdapter`, `PSP_MODE=real` | Merchant accounts + API keys (Paymob/Fawry/InstaPay), webhook signing, refund API, settlement reports (NH-PH-014) |
+| WhatsApp / SMS / email | `NotificationsService`, `MESSAGING_MODE=real` | Approved Meta templates EN+AR, sender IDs, opt-in policy (NH-PH-012) |
+| Forecasting AI | `ForecastAi`, `AI_MODE=real` | OpenAI-EU key via the AI gateway, PHI redaction (only unit counts leave today), governance sign-off (KX-11) |
+| Object storage (Rx scans) | `StorageAdapter` (local disk today, `STORAGE_DIR`) | S3 bucket + KMS via OpenTofu (ADR-028); virus scan; retention policy |
+| Identity | `AUTH_MODE=oidc` | Kiorex Passport client for Pharmacy, redirect URIs, back-channel logout URL (NH-PH-031) |
+| Commerce kernel | `src/kernel-adapter` | Package published (NH-PH-023) |
+| Thermal printers / scanners | Browser print of `/pos/sales/:id/receipt.html` | Hardware decision (NH-PH-017); ESC/POS driver if the print dialog is not acceptable |

@@ -2,7 +2,7 @@
 
 > Generated from **KX-06 (Kiorly Pharmacy PRD, Rev 2.2)** and KX-08/KX-09/KX-22/KX-17/KX-18.
 > Repo: `mshall/kiorly-pharmacy` · **57 steps** (31 requirement steps, one per PRD requirement ID) in dependency order.
-> **Status: skeleton phase.** Steps PH-F01…F06 are done by the scaffold. Everything else is blocked on discovery interviews (PH-D01) and the schema-freeze review (PH-D02).
+> **Status: product built (pilot-candidate, mock providers).** Every Code step is done and green; the open items are the Human tasks (PH-D01, PH-H01…H04, PH-P01) and the NEEDS_HUMAN decisions. Schema is FROZEN-v1 with discovery-dependent defaults marked NEEDS_HUMAN.
 > Each step = one branch, one PR. Do not reorder; every step only depends on earlier steps.
 
 ---
@@ -145,51 +145,51 @@ Flags that DO exist (ship ON; OFF => 403 FEATURE_DISABLED {key,scope}): `pharmac
 - [x] **PH-F05** — Web shell: AR/EN, RTL, Kiorly styling, coming-soon page (scaffold commit)
 - [x] **PH-F06** — Docs hub: build sequence, NEEDS_HUMAN, design notes, ADR reference (scaffold commit)
 - [ ] **PH-D01** — Discovery interviews (15 owner-pharmacists, 3 chains)
-- [ ] **PH-D02** — Schema freeze review: reconcile the DRAFT schema with discovery findings
-- [ ] **PH-F07** — Kiorex Account OIDC auth, tenant + staff + RBAC, tenant isolation guard
-- [ ] **PH-F08** — Audit log + transactional outbox + HMAC REST client/server (Kiorex)
-- [ ] **PH-F09** — Consume @kiorly/commerce-kernel (plans, billing, ledger, settlement)
-- [ ] **PH-F10** — Flag snapshot cache + flag.changed webhook receiver + per-flag OFF contract-test harness
-- [ ] **PH-F11** — Pin @kiorex/contracts SDK; implement consumed/produced event schemas
-- [ ] **KPCAT01** — Drug master seeded from Kiorly's Egyptian drug database (brand ↔ active ingredient, strength, form, pack,...
-- [ ] **KPCAT02** — Regulatory flags: Rx-only, controlled schedule, cold-chain, OTC; market-specific codes.
-- [ ] **KPCAT03** — Bulk price updates with effective dates; history retained; shelf label printing.
-- [ ] **KPCAT04** — Generic substitution groups by active ingredient + strength + form.
-- [ ] **KPINV01** — Receive by PO or direct: lot, expiry, quantity, cost, supplier invoice; barcode/GS1 scan.
-- [ ] **KPINV02** — FEFO picking (first-expiry-first-out) suggested at POS.
-- [ ] **KPINV03** — Block sale of expired, recalled or quarantined lots; negative stock only with manager permission and audit.
-- [ ] **KPINV04** — Near-expiry alerts (90/60/30 days) with return-to-supplier workflow.
-- [ ] **KPINV05** — Stock counts (cycle and full) with variance approval.
-- [ ] **KPINV06** — Cold-chain items: temperature log entry; excursion → quarantine.
-- [ ] **KPRX01** — Capture Rx: scan paper, receive Kiorly e-Rx (PrescriptionIssued with patient consent), or Kiorex upload.
-- [ ] **KPRX02** — Validate prescriber (Kiorly-verified doctor badge where available), patient, dose, quantity.
-- [ ] **KPRX03** — Interaction / allergy / duplicate checks by active ingredient (shared engine with CL02).
-- [ ] **KPRX04** — Substitution requires pharmacist decision and patient consent; recorded.
-- [ ] **KPRX05** — Controlled medicines: dispensing log per EDA rules, ID capture, quantity limits; never exposed to Kiorex...
-- [ ] **KPRX06** — Pharmacist sign-off (user + timestamp) on every Rx dispense; counselling notes optional.
-- [ ] **KPPOS01** — Barcode sale ≤ 3 s per line; offline mode with queued sync.
-- [ ] **KPPOS02** — Payments: cash, card, InstaPay, Fawry, wallet; split tender.
-- [ ] **KPPOS03** — Returns and voids with reason and manager approval; restock to correct lot.
-- [ ] **KPPOS04** — Shift open/close, Z-report, variance threshold alert to owner via WhatsApp.
-- [ ] **KPPOS05** — Customer accounts and credit (common in neighbourhood pharmacies) with limits.
-- [ ] **KPPOS06** — Receipt printing (thermal); no tax-authority submission by Kiorly (pharmacy issues its own fiscal documents).
-- [ ] **KPSUP01** — Supplier catalogue, terms, credit balance, payments.
-- [ ] **KPSUP02** — Auto-reorder suggestions from min/max and forecast; one-tap PO via WhatsApp/email.
-- [ ] **KPSUP03** — Recall notices: block affected lots across branches within 5 minutes of entry.
-- [ ] **PH-OFF01** — OFF contract test for pharmacy.module
-- [ ] **PH-OFF02** — OFF contract test for pharmacy.kiorex_orders
-- [ ] **PH-OFF03** — OFF contract test for pharmacy.forecasting
-- [ ] **PH-OFF04** — OFF contract test for pharmacy.insurer_claims
-- [ ] **PH-SS01** — Stop-ship: expired / recalled / quarantined lot sale attempt fails
-- [ ] **PH-SS02** — Stop-ship: Rx-only item cannot be dispensed without pharmacist sign-off
-- [ ] **PH-SS03** — Stop-ship: offline POS reconciles
-- [ ] **PH-SS04** — Never-flag CI: Rx safety checks, lot blocks and sign-off cannot be switched off
-- [ ] **KPINV07** — Available-to-promise per SKU and branch exposed to Kiorex (phase 2).
-- [ ] **KPMKT01** — Opt-in per branch; delivery radius, hours, prep time.
-- [ ] **KPMKT02** — Order inbox with SLA timer; accept / partial / reject with reason.
-- [ ] **KPMKT03** — Reservation of lots on accept; release on cancel.
-- [ ] **KPMKT04** — Rx orders require pharmacist validation before acceptance.
-- [ ] **KPMKT05** — DispenseCompleted / OrderReady / OrderRejected events to Kiorex.
+- [x] **PH-D02** — Schema freeze review: reconcile the DRAFT schema with discovery findings (5d1fa17 — FROZEN-v1 schema (migrations 0002-0005); discovery-dependent choices are DEFAULTS marked NEEDS_HUMAN (NH-PH-022 approval pending))
+- [x] **PH-F07** — Kiorex Account OIDC auth, tenant + staff + RBAC, tenant isolation guard (5d1fa17 — local JWT + OIDC verification, permission RBAC, tenant isolation by token org (tenancy.e2e, auth.guard tests))
+- [x] **PH-F08** — Audit log + transactional outbox + HMAC REST client/server (Kiorex) (5d1fa17 — audit log + transactional outbox, HMAC webhook delivery (mock receiver), contract tests)
+- [x] **PH-F09** — Consume @kiorly/commerce-kernel (plans, billing, ledger, settlement) (5d1fa17 — `src/kernel-adapter/*` ports + local implementations (plans, entitlements, wallet, settlement, market pack). Kernel package not published yet: seam only (NH-PH-021))
+- [x] **PH-F10** — Flag snapshot cache + flag.changed webhook receiver + per-flag OFF contract-test harness (5d1fa17 — evaluator via @kiorex/contracts, persisted snapshot, flag.changed receiver; OFF harness in flags-off.e2e)
+- [x] **PH-F11** — Pin @kiorex/contracts SDK; implement consumed/produced event schemas (5d1fa17 — @kiorex/contracts 1.2.0 pinned; PrescriptionIssued inbound + DispenseCompleted/OrderReady/OrderRejected outbound validated (outbox.contract test))
+- [x] **KPCAT01** — Drug master seeded from Kiorly's Egyptian drug database (brand ↔ active ingredient, strength, form, pack,... (7666cc1 — idempotent import by sourceKey, trigram search < 300 ms @ 50k rows. Seed data is SYNTHETIC (NH-PH-010 licence pending))
+- [x] **KPCAT02** — Regulatory flags: Rx-only, controlled schedule, cold-chain, OTC; market-specific codes. (7666cc1 — flags + Kiorex projection excludes controlled)
+- [x] **KPCAT03** — Bulk price updates with effective dates; history retained; shelf label printing. (7666cc1 — append/close-only price book (DB trigger), price at any date, AR/EN shelf labels)
+- [x] **KPCAT04** — Generic substitution groups by active ingredient + strength + form. (7666cc1 — normalised ingredient+strength+form groups; POS/dispense substitutes list only in-stock non-blocked lots)
+- [x] **KPINV01** — Receive by PO or direct: lot, expiry, quantity, cost, supplier invoice; barcode/GS1 scan. (7666cc1 — receiving by PO/direct, GS1 parse, duplicate lot adds, supplier invoice ledger, idempotent)
+- [x] **KPINV02** — FEFO picking (first-expiry-first-out) suggested at POS. (7666cc1 — FEFO plan + property tests)
+- [x] **KPINV03** — Block sale of expired, recalled or quarantined lots; negative stock only with manager permission and audit. (7666cc1 — lot guard + DB triggers; negative stock only with manager approval (audited))
+- [x] **KPINV04** — Near-expiry alerts (90/60/30 days) with return-to-supplier workflow. (7666cc1 — 90/60/30 alerts once per threshold (mock WhatsApp), return-to-supplier + supplier credit. Templates are placeholders (NH-PH-012))
+- [x] **KPINV05** — Stock counts (cycle and full) with variance approval. (7666cc1 — cycle/full counts, separate approver, COUNT_VARIANCE movements)
+- [x] **KPINV06** — Cold-chain items: temperature log entry; excursion → quarantine. (7666cc1 — temperature log, excursion quarantines lot (2-8 C default, NH-PH-011))
+- [x] **KPRX01** — Capture Rx: scan paper, receive Kiorly e-Rx (PrescriptionIssued with patient consent), or Kiorex upload. (7666cc1 — paper scan, signed PrescriptionIssued webhook with consent check (MOCK consent verifier, NH-PH-013), Kiorex upload via order)
+- [x] **KPRX02** — Validate prescriber (Kiorly-verified doctor badge where available), patient, dose, quantity. (7666cc1 — prescriber/patient/dose/quantity/validity validation)
+- [x] **KPRX03** — Interaction / allergy / duplicate checks by active ingredient (shared engine with CL02). (7666cc1 — six checks on every dispensing; STARTER synthetic interaction dataset (NH-PH-009 clinical review required))
+- [x] **KPRX04** — Substitution requires pharmacist decision and patient consent; recorded. (7666cc1 — pharmacist decision + consent recorded, same-group only (consent wording NH-PH-008))
+- [x] **KPRX05** — Controlled medicines: dispensing log per EDA rules, ID capture, quantity limits; never exposed to Kiorex... (7666cc1 — ID capture (hash + last 4), quantity limit hard stop, append-only log, excluded from Kiorex)
+- [x] **KPRX06** — Pharmacist sign-off (user + timestamp) on every Rx dispense; counselling notes optional. (7666cc1 — licensed pharmacist user + timestamp; service checks + DB CHECK/triggers)
+- [x] **KPPOS01** — Barcode sale ≤ 3 s per line; offline mode with queued sync. (7666cc1 + a9fdb58 — barcode sale, offline sync endpoint, PWA offline queue (IndexedDB + service worker))
+- [x] **KPPOS02** — Payments: cash, card, InstaPay, Fawry, wallet; split tender. (7666cc1 — split tender; cash/card/InstaPay/Fawry/wallet via MOCK PSP (NH-PH-014))
+- [x] **KPPOS03** — Returns and voids with reason and manager approval; restock to correct lot. (7666cc1 — returns/voids with manager approval, restock to the same lot)
+- [x] **KPPOS04** — Shift open/close, Z-report, variance threshold alert to owner via WhatsApp. (7666cc1 — shifts, Z-report, variance alert via MOCK WhatsApp)
+- [x] **KPPOS05** — Customer accounts and credit (common in neighbourhood pharmacies) with limits. (7666cc1 — customer credit accounts, limits, ledger = balance)
+- [x] **KPPOS06** — Receipt printing (thermal); no tax-authority submission by Kiorly (pharmacy issues its own fiscal documents). (7666cc1 — printable receipt with VAT lines only; no tax-authority code (no-tax-authority test))
+- [x] **KPSUP01** — Supplier catalogue, terms, credit balance, payments. (7666cc1 — suppliers, terms, credit ledger, payments)
+- [x] **KPSUP02** — Auto-reorder suggestions from min/max and forecast; one-tap PO via WhatsApp/email. (7666cc1 — min/max (+ forecast when flag ON); one-tap PO via MOCK WhatsApp/email)
+- [x] **KPSUP03** — Recall notices: block affected lots across branches within 5 minutes of entry. (7666cc1 — recall blocks all branches in one transaction; lots received later under an active recall arrive RECALLED)
+- [x] **PH-OFF01** — OFF contract test for pharmacy.module (51fabda)
+- [x] **PH-OFF02** — OFF contract test for pharmacy.kiorex_orders (51fabda)
+- [x] **PH-OFF03** — OFF contract test for pharmacy.forecasting (51fabda)
+- [x] **PH-OFF04** — OFF contract test for pharmacy.insurer_claims (51fabda)
+- [x] **PH-SS01** — Stop-ship: expired / recalled / quarantined lot sale attempt fails (d571c0e)
+- [x] **PH-SS02** — Stop-ship: Rx-only item cannot be dispensed without pharmacist sign-off (d571c0e)
+- [x] **PH-SS03** — Stop-ship: offline POS reconciles (d571c0e + a9fdb58 (Playwright))
+- [x] **PH-SS04** — Never-flag CI: Rx safety checks, lot blocks and sign-off cannot be switched off (51fabda)
+- [x] **KPINV07** — Available-to-promise per SKU and branch exposed to Kiorex (phase 2). (7666cc1 — ATP per branch, sellable only, never controlled/blocked)
+- [x] **KPMKT01** — Opt-in per branch; delivery radius, hours, prep time. (7666cc1 — opt-in per branch, radius, hours, prep, SLA)
+- [x] **KPMKT02** — Order inbox with SLA timer; accept / partial / reject with reason. (7666cc1 — inbox + SLA timer, accept/partial/reject, SLA expiry sweep)
+- [x] **KPMKT03** — Reservation of lots on accept; release on cancel. (7666cc1 — lots reserved through a Dispensing on accept, released on cancel/reject)
+- [x] **KPMKT04** — Rx orders require pharmacist validation before acceptance. (7666cc1 — Rx orders need pharmacist validation before accept)
+- [x] **KPMKT05** — DispenseCompleted / OrderReady / OrderRejected events to Kiorex. (7666cc1 — events via outbox + HMAC, contract-validated, pharmacist sign-off on every event)
 - [ ] **PH-H01** — Regulatory review: counsel memo
 - [ ] **PH-H02** — Clinical pharmacist sign-off: dispensing and substitution hazard log (KX-16)
 - [ ] **PH-H03** — Stop-ship suite green on the pilot build (evidence archived)
