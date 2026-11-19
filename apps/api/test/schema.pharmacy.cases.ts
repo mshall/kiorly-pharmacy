@@ -2,17 +2,19 @@ import assert from "node:assert/strict";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { rollbackTx } from "./tx";
 
-/** Draft-schema expectations (KX-06). Update with the schema-freeze step, not before. */
+/** FROZEN-v1 schema expectations (KX-06, PH-D02). Changes need a new named migration. */
 export const schemaSmoke = {
   models: [
     "Drug", "SubstitutionGroup", "PriceBookEntry", "StockLot", "StockMovement", "RecallNotice", "ColdChainReading",
     "Supplier", "PurchaseOrder", "Prescription", "PrescriptionLine", "Dispensing", "DispensingLine", "SafetyCheckResult",
     "ControlledSubstanceLogEntry", "Shift", "Sale", "SaleLine", "SalePayment", "SaleReturn", "OutboxEvent", "AuditLog",
+    "ReorderPolicy", "SupplierLedgerEntry", "GoodsReceipt", "SupplierReturn", "ExpiryAlert", "StockTransfer", "BranchMarketplaceSetting",
+    "KiorexOrder", "InboundEvent", "Notification", "InsurerClaim", "SyncConflict", "WalletEntry", "SettlementEntry", "CustomerCreditEntry",
   ],
   /** Child/reference tables that inherit tenancy through a parent FK. */
   unscoped: [
     "Tenant", "SubstitutionGroup", "PurchaseOrderLine", "StockCountLine", "PrescriptionLine", "DispensingLine",
-    "SafetyCheckResult", "SaleLine", "SalePayment", "SaleReturn", "FlagSnapshotCache",
+    "SafetyCheckResult", "SaleLine", "SalePayment", "SaleReturn", "FlagSnapshotCache", "GoodsReceiptLine", "StockTransferLine", "KiorexOrderLine", "InboundEvent",
   ],
   async invariants(prisma: PrismaClient) {
     const seed = async (tx: Prisma.TransactionClient, lot: { status?: "AVAILABLE" | "QUARANTINE" | "RECALLED"; expiry: Date }) => {
@@ -49,13 +51,13 @@ export const schemaSmoke = {
     await assert.rejects(
       rollbackTx(prisma, async (tx) => {
         const s = await seed(tx, { expiry: new Date(Date.now() + 30 * day) });
-        await tx.dispensing.create({ data: { orgId: s.tenant.id, branchId: s.branch.id, status: "SIGNED_OFF", createdBy: "u" } });
+        await tx.dispensing.create({ data: { orgId: s.tenant.id, branchId: s.branch.id, status: "SIGNED_OFF", createdBy: "u", safetyChecksRunAt: new Date() } });
       }),
       /dispensing_requires_signoff/,
     );
     await rollbackTx(prisma, async (tx) => {
       const s = await seed(tx, { expiry: new Date(Date.now() + 30 * day) });
-      await tx.dispensing.create({ data: { orgId: s.tenant.id, branchId: s.branch.id, status: "SIGNED_OFF", pharmacistId: "p1", signedOffAt: new Date(), createdBy: "u" } });
+      await tx.dispensing.create({ data: { orgId: s.tenant.id, branchId: s.branch.id, status: "SIGNED_OFF", pharmacistId: "p1", signedOffAt: new Date(), createdBy: "u", safetyChecksRunAt: new Date() } });
     });
 
     // stock ledger is append-only

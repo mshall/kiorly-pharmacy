@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { FeatureFlagsService } from "./feature-flags.service";
 import { FLAG_DEFINITIONS } from "./feature-flag-keys";
 import { SafetyControlNotAFlagError, SAFETY_CONTROL_IDS } from "./safety-controls";
-import { signControlRequest } from "./flag-snapshot";
+import { signSnapshotRequest } from "./flag-snapshot";
 
 const snap = (flags: object[]) => ({ product: "kiorly-pharmacy", version: 1, generatedAt: new Date().toISOString(), flags: flags as never });
 
@@ -16,7 +16,7 @@ describe("feature flag evaluator (stub)", () => {
   it("global OFF reports scope and dependents go OFF with scope dependency", () => {
     const s = new FeatureFlagsService();
     s.setSnapshot(snap([{ key: "pharmacy.module", values: { global: "OFF" } }]));
-    assert.deepEqual(s.evaluate("pharmacy.module"), { key: "pharmacy.module", enabled: false, scope: "global" });
+    assert.deepEqual({ ...s.evaluate("pharmacy.module"), reason: undefined }, { key: "pharmacy.module", enabled: false, scope: "global", reason: undefined });
     assert.equal(s.evaluate("pharmacy.kiorex_orders").scope, "dependency");
   });
 
@@ -62,9 +62,16 @@ describe("feature flag evaluator (stub)", () => {
     assert.equal(s.getSnapshotVersion(), 1);
   });
 
-  it("signature is deterministic base64url", () => {
-    const a = signControlRequest("s", { timestamp: "t", nonce: "n", method: "get", path: "/p" });
-    assert.equal(a, signControlRequest("s", { timestamp: "t", nonce: "n", method: "GET", path: "/p" }));
-    assert.match(a, /^[A-Za-z0-9_-]+$/);
+  it("control-plane request is signed with the product key header and never carries the secret", () => {
+    const h = signSnapshotRequest("ff_k", "s3cret", "/api/v1/control/v1/flags/snapshot", 1_700_000_000_000, "n1");
+    assert.equal(h["X-Kiorex-Product-Key"], "ff_k");
+    assert.match(h["X-Kiorly-Signature"]!, /^[A-Za-z0-9_-]+$/);
+    assert.ok(!JSON.stringify(h).includes("s3cret"));
+    assert.deepEqual(h, signSnapshotRequest("ff_k", "s3cret", "/api/v1/control/v1/flags/snapshot", 1_700_000_000_000, "n1"));
+  });
+
+  it("plan entitlement false turns the flag OFF with scope entitlement", () => {
+    const s = new FeatureFlagsService();
+    assert.deepEqual(s.evaluate("pharmacy.forecasting", { entitled: false }), { key: "pharmacy.forecasting", enabled: false, scope: "entitlement", reason: "not_entitled" });
   });
 });

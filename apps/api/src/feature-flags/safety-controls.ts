@@ -6,7 +6,7 @@ import { SAFETY_CONTROLS } from "@kiorly/pharmacy-shared";
  * safety-controls.node.test.ts enforces this in CI.
  */
 export const SAFETY_CONTROL_IDS: readonly string[] = SAFETY_CONTROLS.map((c) => c.id);
-export const SAFETY_PATH_DIRS: readonly string[] = ["inventory/lot-guard","dispensing","prescriptions/safety"];
+export const SAFETY_PATH_DIRS: readonly string[] = ["inventory/lot-guard", "dispensing", "prescriptions/safety", "suppliers/recall"];
 
 export class SafetyControlNotAFlagError extends Error {
   constructor(public readonly key: string) {

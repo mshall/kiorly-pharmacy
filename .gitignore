@@ -18,3 +18,4 @@ coverage
 infra/**/.terraform
 infra/**/*.tfstate*
 infra/**/*.tfvars
+.data/

@@ -1,0 +1,67 @@
+import { Body, Controller, Get, HttpCode, Inject, Post, UnauthorizedException } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { IsEmail, IsString, MinLength } from "class-validator";
+import { PrismaService } from "../prisma/prisma.service";
+import { CurrentUser, Public } from "./decorators";
+import type { AuthUser } from "./auth-user";
+import { TokenVerifier, authMode } from "./token-verifier";
+import { verifyPassword } from "./password";
+import { ROLE_PERMISSIONS } from "./permissions";
+import { FeatureFlagsService } from "../feature-flags/feature-flags.service";
+import { FLAG_DEFINITIONS } from "../feature-flags/feature-flag-keys";
+import { AuditService } from "../audit/audit.service";
+import { DomainError } from "../common/errors";
+
+class LoginDto {
+  @IsEmail() email!: string;
+  @IsString() @MinLength(6) password!: string;
+}
+
+const attempts = new Map<string, { n: number; t: number }>();
+function throttle(key: string) {
+  const now = Date.now();
+  const a = attempts.get(key);
+  if (!a || now - a.t > 60_000) { attempts.set(key, { n: 1, t: now }); return; }
+  if (++a.n > 10) throw new DomainError("RATE_LIMITED", "Too many login attempts, try again in a minute", 429);
+}
+
+@ApiTags("auth")
+@Controller("auth")
+export class AuthController {
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
+    @Inject(FeatureFlagsService) private readonly flags: FeatureFlagsService,
+    @Inject(AuditService) private readonly audit: AuditService,
+  ) {}
+
+  /** AUTH_MODE=local only (dev/demo/E2E). In AUTH_MODE=oidc sign-in happens at Kiorex Passport and this route is 404-equivalent. */
+  @Post("login")
+  @Public()
+  @HttpCode(200)
+  async login(@Body() dto: LoginDto) {
+    if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
+    throttle(dto.email.toLowerCase());
+    const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
+    if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
+    await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
+    await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id });
+    return { accessToken: await this.tokens.issueLocal(staff.id) };
+  }
+
+  @Get("me")
+  @ApiBearerAuth()
+  async me(@CurrentUser() u: AuthUser) {
+    const [tenant, branches] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: u.orgId } }),
+      this.prisma.branch.findMany({ where: { orgId: u.orgId, active: true, ...(u.branchId ? { id: u.branchId } : {}) }, orderBy: { name: "asc" } }),
+    ]);
+    return {
+      user: { id: u.userId, displayName: u.displayName, role: u.role, branchId: u.branchId, isPharmacist: !!u.pharmacistLicenceNo },
+      tenant: { id: tenant.id, name: tenant.name, edition: tenant.edition, market: tenant.marketCode, onboarded: !!tenant.onboardedAt },
+      branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })),
+      permissions: [...ROLE_PERMISSIONS[u.role]],
+      flags: Object.fromEntries(FLAG_DEFINITIONS.map((f) => [f.key, this.flags.isEnabled(f.key, { orgId: u.orgId, market: u.market })])),
+    };
+  }
+}
