@@ -1,0 +1,30 @@
+{
+  "name": "kiorly-pharmacy",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w api\" \"npm run dev -w web\"",
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w api && npm run build -w web",
+    "typecheck": "npm run typecheck -w api && npm run typecheck -w web",
+    "lint": "npm run lint -w web",
+    "test": "npm run test -w api && npm run test -w web",
+    "db:ensure": "bash scripts/ensure-local-db.sh",
+    "db:migrate": "npm run db:migrate -w api",
+    "db:deploy": "npm run db:deploy -w api",
+    "db:setup": "npm run db:ensure && npm run db:deploy",
+    "docs:check": "node scripts/check-docs.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

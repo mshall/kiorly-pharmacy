@@ -1,0 +1,8 @@
+import { Module } from "@nestjs/common";
+
+/**
+ * PLACEHOLDER (KX-06 bounded context "Kiorex orders (phase 2)", requirements KPMKT*).
+ * No behaviour until its build-sequence steps are scheduled; see Docs/pharmacy-cursor-build-sequence.md.
+ */
+@Module({})
+export class MarketplaceModule {}

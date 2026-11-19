@@ -1,0 +1,62 @@
+# Kiorly Pharmacy CI. App-code gates only; infra workflows live in their own files.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: typecheck + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiorly_pharmacy
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kiorly_pharmacy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/kiorly_pharmacy?schema=public
+      NODE_ENV: test
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Prisma generate
+        run: npm run prisma:generate -w api
+      - name: Migrate database
+        run: npm run db:deploy -w api
+      - name: Typecheck (api + web)
+        run: npm run typecheck
+      - name: Lint (web)
+        run: npm run lint
+      - name: Tests (api health e2e, schema smoke, flags; web locale parity)
+        run: npm test
+      - name: Docs hub check
+        run: npm run docs:check
+      - name: Build
+        run: npm run build

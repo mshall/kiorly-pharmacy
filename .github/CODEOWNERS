@@ -1,0 +1,6 @@
+# Default owner (single-founder phase). Add squad handles when the pharmacy squad forms.
+*                         @mshall
+/apps/api/prisma/         @mshall
+/Docs/NEEDS_HUMAN.md      @mshall
+/apps/api/src/feature-flags/  @mshall
+/infra/                   @mshall

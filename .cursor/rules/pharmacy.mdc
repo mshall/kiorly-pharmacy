@@ -1,0 +1,24 @@
+---
+description: Kiorly Pharmacy monorepo conventions (mirrors clinics-management; safety controls are never flags).
+alwaysApply: true
+---
+
+# Kiorly Pharmacy repo rules (mshall/kiorly-pharmacy)
+
+TypeScript npm-workspaces monorepo, **skeleton phase** (product ships M9; pilot M13; governing doc KX-06).
+- apps/api: NestJS 10 + Prisma 6 + PostgreSQL 16. Modules in apps/api/src/modules/<context>, one per PRD bounded context.
+- apps/web: React 18 + Vite + Tailwind + i18next. Every string in BOTH src/locales/en.json and ar.json (RTL first-class).
+- Work from Docs/pharmacy-cursor-build-sequence.md: first unchecked step only, one branch/PR per step.
+
+Binding rules (CLAUDE.md / KX-01 / KX-22 §11):
+1. The Prisma schema is a **DRAFT pending discovery interviews**. Do not build features on it before the schema-freeze step is checked. Change it only via a new named migration.
+2. Never share a DB or import another product's source. Integrate over HMAC REST + transactional outbox (KX-09). Shared code = versioned packages only (@kiorly/commerce-kernel).
+3. Flags (ADR-023): capabilities ship ON; OFF => 403 FEATURE_DISABLED {key,scope}, never hides data. Launch-locked flags need gate evidence (ADR-024).
+4. **Safety controls are never flags (ADR-025).** See Docs/ADR_REFERENCE.md. Never call FeatureFlagsService or @RequiresFlag from a safety path (apps/api/src/feature-flags/safety-controls.ts lists them; a test enforces it). Never add a flag key that matches a safety control.
+5. Nest DI: always use explicit `@Inject(Token)` in constructors (tests run on tsx/esbuild, no emitDecoratorMetadata).
+6. Money paths need idempotency key + outbox event + ledger entry + reconciliation test. Events leave via OutboxEvent only.
+7. No PHI in logs/analytics. No secrets, .env or build output in git. Arabic + English strings.
+8. 2025 repos (_legacy) are READ-ONLY design references (ADR-026): never copy code.
+9. Do not touch infra/ (OpenTofu, owned separately). No AWS deploy until the founder says so.
+10. Conventional Commits with requirement IDs, e.g. `feat(catalogue): KPCAT01 ...`.
+11. Stop and ask a human for prices/fees, legal/clinical wording, gate sign-offs, credentials: record in Docs/NEEDS_HUMAN.md.

@@ -1,0 +1,788 @@
+// =============================================================================
+// DRAFT SCHEMA — pending discovery interviews (15 owner-pharmacists, 3 chains).
+// Designed from KX-06 (Kiorly Pharmacy PRD) + KX-09 events. NOT frozen: do not
+// build features on it until the "schema freeze" step in
+// Docs/pharmacy-cursor-build-sequence.md is checked. Change only via new named
+// migrations. 2025 kiorex-backend entities were used as DESIGN NOTES only
+// (Docs/DESIGN_NOTES_FROM_2025.md); no code copied (ADR-026).
+//
+// Conventions
+//  - Every business table carries orgId (the Kiorly tenant) => tenant isolation
+//    (a safety control, never a flag). Child tables inherit via parent FK and
+//    are listed as unscoped in test/schema.pharmacy.cases.ts only when truly so.
+//  - Money = Decimal(14,2) in the market currency (no hard-coded currency).
+//  - Stock is changed ONLY by appending StockMovement rows (DB trigger forbids
+//    UPDATE/DELETE on StockMovement). StockLot.qtyOnHand is a projection.
+//  - Lot states: RECEIVED -> AVAILABLE -> RESERVED -> DISPENSED; QUARANTINE /
+//    EXPIRED / RECALLED are blocked states (sale impossible outside
+//    AVAILABLE/RESERVED). The DB CHECKs in migration enforce key invariants.
+// =============================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------- enums ----
+
+enum Edition {
+  LITE
+  PRO
+  CHAIN
+  ENTERPRISE
+}
+
+enum StaffRole {
+  OWNER
+  PHARMACIST
+  CASHIER
+  BRANCH_MANAGER
+  CHAIN_OPS
+}
+
+enum ControlledSchedule {
+  NONE
+  SCHEDULE_1
+  SCHEDULE_2
+  SCHEDULE_3
+  SCHEDULE_4
+}
+
+/// KPINV: sale is impossible outside AVAILABLE / RESERVED.
+enum LotStatus {
+  RECEIVED
+  AVAILABLE
+  RESERVED
+  DISPENSED
+  QUARANTINE
+  EXPIRED
+  RECALLED
+}
+
+enum StockMovementType {
+  RECEIPT
+  SALE
+  DISPENSE
+  RETURN_FROM_CUSTOMER
+  RETURN_TO_SUPPLIER
+  ADJUSTMENT
+  EXPIRY_WRITE_OFF
+  RECALL_WRITE_OFF
+  TRANSFER_OUT
+  TRANSFER_IN
+  RESERVE
+  RELEASE_RESERVATION
+  COUNT_VARIANCE
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum RecallStatus {
+  ACTIVE
+  LIFTED
+}
+
+enum StockCountType {
+  CYCLE
+  FULL
+}
+
+enum StockCountStatus {
+  OPEN
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum RxSource {
+  PAPER_SCAN
+  KIORLY_E_RX
+  KIOREX_UPLOAD
+}
+
+enum RxStatus {
+  RECEIVED
+  VALIDATING
+  VALIDATED
+  REJECTED
+  PARTIALLY_DISPENSED
+  DISPENSED
+  CANCELLED
+  EXPIRED
+}
+
+enum DispensingStatus {
+  DRAFT
+  VALIDATED
+  RESERVED
+  SIGNED_OFF
+  DISPENSED
+  CANCELLED
+}
+
+enum SafetyCheckKind {
+  INTERACTION
+  ALLERGY
+  DUPLICATE_THERAPY
+  DOSE_QUANTITY
+  PRESCRIBER
+  CONTROLLED_LIMIT
+}
+
+enum SafetyCheckOutcome {
+  PASS
+  WARN
+  BLOCK
+  OVERRIDDEN_BY_PHARMACIST
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum SaleStatus {
+  OPEN
+  COMPLETED
+  VOIDED
+  PARTIALLY_RETURNED
+  RETURNED
+}
+
+enum SaleChannel {
+  POS
+  KIOREX_ORDER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  INSTAPAY
+  FAWRY
+  WALLET
+  CUSTOMER_CREDIT
+}
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ------------------------------------------------------- tenancy / staff ----
+
+model Tenant {
+  id         String   @id @default(cuid())
+  /// Kiorly org id as issued by the Kiorex flag/identity plane.
+  externalOrgId String? @unique
+  name       String
+  edition    Edition  @default(LITE)
+  marketCode String   @default("EG")
+  createdAt  DateTime @default(now())
+
+  branches Branch[]
+  staff    StaffUser[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  /// EDA / pharmacy licence number (KPRX05 / regulatory), market-specific.
+  licenceNo String?
+  address   String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+}
+
+model StaffUser {
+  id         String    @id @default(cuid())
+  orgId      String
+  /// Kiorex Account subject (OIDC `sub`); identity stays out of clinical data (ADR-013).
+  subject    String?
+  displayName String
+  role       StaffRole
+  /// Required for PHARMACIST: syndicate licence number.
+  pharmacistLicenceNo String?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, subject])
+  @@index([orgId, role])
+}
+
+// ------------------------------------------------------------- catalogue ----
+
+/// KPCAT01/02: drug master seeded from the Kiorly Egyptian drug database.
+model Drug {
+  id               String             @id @default(cuid())
+  /// null = global seed row; set = tenant-local addition.
+  orgId            String?
+  brandName        String
+  brandNameAr      String?
+  activeIngredient String
+  strength         String
+  dosageForm       String
+  packSize         String
+  gtin             String?
+  manufacturer     String?
+  // regulatory flags (KPCAT02)
+  rxOnly           Boolean            @default(false)
+  controlledSchedule ControlledSchedule @default(NONE)
+  coldChain        Boolean            @default(false)
+  otc              Boolean            @default(false)
+  /// Market-specific codes, e.g. {"EG":{"edaCode":"..."}}.
+  marketCodes      Json?
+  substitutionGroupId String?
+  active           Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+
+  substitutionGroup SubstitutionGroup? @relation(fields: [substitutionGroupId], references: [id])
+  prices            PriceBookEntry[]
+  lots              StockLot[]
+  rxLines           PrescriptionLine[]
+
+  @@index([orgId, activeIngredient])
+  @@index([gtin])
+}
+
+/// KPCAT04: generic substitution = same active ingredient + strength + form.
+model SubstitutionGroup {
+  id               String @id @default(cuid())
+  activeIngredient String
+  strength         String
+  dosageForm       String
+
+  drugs Drug[]
+
+  @@unique([activeIngredient, strength, dosageForm])
+}
+
+/// KPCAT03: effective-dated prices; history retained (never updated in place).
+model PriceBookEntry {
+  id            String    @id @default(cuid())
+  orgId         String
+  drugId        String
+  /// null = org-wide (chain central price book); set = branch override.
+  branchId      String?
+  price         Decimal   @db.Decimal(14, 2)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdBy     String?
+  createdAt     DateTime  @default(now())
+
+  drug Drug @relation(fields: [drugId], references: [id])
+
+  @@index([orgId, drugId, effectiveFrom])
+}
+
+// ------------------------------------------------------------- suppliers ----
+
+model Supplier {
+  id            String   @id @default(cuid())
+  orgId         String
+  name          String
+  phone         String?
+  email         String?
+  paymentTerms  String?
+  creditLimit   Decimal? @db.Decimal(14, 2)
+  /// Running payable balance projection; ledger lives in the commerce kernel.
+  balance       Decimal  @default(0) @db.Decimal(14, 2)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  purchaseOrders PurchaseOrder[]
+  lots           StockLot[]
+
+  @@index([orgId])
+}
+
+model PurchaseOrder {
+  id         String              @id @default(cuid())
+  orgId      String
+  branchId   String
+  supplierId String
+  status     PurchaseOrderStatus @default(DRAFT)
+  /// Auto-reorder suggestion origin (KPSUP02): MANUAL | MIN_MAX | FORECAST.
+  origin     String              @default("MANUAL")
+  createdBy  String?
+  sentAt     DateTime?
+  createdAt  DateTime            @default(now())
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  lines    PurchaseOrderLine[]
+  lots     StockLot[]
+
+  @@index([orgId, branchId, status])
+}
+
+model PurchaseOrderLine {
+  id         String  @id @default(cuid())
+  purchaseOrderId String
+  drugId     String
+  qtyOrdered Int
+  qtyReceived Int    @default(0)
+  unitCost   Decimal @db.Decimal(14, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+}
+
+/// KPSUP03: recall notice blocks affected lots across branches within 5 minutes.
+model RecallNotice {
+  id          String       @id @default(cuid())
+  orgId       String
+  drugId      String
+  /// Affected lot numbers (as printed on pack).
+  lotNumbers  String[]
+  reason      String
+  source      String?      // EDA notice ref / supplier letter
+  status      RecallStatus @default(ACTIVE)
+  enteredBy   String
+  enteredAt   DateTime     @default(now())
+  liftedBy    String?
+  liftedAt    DateTime?
+
+  @@index([orgId, status])
+}
+
+// ------------------------------------------------------------- inventory ----
+
+/// KPINV01/02: a received lot with expiry; FEFO = order by expiryDate asc.
+model StockLot {
+  id            String    @id @default(cuid())
+  orgId         String
+  branchId      String
+  drugId        String
+  lotNumber     String
+  expiryDate    DateTime  @db.Date
+  status        LotStatus @default(RECEIVED)
+  /// Projection of the movement ledger.
+  qtyOnHand     Int       @default(0)
+  qtyReserved   Int       @default(0)
+  unitCost      Decimal   @db.Decimal(14, 2)
+  supplierId    String?
+  purchaseOrderId String?
+  supplierInvoiceNo String?
+  receivedAt    DateTime  @default(now())
+  /// Why the lot is blocked (QUARANTINE/RECALLED/EXPIRED), for audit and UI.
+  blockedReason String?
+  blockedAt     DateTime?
+  recallNoticeId String?
+  createdAt     DateTime  @default(now())
+
+  drug          Drug           @relation(fields: [drugId], references: [id])
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  movements     StockMovement[]
+  dispensingLines DispensingLine[]
+  saleLines     SaleLine[]
+  readings      ColdChainReading[]
+
+  @@unique([branchId, drugId, lotNumber])
+  /// FEFO picking index.
+  @@index([branchId, drugId, status, expiryDate])
+}
+
+/// Append-only stock ledger (DB trigger blocks UPDATE/DELETE). qtyDelta is signed.
+model StockMovement {
+  id         String            @id @default(cuid())
+  orgId      String
+  branchId   String
+  lotId      String
+  type       StockMovementType
+  qtyDelta   Int
+  reason     String?
+  /// Source document: sale/dispensing/PO/count/recall id + kind.
+  refType    String?
+  refId      String?
+  /// Negative stock only with manager permission (KPINV03): who approved.
+  managerApprovalBy String?
+  performedBy String
+  occurredAt DateTime          @default(now())
+
+  lot StockLot @relation(fields: [lotId], references: [id])
+
+  @@index([orgId, branchId, occurredAt])
+  @@index([lotId, occurredAt])
+  @@index([refType, refId])
+}
+
+/// KPINV06: cold-chain temperature log; excursion => lot QUARANTINE.
+model ColdChainReading {
+  id          String   @id @default(cuid())
+  orgId       String
+  lotId       String
+  temperatureC Decimal @db.Decimal(5, 2)
+  excursion   Boolean  @default(false)
+  recordedBy  String
+  recordedAt  DateTime @default(now())
+
+  lot StockLot @relation(fields: [lotId], references: [id])
+
+  @@index([lotId, recordedAt])
+}
+
+/// KPINV05: cycle and full stock counts with variance approval.
+model StockCount {
+  id         String           @id @default(cuid())
+  orgId      String
+  branchId   String
+  type       StockCountType
+  status     StockCountStatus @default(OPEN)
+  startedBy  String
+  approvedBy String?
+  startedAt  DateTime         @default(now())
+  closedAt   DateTime?
+
+  lines StockCountLine[]
+
+  @@index([orgId, branchId, status])
+}
+
+model StockCountLine {
+  id           String @id @default(cuid())
+  stockCountId String
+  lotId        String
+  qtyExpected  Int
+  qtyCounted   Int
+
+  stockCount StockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+
+  @@index([stockCountId])
+}
+
+// ---------------------------------------------------------- prescriptions ---
+
+/// Minimal patient reference. Pharmacy never stores a Kiorly clinical record; only what dispensing needs.
+model PatientRef {
+  id          String   @id @default(cuid())
+  orgId       String
+  /// Kiorex/Kiorly patient pseudonymous id when known.
+  externalId  String?
+  displayName String
+  phone       String?
+  /// Egyptian national ID captured for controlled dispensing (KPRX05): store hash + last4 only.
+  nationalIdHash  String?
+  nationalIdLast4 String?
+  createdAt   DateTime @default(now())
+
+  prescriptions Prescription[]
+  customerAccount CustomerAccount?
+
+  @@index([orgId, phone])
+  @@index([orgId, externalId])
+}
+
+/// KPRX01: Rx intake from paper scan, Kiorly e-Rx (PrescriptionIssued v2 + consent token) or Kiorex upload.
+model Prescription {
+  id          String    @id @default(cuid())
+  orgId       String
+  branchId    String
+  source      RxSource
+  status      RxStatus  @default(RECEIVED)
+  patientId   String?
+  /// Event idempotency: PrescriptionIssued eventId (KX-09). Duplicate deliveries are no-ops.
+  sourceEventId String?
+  /// Opaque ref of the prescription in the issuing system.
+  sourceRxRef String?
+  /// SHA-256 of the patient consent token presented with the e-Rx (never the raw token).
+  consentTokenHash String?
+  consentVerifiedAt DateTime?
+  consentExpiresAt  DateTime?
+  /// KPRX02: prescriber identity + whether a Kiorly-verified doctor badge was present.
+  prescriberName    String?
+  prescriberLicenceNo String?
+  prescriberVerifiedBadge Boolean @default(false)
+  issuedAt    DateTime?
+  validUntil  DateTime?
+  scanStorageKey String?
+  rejectionReason String?
+  receivedBy  String?
+  receivedAt  DateTime  @default(now())
+
+  patient    PatientRef?        @relation(fields: [patientId], references: [id])
+  lines      PrescriptionLine[]
+  dispensings Dispensing[]
+
+  /// One intake per issuing event per tenant.
+  @@unique([orgId, sourceEventId])
+  @@index([orgId, branchId, status])
+}
+
+model PrescriptionLine {
+  id             String  @id @default(cuid())
+  prescriptionId String
+  /// Prescribed (not necessarily dispensed) product; null when only an ingredient was written.
+  drugId         String?
+  activeIngredient String?
+  strength       String?
+  dosageForm     String?
+  quantity       Int
+  /// Free-text sig as written (dose, frequency, duration).
+  directions     String?
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drug         Drug?        @relation(fields: [drugId], references: [id])
+
+  @@index([prescriptionId])
+}
+
+// ------------------------------------------------------------- dispensing ---
+
+/// KPRX06: pharmacist sign-off (user + timestamp) is mandatory on every Rx dispense.
+/// DB CHECK: status SIGNED_OFF/DISPENSED requires pharmacistId + signedOffAt (migration).
+model Dispensing {
+  id             String           @id @default(cuid())
+  orgId          String
+  branchId       String
+  prescriptionId String?
+  /// Set for OTC counter dispensing without an Rx (still recorded).
+  patientId      String?
+  status         DispensingStatus @default(DRAFT)
+  pharmacistId   String?
+  signedOffAt    DateTime?
+  counsellingNotes String?
+  /// KPMKT: origin when it fulfils a Kiorex order.
+  kiorexOrderRef String?
+  /// Controlled substances: ID captured (KPRX05).
+  controlledIdCaptured Boolean    @default(false)
+  createdBy      String
+  createdAt      DateTime         @default(now())
+  dispensedAt    DateTime?
+
+  prescription  Prescription?     @relation(fields: [prescriptionId], references: [id])
+  lines         DispensingLine[]
+  safetyChecks  SafetyCheckResult[]
+  controlledLog ControlledSubstanceLogEntry[]
+
+  @@index([orgId, branchId, status])
+  @@index([prescriptionId])
+}
+
+model DispensingLine {
+  id           String  @id @default(cuid())
+  dispensingId String
+  drugId       String
+  /// FEFO-reserved lot (KPINV02).
+  lotId        String
+  quantity     Int
+  /// KPRX04: substitution needs pharmacist decision + patient consent, both recorded.
+  substitutedFromDrugId String?
+  substitutionConsent   Boolean @default(false)
+  substitutionDecidedBy String?
+
+  dispensing Dispensing @relation(fields: [dispensingId], references: [id], onDelete: Cascade)
+  lot        StockLot   @relation(fields: [lotId], references: [id])
+
+  @@index([dispensingId])
+  @@index([lotId])
+}
+
+/// KPRX03: interaction / allergy / duplicate checks by active ingredient (shared engine with Clinic CL02).
+model SafetyCheckResult {
+  id           String             @id @default(cuid())
+  dispensingId String
+  kind         SafetyCheckKind
+  outcome      SafetyCheckOutcome
+  detail       String?
+  /// Pharmacist override must be explicit and attributed.
+  overriddenBy String?
+  overrideReason String?
+  checkedAt    DateTime           @default(now())
+
+  dispensing Dispensing @relation(fields: [dispensingId], references: [id], onDelete: Cascade)
+
+  @@index([dispensingId])
+}
+
+/// KPRX05: controlled-medicine dispensing log per EDA rules. Append-only by convention + audit.
+model ControlledSubstanceLogEntry {
+  id            String   @id @default(cuid())
+  orgId         String
+  branchId      String
+  dispensingId  String
+  drugId        String
+  lotId         String
+  quantity      Int
+  patientNationalIdLast4 String
+  prescriberLicenceNo    String?
+  pharmacistId  String
+  loggedAt      DateTime @default(now())
+
+  dispensing Dispensing @relation(fields: [dispensingId], references: [id])
+
+  @@index([orgId, branchId, loggedAt])
+}
+
+// ------------------------------------------------------------------- POS ----
+
+model Shift {
+  id         String      @id @default(cuid())
+  orgId      String
+  branchId   String
+  openedBy   String
+  closedBy   String?
+  status     ShiftStatus @default(OPEN)
+  openingFloat Decimal   @db.Decimal(14, 2)
+  countedCash  Decimal?  @db.Decimal(14, 2)
+  expectedCash Decimal?  @db.Decimal(14, 2)
+  /// KPPOS04: variance above threshold alerts the owner via WhatsApp (template TODO_NEEDS_HUMAN).
+  variance     Decimal?  @db.Decimal(14, 2)
+  openedAt   DateTime    @default(now())
+  closedAt   DateTime?
+
+  sales Sale[]
+
+  @@index([orgId, branchId, status])
+}
+
+model Sale {
+  id         String     @id @default(cuid())
+  orgId      String
+  branchId   String
+  shiftId    String?
+  channel    SaleChannel @default(POS)
+  status     SaleStatus @default(OPEN)
+  /// Offline POS (KPPOS01): client-generated key makes queued sync idempotent.
+  idempotencyKey String
+  receiptNo  String?
+  customerAccountId String?
+  /// Dispensing that this Rx sale settles (links money to the sign-off).
+  dispensingId String?
+  total      Decimal    @default(0) @db.Decimal(14, 2)
+  soldBy     String
+  soldAt     DateTime   @default(now())
+
+  shift    Shift?     @relation(fields: [shiftId], references: [id])
+  customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id])
+  lines    SaleLine[]
+  payments SalePayment[]
+  returns  SaleReturn[]
+
+  @@unique([orgId, idempotencyKey])
+  @@index([orgId, branchId, soldAt])
+}
+
+model SaleLine {
+  id        String  @id @default(cuid())
+  saleId    String
+  drugId    String
+  lotId     String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(14, 2)
+  discount  Decimal @default(0) @db.Decimal(14, 2)
+
+  sale Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  lot  StockLot @relation(fields: [lotId], references: [id])
+
+  @@index([saleId])
+  @@index([lotId])
+}
+
+/// KPPOS02: split tender => many payments per sale.
+model SalePayment {
+  id        String        @id @default(cuid())
+  saleId    String
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(14, 2)
+  /// PSP / wallet reference (InstaPay, Fawry). Sandbox-fake locally.
+  reference String?
+  paidAt    DateTime      @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+}
+
+/// KPPOS03: returns/voids need reason + manager approval; restock to the correct lot.
+model SaleReturn {
+  id         String   @id @default(cuid())
+  saleId     String
+  lotId      String
+  quantity   Int
+  refund     Decimal  @db.Decimal(14, 2)
+  reason     String
+  approvedBy String
+  createdAt  DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id])
+
+  @@index([saleId])
+}
+
+/// KPPOS05: neighbourhood credit accounts with limits.
+model CustomerAccount {
+  id          String   @id @default(cuid())
+  orgId       String
+  patientId   String   @unique
+  creditLimit Decimal  @default(0) @db.Decimal(14, 2)
+  balance     Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt   DateTime @default(now())
+
+  patient PatientRef @relation(fields: [patientId], references: [id])
+  sales   Sale[]
+
+  @@index([orgId])
+}
+
+// ------------------------------------------------------ platform plumbing ---
+
+/// Transactional outbox (ADR-006): DispenseCompleted / OrderReady / OrderRejected (pharmacist sign-off present).
+model OutboxEvent {
+  id            String       @id @default(cuid())
+  orgId         String
+  type          String
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  occurredAt    DateTime     @default(now())
+  sentAt        DateTime?
+
+  @@index([status, occurredAt])
+  @@index([orgId])
+}
+
+/// Every state change affecting stock, money, access is audited (safety control).
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  /// No PHI here: ids and field names only.
+  meta       Json?
+  at         DateTime @default(now())
+
+  @@index([orgId, at])
+  @@index([entityType, entityId])
+}
+
+/// Last good Kiorex flag snapshot (survives restarts; evaluation stays local).
+model FlagSnapshotCache {
+  product   String   @id
+  version   String
+  etag      String?
+  body      Json
+  fetchedAt DateTime @default(now())
+}

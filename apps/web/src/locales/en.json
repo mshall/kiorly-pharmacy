@@ -1,0 +1,49 @@
+{
+  "app": {
+    "product": "Kiorly Pharmacy",
+    "comingSoon": "Coming soon",
+    "headline": "Pharmacy operating software, built for Egypt",
+    "lede": "Lot-accurate inventory, pharmacist-gated dispensing, fast POS and supplier automation. In discovery with pharmacists now; pilot planned for month 13.",
+    "overview": "Product overview",
+    "caps": [
+      [
+        "Catalogue",
+        "Drug master with brand-to-ingredient mapping, regulatory flags and effective-dated price history."
+      ],
+      [
+        "Lots, expiry and FEFO",
+        "Receive by lot, suggest first-expiry-first-out at the till, block expired, recalled or quarantined lots."
+      ],
+      [
+        "Prescriptions and dispensing",
+        "Paper, Kiorly e-Rx (with patient consent) or Kiorex upload; interaction checks and pharmacist sign-off on every Rx."
+      ],
+      [
+        "POS and money",
+        "Barcode sales in under 3 seconds, split tender, returns, shift close and Z-report."
+      ],
+      [
+        "Suppliers and recalls",
+        "Purchase orders, credit, auto-reorder suggestions and cross-branch recall blocks."
+      ],
+      [
+        "Kiorex orders (later)",
+        "Phase 2: accept orders against accurate available-to-promise stock."
+      ]
+    ],
+    "safetyTitle": "Safety is not a setting",
+    "safety": "Expiry and recall blocks, prescription checks, controlled-medicine logging and pharmacist sign-off are on in every edition and cannot be switched off.",
+    "timeline": "Timeline",
+    "steps": [
+      "Discovery interviews",
+      "Build MVP (month 9)",
+      "Pilot, 20 pharmacies (month 13)",
+      "Egypt GA (month 16)"
+    ],
+    "status": "API status",
+    "statusOk": "reachable",
+    "statusDown": "not running",
+    "lang": "العربية",
+    "footer": "Kiorly by Kiorex. Skeleton build: no clinical or inventory data is processed."
+  }
+}
