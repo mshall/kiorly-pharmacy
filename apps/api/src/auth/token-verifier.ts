@@ -22,7 +22,7 @@ export const authMode = (): AuthMode => (process.env.AUTH_MODE === "oidc" ? "oid
 /**
  * Verifies bearer tokens.
  *  - AUTH_MODE=local (default): HS256 tokens issued by POST /auth/login (dev/demo/E2E; staff email + password).
- *  - AUTH_MODE=oidc: RS256 tokens from Kiorex Passport (issuer + JWKS + audience validated; `amr` must contain "mfa" for privileged roles in production).
+ *  - AUTH_MODE=oidc: RS256 tokens from Kiorex Passport (issuer + JWKS + audience validated; `acr/amr must signal MFA for privileged roles in production).
  */
 @Injectable()
 export class TokenVerifier {
@@ -48,7 +48,8 @@ export class TokenVerifier {
     if (!issuer) throw new Error("OIDC_ISSUER is required when AUTH_MODE=oidc");
     this.jwks ??= createRemoteJWKSet(new URL(process.env.OIDC_JWKS_URL ?? `${issuer.replace(/\/$/, "")}/jwks`));
     const { payload } = await jwtVerify(token, this.jwks, { algorithms: ["RS256"], issuer, audience: process.env.OIDC_AUDIENCE ?? "kiorly-pharmacy" });
+    // @kiorex/contracts 1.2.0 (KA10): step-up signal is `acr` urn:kiorex:acr:mfa and/or `amr` (RFC 8176). Unknown claims are ignored.
     const amr = Array.isArray(payload.amr) ? (payload.amr as string[]) : [];
-    return { sub: String(payload.sub), mfa: amr.includes("mfa") || payload.mfa === true, claims: payload };
+    return { sub: String(payload.sub), mfa: payload.acr === "urn:kiorex:acr:mfa" || amr.includes("mfa") || payload.mfa === true, claims: payload };
   }
 }

@@ -18,7 +18,7 @@
     "start:swc": "node --require @swc-node/register src/main.ts"
   },
   "dependencies": {
-    "@kiorex/contracts": "file:../../../kiorex-contracts/dist-pack/kiorex-contracts-1.0.0.tgz",
+    "@kiorex/contracts": "file:../../../kiorex-contracts/dist-pack/kiorex-contracts-1.2.0.tgz",
     "@kiorly/pharmacy-shared": "*",
     "@nestjs/common": "^10.4.15",
     "@nestjs/core": "^10.4.15",
