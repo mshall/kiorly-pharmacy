@@ -1,3 +1,4 @@
+import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -34,7 +35,7 @@ export class PosService {
     if (!drug) return { found: false as const };
     const price = await this.prices.priceAt(user.orgId, branchId, drug.id);
     const plan = await this.ledger.fefoPlan(this.prisma, user.orgId, branchId, drug.id, 1);
-    const atp = await this.prisma.stockLot.aggregate({ where: { orgId: user.orgId, branchId, drugId: drug.id, status: { in: ["AVAILABLE", "RESERVED"] }, expiryDate: { gte: new Date(new Date().setUTCHours(0, 0, 0, 0)) } }, _sum: { qtyOnHand: true, qtyReserved: true } });
+    const atp = await this.prisma.stockLot.aggregate({ where: { orgId: user.orgId, branchId, drugId: drug.id, status: { in: ["AVAILABLE", "RESERVED"] }, expiryDate: { gte: marketToday() } }, _sum: { qtyOnHand: true, qtyReserved: true } });
     const available = (atp._sum.qtyOnHand ?? 0) - (atp._sum.qtyReserved ?? 0);
     return { found: true as const, drug: { id: drug.id, brandName: drug.brandName, brandNameAr: drug.brandNameAr, strength: drug.strength, dosageForm: drug.dosageForm, rxOnly: drug.rxOnly, controlled: drug.controlledSchedule !== "NONE" }, price: price?.toFixed(2) ?? null, available, suggestedLot: plan.picks[0] ?? null, requiresPrescription: drug.rxOnly || drug.controlledSchedule !== "NONE" };
   }
@@ -50,7 +51,7 @@ export class PosService {
     const rows = await this.prisma.$queryRaw<Array<{ id: string; brandName: string; brandNameAr: string | null; gtin: string | null; strength: string; dosageForm: string; available: bigint }>>`
       SELECT d.id, d."brandName", d."brandNameAr", d.gtin, d.strength, d."dosageForm", SUM(l."qtyOnHand" - l."qtyReserved") AS available
       FROM "StockLot" l JOIN "Drug" d ON d.id = l."drugId"
-      WHERE l."orgId" = ${user.orgId} AND l."branchId" = ${branchId} AND l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= CURRENT_DATE
+      WHERE l."orgId" = ${user.orgId} AND l."branchId" = ${branchId} AND l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= kx_today()
         AND l."qtyOnHand" - l."qtyReserved" > 0 AND d."rxOnly" = false AND d."controlledSchedule" = 'NONE'
       GROUP BY d.id ORDER BY d."brandName" LIMIT 5000`;
     const prices = await this.prices.pricesAt(user.orgId, branchId, rows.map((r) => r.id));

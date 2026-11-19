@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AllExceptionsFilter } from "./common/db-error.filter";
+import "./common/decimal-json";
 
 /** Machine API outside the /api/v1 prefix (same convention as Kiorly's marketplace API). */
 export const PREFIX_EXCLUDES = ["marketplace/v1/(.*)"];

@@ -69,7 +69,8 @@ export class DispensingService {
       if (rx.source === "KIORLY_E_RX" && (!rx.consentVerifiedAt || (rx.consentExpiresAt && rx.consentExpiresAt < new Date()))) throw new DomainError("CONSENT_INVALID", "Patient consent for this e-Rx is missing or expired", 409);
     }
 
-    const drugs = await this.prisma.drug.findMany({ where: { id: { in: input.items.map((i) => i.drugId) }, active: true, OR: [{ orgId: null }, { orgId }] } });
+    const rxDrugIds = (rx?.lines ?? []).map((l) => l.drugId).filter((x): x is string => !!x);
+    const drugs = await this.prisma.drug.findMany({ where: { id: { in: [...new Set([...input.items.map((i) => i.drugId), ...rxDrugIds])] }, active: true, OR: [{ orgId: null }, { orgId }] } });
     const dm = new Map(drugs.map((d) => [d.id, d]));
     for (const it of input.items) {
       const d = dm.get(it.drugId);
@@ -83,7 +84,12 @@ export class DispensingService {
       const drug = dm.get(it.drugId)!;
       let line = it.prescriptionLineId ? rx?.lines.find((l) => l.id === it.prescriptionLineId) : undefined;
       if (it.prescriptionLineId && !line) throw new DomainError("LINE_NOT_IN_RX", "Prescription line not found on this prescription", 409);
-      if (rx && !line) line = rx.lines.find((l) => (l.drugId === it.drugId) || (!l.drugId && l.activeIngredient && groupKey({ activeIngredient: l.activeIngredient, strength: drug.strength, dosageForm: drug.dosageForm }).activeIngredient === groupKey(drug).activeIngredient));
+      if (rx && !line) {
+        // bind to: the same prescribed product; else a prescribed product in the same substitution group (a substitution); else an ingredient-only line
+        line = rx.lines.find((l) => l.drugId === it.drugId)
+          ?? rx.lines.find((l) => l.drugId && drugs.find((d) => d.id === l.drugId)?.substitutionGroupId && drugs.find((d) => d.id === l.drugId)!.substitutionGroupId === drug.substitutionGroupId && (!it.substitution || it.substitution.fromDrugId === l.drugId))
+          ?? rx.lines.find((l) => !l.drugId && l.activeIngredient && groupKey({ activeIngredient: l.activeIngredient, strength: drug.strength, dosageForm: drug.dosageForm }).activeIngredient === groupKey(drug).activeIngredient);
+      }
       if (rx && !line) throw new DomainError("DRUG_NOT_PRESCRIBED", `${drug.brandName} does not match any prescription line`, 409, { drugId: drug.id });
       let substitution: { fromDrugId: string; consent: boolean; decidedBy: string } | null = null;
       if (line) {

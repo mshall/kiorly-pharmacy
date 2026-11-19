@@ -1,3 +1,4 @@
+import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -9,7 +10,7 @@ import { PspAdapter, type PspMethod } from "../../platform/adapters/psp.adapter"
 import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import { ApprovalService, type ApprovalDto } from "../../auth/approval.service";
 import type { AuthUser } from "../../auth/auth-user";
-import { allocateFefo } from "../inventory/lot-guard/lot-guard";
+import { allocateFefo, assertSellable } from "../inventory/lot-guard/lot-guard";
 
 type Tx = Prisma.TransactionClient;
 
@@ -69,6 +70,7 @@ export class SalesService {
       if (cl.lotId) {
         const lot = await db.stockLot.findFirst({ where: { id: cl.lotId, orgId: user.orgId, branchId, drugId: drug.id } });
         if (!lot) throw new DomainError("LOT_NOT_FOUND", "Lot not found for this drug/branch", 404);
+        assertSellable(lot); // SAFETY: expired / recalled / quarantined lots can never be chosen
         picks = [{ lotId: lot.id, quantity: cl.quantity, negative: false }];
       } else {
         const lots = (await db.stockLot.findMany({ where: { orgId: user.orgId, branchId, drugId: drug.id, status: { in: ["AVAILABLE", "RESERVED"] }, qtyOnHand: { gt: 0 } } })).map((l) => ({ ...l, qtyReserved: l.qtyReserved + (taken.get(l.id) ?? 0) }));
@@ -76,7 +78,7 @@ export class SalesService {
         picks = p.map((x) => ({ ...x, negative: false }));
         if (shortage > 0) {
           if (!allowNegative) throw new DomainError("INSUFFICIENT_STOCK", `Not enough stock for ${drug.brandName} (short by ${shortage})`, 409, { drugId: drug.id, shortage });
-          const fallback = await db.stockLot.findFirst({ where: { orgId: user.orgId, branchId, drugId: drug.id, status: { in: ["AVAILABLE", "RESERVED"] }, expiryDate: { gte: new Date(new Date().setUTCHours(0, 0, 0, 0)) } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] });
+          const fallback = await db.stockLot.findFirst({ where: { orgId: user.orgId, branchId, drugId: drug.id, status: { in: ["AVAILABLE", "RESERVED"] }, expiryDate: { gte: marketToday() } }, orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }] });
           if (!fallback) throw new DomainError("NO_SELLABLE_LOT", `No sellable lot exists for ${drug.brandName}; blocked lots can never be sold`, 409, { drugId: drug.id });
           picks.push({ lotId: fallback.id, quantity: shortage, negative: true });
         }

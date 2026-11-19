@@ -39,7 +39,7 @@ export class KiorexWebhookController {
     if (!tenant) throw new DomainError("UNKNOWN_ORG", "X-Kiorex-Org-Id does not match a pharmacy tenant", 404);
     const branchId = h["x-kiorex-branch-id"] ?? (await this.prisma.branch.findFirst({ where: { orgId: tenant.id, active: true }, orderBy: { createdAt: "asc" } }))?.id;
     if (!branchId) throw new DomainError("NO_BRANCH", "Tenant has no branch", 409);
-    const dup = await this.prisma.inboundEvent.findUnique({ where: { eventId } });
+    const dup = await this.prisma.inboundEvent.findUnique({ where: { orgId_eventId: { orgId: tenant.id, eventId } } });
     if (dup) return { accepted: true, duplicate: true };
     const r = await this.rx.intakeEvent(tenant.id, branchId, req.body);
     return { accepted: true, ...r };

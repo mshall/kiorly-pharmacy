@@ -1,3 +1,4 @@
+import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
 import { Prisma, type LotStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -9,7 +10,7 @@ import type { AuthUser } from "../../auth/auth-user";
 import { NotificationsService } from "../../platform/adapters/notifications.service";
 import { lotBlockReason } from "./lot-guard/lot-guard";
 
-const startOfTodayUtc = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d; };
+const startOfTodayUtc = () => marketToday();
 const daysBetween = (a: Date, b: Date) => Math.floor((a.getTime() - b.getTime()) / 86_400_000);
 
 export interface LotQuery { branchId?: string; drugId?: string; status?: LotStatus; expiringWithinDays?: number; q?: string; includeEmpty?: boolean; skip: number; take: number }
@@ -47,9 +48,9 @@ export class InventoryService {
       SELECT l."drugId",
              COALESCE(SUM(l."qtyOnHand"),0) AS "onHand",
              COALESCE(SUM(l."qtyReserved"),0) AS reserved,
-             COALESCE(SUM(CASE WHEN l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= CURRENT_DATE THEN l."qtyOnHand" - l."qtyReserved" ELSE 0 END),0) AS sellable,
-             COALESCE(SUM(CASE WHEN l.status NOT IN ('AVAILABLE','RESERVED') OR l."expiryDate" < CURRENT_DATE THEN l."qtyOnHand" ELSE 0 END),0) AS blocked,
-             MIN(CASE WHEN l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= CURRENT_DATE AND l."qtyOnHand" > 0 THEN l."expiryDate" END) AS "nextExpiry"
+             COALESCE(SUM(CASE WHEN l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= kx_today() THEN l."qtyOnHand" - l."qtyReserved" ELSE 0 END),0) AS sellable,
+             COALESCE(SUM(CASE WHEN l.status NOT IN ('AVAILABLE','RESERVED') OR l."expiryDate" < kx_today() THEN l."qtyOnHand" ELSE 0 END),0) AS blocked,
+             MIN(CASE WHEN l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= kx_today() AND l."qtyOnHand" > 0 THEN l."expiryDate" END) AS "nextExpiry"
       FROM "StockLot" l WHERE l."orgId" = ${orgId} AND l."branchId" = ${branchId} GROUP BY l."drugId"`;
     const drugs = await this.prisma.drug.findMany({ where: { id: { in: rows.map((r) => r.drugId) } } });
     const policies = await this.prisma.reorderPolicy.findMany({ where: { orgId, branchId } });
@@ -78,7 +79,7 @@ export class InventoryService {
   async atp(orgId: string, branchId: string): Promise<Map<string, number>> {
     const rows = await this.prisma.$queryRaw<Array<{ drugId: string; atp: bigint }>>`
       SELECT l."drugId", COALESCE(SUM(l."qtyOnHand" - l."qtyReserved"),0) AS atp FROM "StockLot" l
-      WHERE l."orgId" = ${orgId} AND l."branchId" = ${branchId} AND l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= CURRENT_DATE AND l."qtyOnHand" - l."qtyReserved" > 0
+      WHERE l."orgId" = ${orgId} AND l."branchId" = ${branchId} AND l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= kx_today() AND l."qtyOnHand" - l."qtyReserved" > 0
       GROUP BY l."drugId"`;
     return new Map(rows.map((r) => [r.drugId, Number(r.atp)]));
   }

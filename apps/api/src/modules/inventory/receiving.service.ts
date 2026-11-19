@@ -1,3 +1,4 @@
+import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -29,7 +30,7 @@ export interface ReceiptInput {
   lines: ReceiptLineInput[];
 }
 
-const startOfTodayUtc = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d; };
+const startOfTodayUtc = () => marketToday();
 
 @Injectable()
 export class ReceivingService {

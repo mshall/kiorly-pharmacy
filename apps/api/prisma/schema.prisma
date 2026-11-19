@@ -1127,10 +1127,12 @@ model KiorexOrderLine {
 /// Inbound webhook de-duplication (Kiorex dedups on eventId; so do we).
 model InboundEvent {
   id         String   @id @default(cuid())
-  eventId    String   @unique
+  eventId    String
   type       String
-  orgId      String?
+  orgId      String
   receivedAt DateTime @default(now())
+
+  @@unique([orgId, eventId])
 }
 
 /// Mock/dev inbox for every outbound message (CLAUDE.md: providers are MOCKED). Real adapters write delivery state here too.

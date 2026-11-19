@@ -19,9 +19,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
     const msg = err instanceof Error ? err.message : String(err);
-    const dbCheck = /(check_violation|integrity_constraint_violation)|requires manager approval|cannot be sold|sign-off|controlled-substance log|append-only|history is retained/i;
+    const dbCheck = /(check_violation|integrity_constraint_violation)|code: "23(514|000)"|requires manager approval|cannot be sold|sign-off|controlled-substance log|append-only|history is retained/i;
     if ((err instanceof Prisma.PrismaClientUnknownRequestError || err instanceof Prisma.PrismaClientKnownRequestError) && dbCheck.test(msg)) {
-      const clean = (/ERROR:\s*(.+)/.exec(msg)?.[1] ?? msg).split("\n")[0]!;
+      const clean = (/message: "([^"]+)"/.exec(msg)?.[1] ?? /ERROR:\s*(.+)/.exec(msg)?.[1] ?? msg).split("\n")[0]!;
       res.status(409).json({ statusCode: 409, code: "DB_INVARIANT", message: clean });
       return;
     }

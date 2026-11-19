@@ -14,7 +14,7 @@ export class ForecastingService {
     const rows = await this.prisma.$queryRaw<Array<{ drugId: string; day: Date; qty: bigint }>>`
       SELECT l."drugId", date_trunc('day', m."occurredAt")::date AS day, SUM(-m."qtyDelta") AS qty
       FROM "StockMovement" m JOIN "StockLot" l ON l.id = m."lotId"
-      WHERE m."orgId" = ${orgId} AND m."branchId" = ${branchId} AND m.type IN ('SALE','DISPENSE') AND m."occurredAt" >= now() - make_interval(days => ${days})
+      WHERE m."orgId" = ${orgId} AND m."branchId" = ${branchId} AND m.type IN ('SALE','DISPENSE') AND m."occurredAt" >= now() - (${days}::int * interval '1 day')
       GROUP BY l."drugId", day`;
     const out = new Map<string, number[]>();
     const today = new Date(); today.setUTCHours(0, 0, 0, 0);

@@ -1,3 +1,4 @@
+import { marketToday } from "../../common/dates";
 import { Controller, Get, Inject, Injectable, Module, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -12,7 +13,7 @@ export class DashboardService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(FeatureFlagsService) private readonly flags: FeatureFlagsService) {}
 
   async summary(u: AuthUser, branchId: string) {
-    const start = new Date(); start.setUTCHours(0, 0, 0, 0);
+    const start = marketToday();
     const in30 = new Date(start.getTime() + 30 * 86_400_000);
     const ordersOn = this.flags.isEnabled("pharmacy.kiorex_orders", { orgId: u.orgId, market: u.market });
     const [sales, rxQueue, blocked, expiring, expired, shift, orders, pendingDisp, conflicts, lowRows] = await Promise.all([
@@ -27,7 +28,7 @@ export class DashboardService {
       this.prisma.syncConflict.count({ where: { orgId: u.orgId, branchId, resolved: false } }),
       this.prisma.$queryRaw<Array<{ n: bigint }>>`
         SELECT COUNT(*) AS n FROM "ReorderPolicy" p WHERE p."orgId" = ${u.orgId} AND p."branchId" = ${branchId} AND
-        COALESCE((SELECT SUM(l."qtyOnHand" - l."qtyReserved") FROM "StockLot" l WHERE l."branchId" = p."branchId" AND l."drugId" = p."drugId" AND l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= CURRENT_DATE),0) <= p."minQty"`,
+        COALESCE((SELECT SUM(l."qtyOnHand" - l."qtyReserved") FROM "StockLot" l WHERE l."branchId" = p."branchId" AND l."drugId" = p."drugId" AND l.status IN ('AVAILABLE','RESERVED') AND l."expiryDate" >= kx_today()),0) <= p."minQty"`,
     ]);
     return {
       today: { salesCount: sales._count, salesTotal: money(sales._sum.total) }, rxQueue, awaitingSignoff: pendingDisp, blockedLots: blocked, expiring30: expiring, expiredInStock: expired, lowStock: Number(lowRows[0]?.n ?? 0),

@@ -1,3 +1,4 @@
+import { marketToday } from "../../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { DomainError, notFound } from "../../../common/errors";
@@ -45,7 +46,7 @@ export class RecallService {
     await this.prisma.$transaction(async (tx) => {
       await tx.recallNotice.update({ where: { id }, data: { status: "LIFTED", liftedBy: user.userId, liftedAt: new Date() } });
       const lots = await tx.stockLot.findMany({ where: { orgId: user.orgId, recallNoticeId: id, status: "RECALLED" } });
-      const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+      const today = marketToday();
       for (const l of lots) {
         const other = await tx.recallNotice.findFirst({ where: { orgId: user.orgId, status: "ACTIVE", drugId: l.drugId, lotNumbers: { has: l.lotNumber }, id: { not: id } } });
         if (other) { await tx.stockLot.update({ where: { id: l.id }, data: { recallNoticeId: other.id } }); continue; }

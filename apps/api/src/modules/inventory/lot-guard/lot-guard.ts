@@ -1,5 +1,6 @@
 import type { LotStatus } from "@prisma/client";
 import { DomainError } from "../../../common/errors";
+import { marketToday } from "../../../common/dates";
 
 /**
  * SAFETY PATH (ADR-025; never behind a feature flag): expired, recalled and quarantined lots can never be sold or dispensed.
@@ -13,7 +14,7 @@ export interface LotLike { id: string; status: LotStatus; expiryDate: Date }
 const dayStart = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 
 /** Returns why the lot may not be sold/dispensed, or null if sellable. `today` is injectable for tests. */
-export function lotBlockReason(lot: LotLike, today: Date = new Date()): LotBlockReason | null {
+export function lotBlockReason(lot: LotLike, today: Date = marketToday()): LotBlockReason | null {
   if (lot.status === "RECALLED") return "RECALLED";
   if (lot.status === "QUARANTINE") return "QUARANTINE";
   if (lot.status === "EXPIRED") return "EXPIRED";

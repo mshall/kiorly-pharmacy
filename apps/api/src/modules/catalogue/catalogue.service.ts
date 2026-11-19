@@ -1,3 +1,4 @@
+import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
 import { Prisma, type ControlledSchedule } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -66,7 +67,7 @@ export class CatalogueService {
         }
         if (r.price != null && orgId) {
           const open = await tx.priceBookEntry.findFirst({ where: { orgId, drugId, branchId: null, effectiveTo: null } });
-          if (!open) await tx.priceBookEntry.create({ data: { orgId, drugId, price: r.price, effectiveFrom: new Date(Date.now() - 1000), createdBy: actorId } });
+          if (!open) await tx.priceBookEntry.create({ data: { orgId, drugId, price: r.price, effectiveFrom: new Date("2000-01-01T00:00:00.000Z"), createdBy: actorId } });
         }
       }
       if (orgId) await tx.auditLog.create({ data: { orgId, actorId, action: "catalogue.import", entityType: "Drug", entityId: "bulk", meta: { created, updated } } });
@@ -155,4 +156,4 @@ export class CatalogueService {
   }
 }
 
-export const startOfToday = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d; };
+export const startOfToday = () => marketToday();
