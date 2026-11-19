@@ -50,13 +50,13 @@ export class MarketplaceService implements OnModuleInit {
   onModuleInit() {
     this.hooks.register(async (tx, c) => {
       if (!c.kiorexOrderRef) return;
-      const order = await tx.kiorexOrder.findFirst({ where: { id: c.kiorexOrderRef, orgId: c.orgId } });
+      const order = await tx.kiorexOrder.findFirst({ where: { id: c.kiorexOrderRef, orgId: c.orgId }, include: { lines: true } });
       if (!order) return;
       await tx.kiorexOrder.update({ where: { id: order.id }, data: { status: "DISPENSED", dispensingId: c.dispensingId } });
       const pharmacyId = await this.pharmacyId(tx, c.orgId);
       await this.outbox.enqueue({
         orgId: c.orgId, type: "DispenseCompleted", aggregateId: order.externalOrderId, dedupeKey: `DispenseCompleted:${order.id}`,
-        data: { orderId: order.externalOrderId, pharmacyId, branchId: c.branchId, dispensedAt: c.dispensedAt.toISOString(), pharmacistSignoff: { userId: c.pharmacistId, signedAt: c.signedOffAt.toISOString() }, partial: order.status === "PARTIALLY_ACCEPTED" },
+        data: { orderId: order.externalOrderId, pharmacyId, branchId: c.branchId, dispensedAt: c.dispensedAt.toISOString(), pharmacistSignoff: { userId: c.pharmacistId, signedAt: c.signedOffAt.toISOString() }, partial: order.lines.some((l) => l.qtyAccepted < l.qtyRequested) }, // NOT order.status: markReady already moved PARTIALLY_ACCEPTED -> READY
       }, tx);
       // money path: idempotent settlement entry per fulfilled order (kernel seam)
       await this.settlement.recordFulfilledOrder({ orgId: c.orgId, orderRef: order.externalOrderId, orderValue: c.saleTotal });

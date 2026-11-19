@@ -57,7 +57,7 @@ export class OutboxDeliveryService implements OnModuleInit, OnModuleDestroy {
           this.mockInbox.push({ eventId: ev.id, type: ev.type, body });
           if (this.mockInbox.length > 500) this.mockInbox.shift();
         } else {
-          const res = await fetch(t.url, { method: "POST", headers: { "content-type": "application/json", ...signed.headers }, body, signal: AbortSignal.timeout(8000) });
+          const res = await fetch(t.url, { method: "POST", headers: signed.headers, body, signal: AbortSignal.timeout(8000) });
           if (!res.ok) throw new Error(`Kiorex responded ${res.status}`);
         }
         await this.prisma.outboxEvent.update({ where: { id: ev.id }, data: { status: "SENT", sentAt: new Date(), attempts: { increment: 1 }, lastError: null } });

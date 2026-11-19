@@ -290,6 +290,7 @@ describe("Kiorex orders (KPMKT01-05, KPINV07)", () => {
       await t.http.post(`/api/v1/kiorex-orders/${o.id}/reject`).set(pharm()).send({ reason: "Out of stock today", reasonCode: "OUT_OF_STOCK" });
       assert.deepEqual(await t.outbox.deliverDue(), { sent: 1, failed: 0 });
       assert.equal(seen[0]!.url, "/api/v1/webhooks/pharmacy");
+      assert.equal(seen[0]!.headers["content-type"], "application/json", "REGRESSION: a duplicated content-type header made Kiorex skip body parsing (RAW_BODY_REQUIRED)");
       assert.equal(seen[0]!.headers["x-kiorly-client-key"], f.client.key);
       assert.equal(verifyWebhook({ secret: f.client.webhookSecret, body: seen[0]!.body, timestamp: seen[0]!.headers["x-kiorly-timestamp"], signature: seen[0]!.headers["x-kiorly-signature"] }).ok, true);
       assert.equal(JSON.parse(seen[0]!.body).type, "OrderRejected");
@@ -298,6 +299,21 @@ describe("Kiorex orders (KPMKT01-05, KPINV07)", () => {
       await new Promise((r) => srv.close(r));
       await t.prisma.integrationClient.updateMany({ where: { orgId: f.orgId }, data: { kiorexBaseUrl: null } });
     }
+  });
+
+  it("REGRESSION: a partially accepted order still completes as DispenseCompleted{partial:true} after OrderReady (status is READY by then)", async () => {
+    const drug = await seedDrug(t, f, { price: "10.00" });
+    await receive(t, f, { drugId: drug.id, quantity: 10 });
+    const orderId = `kx_ph_${randomUUID()}`;
+    await machine("POST", "/marketplace/v1/orders", { orderId, branchId: f.branchId, lines: [{ sku: drug.id, quantity: 3, unitPrice: "10.00" }] });
+    const o = await t.prisma.kiorexOrder.findFirstOrThrow({ where: { orgId: f.orgId, externalOrderId: orderId }, include: { lines: true } });
+    const acc = await t.http.post(`/api/v1/kiorex-orders/${o.id}/accept`).set(pharm()).send({ lines: [{ lineId: o.lines[0]!.id, qtyAccepted: 1 }] });
+    assert.equal(acc.body.order.status, "PARTIALLY_ACCEPTED");
+    await t.http.post(`/api/v1/dispensings/${acc.body.dispensing.id}/signoff`).set(pharm()).send({});
+    assert.equal((await t.http.post(`/api/v1/kiorex-orders/${o.id}/ready`).set(pharm())).body.status, "READY");
+    assert.equal((await t.http.post(`/api/v1/dispensings/${acc.body.dispensing.id}/complete`).set(pharm()).send({ idempotencyKey: `idem-${randomUUID()}` })).status, 201);
+    const ev = await t.prisma.outboxEvent.findFirstOrThrow({ where: { orgId: f.orgId, aggregateId: orderId, type: "DispenseCompleted" } });
+    assert.equal((ev.payload as { data: { partial: boolean } }).data.partial, true);
   });
 
   it("outbox signing round-trips with the contracts HMAC scheme and rejects tampering", () => {
