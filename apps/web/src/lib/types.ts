@@ -1,0 +1,24 @@
+export type Role = "OWNER" | "PHARMACIST" | "CASHIER" | "BRANCH_MANAGER" | "CHAIN_OPS";
+export interface Me {
+  user: { id: string; displayName: string; role: Role; branchId: string | null; isPharmacist: boolean };
+  tenant: { id: string; name: string; edition: string; market: string; onboarded: boolean };
+  branches: Array<{ id: string; name: string; code: string | null }>;
+  permissions: string[];
+  flags: Record<string, boolean>;
+}
+export interface Drug { id: string; brandName: string; brandNameAr: string | null; activeIngredient: string; strength: string; dosageForm: string; packSize: string; gtin: string | null; rxOnly: boolean; controlledSchedule: string; coldChain: boolean; otc: boolean }
+export interface Page<T> { items: T[]; total: number; page?: number; pageSize?: number }
+export interface Lot { id: string; branchId: string; drugId: string; lotNumber: string; expiryDate: string; status: string; qtyOnHand: number; qtyReserved: number; available: number; daysToExpiry: number; blockReason: string | null; blockedReason: string | null; unitCost: string; drug: { brandName: string; brandNameAr: string | null; strength: string; dosageForm: string; coldChain: boolean; controlledSchedule: string } }
+export interface StockRow { drugId: string; brandName: string; brandNameAr: string | null; strength: string; dosageForm: string; rxOnly: boolean; controlledSchedule: string; onHand: number; reserved: number; sellable: number; blocked: number; nextExpiry: string | null; minQty: number | null; maxQty: number | null; low: boolean }
+export interface RxLine { id: string; drugId: string | null; activeIngredient: string | null; strength: string | null; dosageForm: string | null; drugName: string | null; quantity: number; qtyDispensed: number; directions: string | null; controlled: boolean; drug?: Drug | null }
+export interface Rx { id: string; source: string; status: string; receivedAt: string; issuedAt: string | null; validUntil: string | null; prescriberName: string | null; prescriberLicenceNo: string | null; prescriberVerifiedBadge: boolean; patient?: { id: string; displayName: string; allergies?: string[] } | null; lines: RxLine[]; rejectionReason: string | null; kiorexOrderId: string | null }
+export interface SafetyCheck { id: string; kind: string; outcome: string; detail: string | null; overriddenBy: string | null; overrideReason: string | null }
+export interface DispLine { id: string; drugId: string; lotId: string; quantity: number; unitPrice: string; substitutedFromDrugId: string | null; drug?: { brandName: string; brandNameAr: string | null; strength: string; controlledSchedule: string }; lot: { lotNumber: string; expiryDate: string; status: string } }
+export interface Dispensing { id: string; status: string; prescriptionId: string | null; patientId: string | null; pharmacistId: string | null; signedOffAt: string | null; controlledIdCaptured: boolean; safetyChecks: SafetyCheck[]; lines: DispLine[]; unresolvedBlocks: number; kiorexOrderRef: string | null }
+export interface SaleLine { id: string; drugId: string; lotId: string; quantity: number; unitPrice: string; discount: string; vatAmount: string; drug?: { brandName: string; brandNameAr: string | null; strength: string } }
+export interface Sale { id: string; receiptNo: string | null; status: string; total: string; subtotal: string; vatTotal: string; discountTotal: string; soldAt: string; lines: SaleLine[]; payments: Array<{ method: string; amount: string; reference: string | null }> }
+export interface Supplier { id: string; name: string; phone: string | null; email: string | null; paymentTerms: string | null; creditLimit: string | null; balance: string; active: boolean }
+export interface Po { id: string; poNumber: string | null; status: string; supplierId: string; branchId: string; totalCost: string; createdAt: string; lines: Array<{ id: string; drugId: string; qtyOrdered: number; qtyReceived: number; unitCost: string }>; supplier?: { name: string } }
+export interface Order { id: string; externalOrderId: string; status: string; hasRx: boolean; prescriptionId: string | null; customerName: string | null; orderValue: string; slaDueAt: string; slaRemainingSeconds: number | null; slaBreached: boolean; dispensingId: string | null; lines: Array<{ id: string; drugId: string; qtyRequested: number; qtyAccepted: number; unitPrice: string; drug?: { brandName: string; brandNameAr: string | null; rxOnly: boolean } }> }
+export interface Report { name: string; title: string; note?: string; columns: Array<{ key: string; label: string }>; rows: Array<Record<string, string | number | null>> }
+export interface Dashboard { today: { salesCount: number; salesTotal: string }; rxQueue: number; awaitingSignoff: number; blockedLots: number; expiring30: number; expiredInStock: number; lowStock: number; openShift: { id: string; openedAt: string } | null; kiorexOrdersPending: number | null; syncConflicts: number }

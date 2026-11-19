@@ -22,6 +22,8 @@
   --input: 214 32% 91%;
   --ring: 221 83% 53%;
   --radius: 1rem;
+  --success: 152 60% 28%;
+  --warning: 32 90% 32%;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -42,9 +44,17 @@
     --border: 215 27% 27%;
     --input: 215 27% 27%;
     --ring: 215 100% 88%;
+    --success: 152 55% 62%;
+    --warning: 38 92% 68%;
   }
 }
 
 body {
   @apply bg-background text-foreground antialiased;
 }
+
+:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.skip-link { position: absolute; inset-inline-start: -999px; top: 0; z-index: 100; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: .5rem 1rem; }
+.skip-link:focus { inset-inline-start: 0; }
+@media print { .no-print { display: none !important; } }
