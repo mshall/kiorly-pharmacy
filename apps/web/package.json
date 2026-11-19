@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "test": "node --import tsx --test \"src/**/*.node.test.ts\""
+    "test": "node --import tsx --test \"src/**/*.node.test.ts\"",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.108.1",

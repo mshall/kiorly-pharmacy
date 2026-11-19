@@ -59,7 +59,7 @@ function SafetyPanel({ d, canOverride }: { d: Dispensing; canOverride: boolean }
             <div><div className="flex items-center gap-2"><Badge tone={OUTCOME_TONE[c.outcome] ?? "neutral"}>{t(`outcome.${c.outcome}`)}</Badge><span className="text-sm font-medium">{t(`check.${c.kind}`)}</span></div>
               {c.detail && <p className="mt-1 text-xs text-muted-foreground">{c.detail}</p>}{c.overrideReason && <p className="mt-1 text-xs">{t("disp.overrideReason")}: {c.overrideReason}</p>}</div>
             {c.outcome === "BLOCK" && canOverride && !["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <Button size="sm" variant="outline" onClick={() => setOv({ id: c.id, kind: c.kind })}>{t("disp.override")}</Button>}
-            {c.outcome === "BLOCK" && ["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <span className="text-xs text-destructive">{t("disp.hardStop")}</span>}
+            {c.outcome === "BLOCK" && ["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <span className="text-xs text-danger">{t("disp.hardStop")}</span>}
           </li>
         ))}
       </ul>
@@ -100,7 +100,7 @@ export function Workflow({ d, rx }: { d: Dispensing; rx?: Rx }) {
         </Table>
         <p className="mt-2 text-end text-lg font-semibold">{t("pos.total")}: {fmtMoney(total)}</p>
         <ErrorNote error={cancel.error || repick.error} />
-        {d.status === "RESERVED" && d.lines.some((l) => l.lot.status !== "AVAILABLE" && l.lot.status !== "RESERVED") && <div className="mt-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{t("disp.lotBlocked")} <Button size="sm" variant="danger" onClick={() => repick.mutate()}>{t("disp.repick")}</Button></div>}
+        {d.status === "RESERVED" && d.lines.some((l) => l.lot.status !== "AVAILABLE" && l.lot.status !== "RESERVED") && <div className="mt-2 rounded-md bg-destructive/10 p-3 text-sm text-danger">{t("disp.lotBlocked")} <Button size="sm" variant="danger" onClick={() => repick.mutate()}>{t("disp.repick")}</Button></div>}
       </Card>
       <SafetyPanel d={d} canOverride={isPharm} />
       {controlled && d.status !== "DISPENSED" && (
@@ -122,7 +122,7 @@ export function Workflow({ d, rx }: { d: Dispensing; rx?: Rx }) {
               <Field label={t("disp.counselling")}>{(id) => <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
               <ErrorNote error={sign.error} />
               <Button size="lg" onClick={() => sign.mutate()} disabled={sign.isPending || d.safetyChecks.some((c) => c.outcome === "BLOCK")}>{t("disp.signoff")}</Button>
-              {d.safetyChecks.some((c) => c.outcome === "BLOCK") && <p className="text-sm text-destructive">{t("disp.resolveBlocks")}</p>}
+              {d.safetyChecks.some((c) => c.outcome === "BLOCK") && <p className="text-sm text-danger">{t("disp.resolveBlocks")}</p>}
             </div>
           ) : <p className="text-sm text-muted-foreground">{t("disp.pharmacistOnly")}</p>}
         </Card>
@@ -183,7 +183,7 @@ export function RxDetail() {
         <div className="space-y-4">
           <Card title={t("rx.items")}>
             <dl className="mb-3 grid grid-cols-2 gap-2 text-sm"><dt className="text-muted-foreground">{t("rx.source")}</dt><dd>{t(`rxSource.${rx.source}`)}</dd><dt className="text-muted-foreground">{t("rx.prescriber")}</dt><dd>{rx.prescriberName} {rx.prescriberVerifiedBadge && "✔"}</dd><dt className="text-muted-foreground">{t("rx.validUntil")}</dt><dd>{fmtDate(rx.validUntil)}</dd>
-              {!!rx.patient?.allergies?.length && <><dt className="text-muted-foreground">{t("rx.allergies")}</dt><dd className="text-destructive">{rx.patient.allergies.join(", ")}</dd></>}</dl>
+              {!!rx.patient?.allergies?.length && <><dt className="text-muted-foreground">{t("rx.allergies")}</dt><dd className="text-danger">{rx.patient.allergies.join(", ")}</dd></>}</dl>
             <Table head={[t("common.product"), t("inv.qty"), t("rx.directions")]}>
               {rx.lines.map((l) => <tr key={l.id}><Td className="font-medium">{l.drugName ?? l.activeIngredient} <span className="text-xs text-muted-foreground">{l.strength}</span></Td><Td>{l.qtyDispensed}/{l.quantity}</Td><Td>{l.directions ?? "—"}</Td></tr>)}
             </Table>

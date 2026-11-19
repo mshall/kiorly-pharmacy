@@ -19,3 +19,5 @@ infra/**/.terraform
 infra/**/*.tfstate*
 infra/**/*.tfvars
 .data/
+test-results/
+playwright-report/

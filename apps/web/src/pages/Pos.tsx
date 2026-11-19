@@ -164,7 +164,7 @@ export function Pos() {
           </div>
           {pays.length > 0 && <ul className="space-y-1">{pays.map((p, i) => <li key={i} className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm"><span>{t(`method.${p.method}`)}</span><span className="flex items-center gap-2 font-semibold">{fmtMoney(p.amount)}<Button size="sm" variant="ghost" aria-label={t("common.remove")} onClick={() => setPays(pays.filter((_, k) => k !== i))}>✕</Button></span></li>)}</ul>}
           <div className="flex justify-between text-lg"><span>{due > 0 ? t("pos.due") : t("pos.change")}</span><span className="font-bold">{fmtMoney(due > 0 ? due : paid - total)}</span></div>
-          {checkout.error && !approval && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{errorMessage(checkout.error, t as never)}</p>}
+          {checkout.error && !approval && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-danger">{errorMessage(checkout.error, t as never)}</p>}
           <Button size="lg" className="w-full" disabled={due > 0 || checkout.isPending || !pays.length} onClick={() => checkout.mutate({ key: saleKey })}>{t("pos.complete")}</Button>
         </div>
       </Modal>

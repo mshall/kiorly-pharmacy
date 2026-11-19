@@ -16,14 +16,15 @@
   --muted-foreground: 215 13% 43%;
   --accent: 216 90% 96%;
   --accent-foreground: 221 83% 43%;
-  --destructive: 0 65% 55%;
+  --destructive: 0 65% 46%;
   --destructive-foreground: 0 0% 100%;
   --border: 214 32% 91%;
   --input: 214 32% 91%;
   --ring: 221 83% 53%;
   --radius: 1rem;
-  --success: 152 60% 28%;
-  --warning: 32 90% 32%;
+  --success: 152 60% 24%;
+  --warning: 28 95% 24%;
+  --danger-text: 0 70% 38%;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -46,6 +47,7 @@
     --ring: 215 100% 88%;
     --success: 152 55% 62%;
     --warning: 38 92% 68%;
+    --danger-text: 356 100% 78%;
   }
 }
 

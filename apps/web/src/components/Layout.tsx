@@ -61,7 +61,7 @@ export function Layout() {
                 <Select aria-label={t("common.branch")} value={branchId ?? ""} onChange={(e) => setBranchId(e.target.value)} className="w-44">{me.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>
               </label>
             ) : <span className="text-sm text-muted-foreground">{me?.branches.find((b) => b.id === branchId)?.name}</span>}
-            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", online ? "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]" : "bg-destructive/15 text-destructive")} data-testid="online-status">{online ? t("common.online") : t("common.offline")}</span>
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", online ? "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]" : "bg-destructive/15 text-danger")} data-testid="online-status">{online ? t("common.online") : t("common.offline")}</span>
             {!!queued.data && <span className="rounded-full bg-[hsl(var(--warning)/0.18)] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--warning))]">{t("pos.queued", { count: queued.data })}</span>}
           </div>
           <div className="flex items-center gap-2">

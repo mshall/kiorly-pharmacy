@@ -76,7 +76,7 @@ function LotsTab() {
           {res.data?.items.map((l) => (
             <tr key={l.id}>
               <Td className="font-medium">{drugName(l.drug)}</Td><Td className="font-mono text-xs">{l.lotNumber}</Td>
-              <Td>{fmtDate(l.expiryDate)} <span className={l.daysToExpiry < 0 ? "text-destructive" : l.daysToExpiry <= 30 ? "text-[hsl(var(--warning))]" : "text-muted-foreground"}>({l.daysToExpiry})</span></Td>
+              <Td>{fmtDate(l.expiryDate)} <span className={l.daysToExpiry < 0 ? "text-danger" : l.daysToExpiry <= 30 ? "text-[hsl(var(--warning))]" : "text-muted-foreground"}>({l.daysToExpiry})</span></Td>
               <Td>{fmtNum(l.qtyOnHand)}{l.qtyReserved ? ` (${t("inv.reservedN", { count: l.qtyReserved })})` : ""}</Td>
               <Td><Badge tone={LOT_TONE[l.blockReason ?? l.status] ?? "neutral"}>{t(`lot.${l.blockReason ?? l.status}`, { defaultValue: l.status })}</Badge>{l.blockedReason && <div className="text-xs text-muted-foreground">{l.blockedReason}</div>}</Td>
               <Td><div className="flex flex-wrap gap-1">
@@ -158,7 +158,7 @@ function CountsTab() {
             <Table head={[t("common.product"), t("inv.lot"), t("inv.expected"), t("inv.counted"), t("inv.variance")]}>
               {d.lines?.map((l) => <tr key={l.id}><Td>{l.brandName}</Td><Td className="font-mono text-xs">{l.lotNumber}</Td><Td>{l.qtyExpected}</Td>
                 <Td>{d.status === "OPEN" ? <Input aria-label={t("inv.counted")} type="number" min={0} className="w-24" defaultValue={l.qtyCounted ?? ""} onChange={(e) => setVals({ ...vals, [l.lotId]: e.target.value })} /> : l.qtyCounted}</Td>
-                <Td className={l.variance ? "font-semibold text-destructive" : ""}>{l.variance ?? "—"}</Td></tr>)}
+                <Td className={l.variance ? "font-semibold text-danger" : ""}>{l.variance ?? "—"}</Td></tr>)}
             </Table>
             <div className="flex flex-wrap gap-2">
               {d.status === "OPEN" && <><Button variant="outline" onClick={() => save.mutate()}>{t("common.save")}</Button><Button onClick={() => act.mutate("submit")}>{t("inv.submitCount")}</Button></>}

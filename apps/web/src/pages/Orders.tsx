@@ -17,7 +17,7 @@ function Countdown({ order }: { order: Order }) {
   useEffect(() => { setLeft(order.slaRemainingSeconds ?? 0); const id = setInterval(() => setLeft((x) => x - 1), 1000); return () => clearInterval(id); }, [order.slaRemainingSeconds]);
   if (order.status !== "RECEIVED") return null;
   const m = Math.floor(Math.abs(left) / 60), s = Math.abs(left) % 60;
-  return <span role="timer" aria-label={t("ord.sla")} className={left < 0 ? "font-bold text-destructive" : left < 120 ? "font-bold text-[hsl(var(--warning))]" : "font-medium"}>{left < 0 ? "−" : ""}{m}:{String(s).padStart(2, "0")}</span>;
+  return <span role="timer" aria-label={t("ord.sla")} className={left < 0 ? "font-bold text-danger" : left < 120 ? "font-bold text-[hsl(var(--warning))]" : "font-medium"}>{left < 0 ? "−" : ""}{m}:{String(s).padStart(2, "0")}</span>;
 }
 
 /** KPMKT02-04: Kiorex order inbox with SLA timer. Hidden (nav + API 403) when pharmacy.kiorex_orders is OFF. */
@@ -45,7 +45,7 @@ export function Orders() {
               {can("orders.respond") && (
                 <div className="flex flex-wrap gap-2">
                   {o.status === "RECEIVED" && <><Button onClick={() => act.mutate({ id: o.id, kind: "accept" })}>{t("ord.accept")}</Button><Button variant="danger" onClick={() => setRej(o)}>{t("ord.reject")}</Button></>}
-                  {["ACCEPTED", "PARTIALLY_ACCEPTED"].includes(o.status) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center rounded-md border border-border bg-card px-4 text-sm font-medium hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}</Link>}<Button onClick={() => act.mutate({ id: o.id, kind: "ready" })}>{t("ord.ready")}</Button><Button variant="danger" onClick={() => setRej(o)}>{t("ord.reject")}</Button></>}
+                  {["ACCEPTED", "PARTIALLY_ACCEPTED", "READY"].includes(o.status) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center rounded-md border border-border bg-card px-4 text-sm font-medium hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}</Link>}{o.status !== "READY" && <Button onClick={() => act.mutate({ id: o.id, kind: "ready" })}>{t("ord.ready")}</Button>}<Button variant="danger" onClick={() => setRej(o)}>{t("ord.reject")}</Button></>}
                 </div>
               )}
             </Card>

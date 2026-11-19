@@ -20,7 +20,8 @@ import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
 import { Onboarding } from "@/pages/Onboarding";
 
-const qc = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000 } } });
+const qc = new QueryClient({ /** networkMode "always": the till must keep running (and queue sales) while offline; react-query would otherwise pause mutations. */
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000, networkMode: "always" }, mutations: { networkMode: "always" } } });
 
 function Guard({ children }: { children: ReactNode }) {
   const { signedIn, loading, me } = useAuth();

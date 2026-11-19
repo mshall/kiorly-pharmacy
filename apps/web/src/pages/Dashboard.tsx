@@ -11,7 +11,7 @@ function Tile({ to, label, value, tone }: { to: string; label: string; value: st
   return (
     <Link to={to} className="block rounded-lg bg-card p-4 shadow-sm ring-1 ring-border hover:bg-accent">
       <div className="text-sm text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-3xl font-bold", tone === "bad" && "text-destructive", tone === "warn" && "text-[hsl(var(--warning))]", tone === "good" && "text-[hsl(var(--success))]")}>{value}</div>
+      <div className={cn("mt-1 text-3xl font-bold", tone === "bad" && "text-danger", tone === "warn" && "text-[hsl(var(--warning))]", tone === "good" && "text-[hsl(var(--success))]")}>{value}</div>
     </Link>
   );
 }

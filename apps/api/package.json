@@ -14,7 +14,8 @@
     "test:unit": "NODE_ENV=test node --import tsx --test \"src/**/*.node.test.ts\"",
     "test:e2e": "node scripts/run-e2e.mjs",
     "seed": "node --require @swc-node/register prisma/seed.ts",
-    "openapi:export": "node --require @swc-node/register scripts/export-openapi.ts"
+    "openapi:export": "node --require @swc-node/register scripts/export-openapi.ts",
+    "start:swc": "node --require @swc-node/register src/main.ts"
   },
   "dependencies": {
     "@kiorex/contracts": "file:../../../kiorex-contracts/dist-pack/kiorex-contracts-1.0.0.tgz",

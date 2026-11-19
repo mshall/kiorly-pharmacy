@@ -34,7 +34,7 @@ export function Field({ label, children, hint, error }: { label: string; childre
       <label htmlFor={id} className="text-sm font-medium">{label}</label>
       {children(id)}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
-      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     </div>
   );
 }
@@ -44,7 +44,7 @@ Input.displayName = "Input";
 export const Select = ({ className, ...p }: SelectHTMLAttributes<HTMLSelectElement>) => <select className={cn(inputCls, className)} {...p} />;
 export const Textarea = ({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className={cn(inputCls, "min-h-20 py-2", className)} {...p} />;
 
-const tone = { neutral: "bg-secondary text-secondary-foreground", good: "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]", warn: "bg-[hsl(var(--warning)/0.18)] text-[hsl(var(--warning))]", bad: "bg-destructive/15 text-destructive", info: "bg-accent text-accent-foreground" } as const;
+const tone = { neutral: "bg-secondary text-secondary-foreground", good: "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]", warn: "bg-[hsl(var(--warning)/0.18)] text-[hsl(var(--warning))]", bad: "bg-destructive/15 text-danger", info: "bg-accent text-accent-foreground" } as const;
 export type Tone = keyof typeof tone;
 export const Badge = ({ tone: t = "neutral", children }: { tone?: Tone; children: ReactNode }) => <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold", tone[t])}>{children}</span>;
 
@@ -113,7 +113,7 @@ export function errorMessage(e: unknown, t: (k: string, o?: Record<string, unkno
 export function ErrorNote({ error }: { error: unknown }) {
   const { t } = useTranslation();
   if (!error) return null;
-  return <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{errorMessage(error, t as never)}</p>;
+  return <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-danger">{errorMessage(error, t as never)}</p>;
 }
 
 export function Tabs({ tabs, value, onChange }: { tabs: Array<{ id: string; label: string }>; value: string; onChange: (id: string) => void }) {
