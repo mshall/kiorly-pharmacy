@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-import { signWebhook, verifyWebhook, WEBHOOK_HEADERS } from "@kiorex/contracts";
+import { PARTNER_WEBHOOK_PATH, signWebhook, verifyWebhook, WEBHOOK_HEADERS } from "@kiorex/contracts";
+import { open } from "../common/secret-box";
 import { PrismaService } from "../prisma/prisma.service";
 
 const MAX_ATTEMPTS = 8;
@@ -10,7 +11,9 @@ export const kiorexMode = (): KiorexMode => (process.env.KIOREX_MODE === "real" 
  * Delivers PENDING outbox rows to Kiorex, signed with the Kiorly webhook scheme
  * (X-Kiorly-Timestamp seconds, X-Kiorly-Event, X-Kiorly-Event-Id, X-Kiorly-Signature: sha256=HMAC(secret, `${ts}.${body}`)).
  * KIOREX_MODE=mock (default): same signing path, but the "receiver" is a local verifier (verifyWebhook) — no network.
- * KIOREX_MODE=real: POSTs to KIOREX_WEBHOOK_URL (Provider go-live task in NEEDS_HUMAN.md).
+ * KIOREX_MODE=real: POSTs to `${IntegrationClient.kiorexBaseUrl}/api/v1/webhooks/pharmacy` (fallback KIOREX_WEBHOOK_URL), signed with the
+ * tenant's per-partner webhook secret and carrying X-Kiorly-Client-Key so Kiorex picks that secret (kiorex-contracts 1.4.0).
+ * Failure => exponential backoff, FAILED after 8 attempts (ops replay); Kiorex de-duplicates on eventId, so retries are safe.
  */
 @Injectable()
 export class OutboxDeliveryService implements OnModuleInit, OnModuleDestroy {
@@ -29,7 +32,13 @@ export class OutboxDeliveryService implements OnModuleInit, OnModuleDestroy {
   }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
-  private secret(): string { return process.env.KIOREX_WEBHOOK_SECRET ?? "kx_dev_webhook_secret"; }
+  /** Per-tenant delivery target; env values are the single-tenant dev fallback. */
+  private async target(orgId: string): Promise<{ secret: string; url: string; clientKey?: string }> {
+    const c = await this.prisma.integrationClient.findFirst({ where: { orgId, active: true }, orderBy: { createdAt: "asc" } });
+    const secret = c?.webhookSecretEnc ? open(c.webhookSecretEnc) : (process.env.KIOREX_WEBHOOK_SECRET ?? "kx_dev_pharmacy_webhook_secret");
+    const url = c?.kiorexBaseUrl ? `${c.kiorexBaseUrl.replace(/\/+$/, "")}${PARTNER_WEBHOOK_PATH.pharmacy}` : (process.env.KIOREX_WEBHOOK_URL ?? `http://localhost:4000${PARTNER_WEBHOOK_PATH.pharmacy}`);
+    return { secret, url, clientKey: c?.key };
+  }
 
   async deliverDue(limit = 50): Promise<{ sent: number; failed: number }> {
     const due = await this.prisma.outboxEvent.findMany({
@@ -40,16 +49,15 @@ export class OutboxDeliveryService implements OnModuleInit, OnModuleDestroy {
     for (const ev of due) {
       const body = JSON.stringify(ev.payload);
       try {
-        const signed = signWebhook({ secret: this.secret(), eventType: ev.type, eventId: ev.id, body });
+        const t = await this.target(ev.orgId);
+        const signed = signWebhook({ secret: t.secret, eventType: ev.type, eventId: ev.id, body, clientKey: t.clientKey });
         if (kiorexMode() === "mock") {
-          const ok = verifyWebhook({ secret: this.secret(), body, timestamp: signed.timestamp, signature: signed.signature });
+          const ok = verifyWebhook({ secret: t.secret, body, timestamp: signed.timestamp, signature: signed.signature });
           if (!ok.ok) throw new Error(`mock receiver rejected signature: ${ok.reason}`);
           this.mockInbox.push({ eventId: ev.id, type: ev.type, body });
           if (this.mockInbox.length > 500) this.mockInbox.shift();
         } else {
-          const url = process.env.KIOREX_WEBHOOK_URL;
-          if (!url) throw new Error("KIOREX_WEBHOOK_URL not configured");
-          const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...signed.headers }, body });
+          const res = await fetch(t.url, { method: "POST", headers: { "content-type": "application/json", ...signed.headers }, body, signal: AbortSignal.timeout(8000) });
           if (!res.ok) throw new Error(`Kiorex responded ${res.status}`);
         }
         await this.prisma.outboxEvent.update({ where: { id: ev.id }, data: { status: "SENT", sentAt: new Date(), attempts: { increment: 1 }, lastError: null } });

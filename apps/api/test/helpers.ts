@@ -11,6 +11,7 @@ import { PrismaService } from "../src/prisma/prisma.service";
 import { FeatureFlagsService } from "../src/feature-flags/feature-flags.service";
 import { OutboxDeliveryService } from "../src/outbox/outbox-delivery.service";
 import { hashPassword } from "../src/auth/password";
+import { seal } from "../src/common/secret-box";
 import { marketToday } from "../src/common/dates";
 
 export const PASSWORD = "Passw0rd!x";
@@ -43,6 +44,8 @@ export async function bootApp(): Promise<TestApp> {
 
 export interface Fixture {
   orgId: string; externalOrgId: string; branchId: string; branch2Id: string;
+  /** Kiorex integration client of this tenant (key binds the tenant; webhookSecret signs Kiorex -> pharmacy events). */
+  client: { key: string; secret: string; webhookSecret: string };
   users: Record<"owner" | "pharmacist" | "cashier" | "manager" | "chainOps", { id: string; email: string; token: string }>;
 }
 
@@ -68,7 +71,9 @@ export async function seedTenant(t: TestApp, opts: { edition?: Edition; market?:
     manager: await mk("BRANCH_MANAGER", "mgr", { branchId: b1.id }),
     chainOps: await mk("CHAIN_OPS", "chain"),
   };
-  return { orgId: tenant.id, externalOrgId: tenant.externalOrgId!, branchId: b1.id, branch2Id: b2.id, users };
+  const client = { key: `kc_${tag}`, secret: `secret_${tag}_${randomUUID()}`, webhookSecret: `whsec_${tag}_${randomUUID()}` };
+  await prisma.integrationClient.create({ data: { orgId: tenant.id, key: client.key, secretEnc: seal(client.secret), webhookSecretEnc: seal(client.webhookSecret) } });
+  return { orgId: tenant.id, externalOrgId: tenant.externalOrgId!, branchId: b1.id, branch2Id: b2.id, client, users };
 }
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });

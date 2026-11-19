@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Inject, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumberString, IsObject, IsOptional, IsString, Min, MinLength, ValidateNested } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumberString, IsObject, IsOptional, IsString, Max, Min, MinLength, ValidateNested } from "class-validator";
 import { CurrentUser, Perm, Public } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";
 import { RequiresFlag, RequiresFlagGuard } from "../../feature-flags/requires-flag.guard";
@@ -19,6 +19,7 @@ class SettingDto {
   @IsOptional() @IsNumberString() latitude?: string;
   @IsOptional() @IsNumberString() longitude?: string;
 }
+class ClientDto { @IsOptional() @IsString() kiorexBaseUrl?: string; @IsOptional() @IsString() @MinLength(8) webhookSecret?: string; }
 class AcceptLineDto { @IsString() lineId!: string; @IsInt() @Min(0) qtyAccepted!: number; }
 class AcceptDto { @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => AcceptLineDto) lines?: AcceptLineDto[]; }
 class RejectDto { @IsString() @MinLength(3) reason!: string; @IsOptional() @IsString() reasonCode?: string; }
@@ -41,6 +42,12 @@ export class KiorexOrdersController {
   @Put("settings/:branchId") @Perm("settings.write")
   put(@CurrentUser() u: AuthUser, @Param("branchId") branchId: string, @Body() d: SettingDto) { return this.svc.putSetting(u, branchId, d); }
 
+  @Get("integration/clients") @Perm("settings.write")
+  clients(@CurrentUser() u: AuthUser) { return this.svc.listClients(u.orgId); }
+
+  @Post("integration/clients") @Perm("settings.write")
+  createClient(@CurrentUser() u: AuthUser, @Body() d: ClientDto) { return this.svc.createClient(u, d); }
+
   @Get(":id") @Perm("orders.read")
   get(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.svc.get(u.orgId, id); }
 
@@ -61,21 +68,37 @@ class IngestLineDto { @IsString() sku!: string; @IsInt() @Min(1) quantity!: numb
 class CustomerDto { @IsOptional() @IsString() name?: string; @IsOptional() @IsString() phone?: string; @IsOptional() @IsString() address?: string; }
 class PrescriptionDto {
   @IsOptional() @IsString() patientRef?: string;
+  @IsOptional() @IsString() recordRef?: string;
+  @IsOptional() @IsString() verificationToken?: string;
   @IsOptional() @IsString() prescriberName?: string;
   @IsOptional() @IsString() prescriberLicenceNo?: string;
   @IsOptional() @IsString() issuedAt?: string;
   @IsOptional() @IsString() scanRef?: string;
 }
+class DeliveryDto { @IsIn(["PICKUP", "DELIVERY"]) method!: "PICKUP" | "DELIVERY"; @IsOptional() @IsObject() address?: Record<string, unknown>; }
+class PaymentDto { @IsOptional() @IsString() reference?: string; @IsOptional() @IsInt() totalMinor?: number; @IsOptional() @IsString() currency?: string; }
 class IngestDto {
   @IsString() @MinLength(1) orderId!: string;
   @IsString() branchId!: string;
+  @IsOptional() @IsString() patientRef?: string;
   @IsOptional() @ValidateNested() @Type(() => CustomerDto) customer?: CustomerDto;
   @IsOptional() @IsBoolean() prepaid?: boolean;
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => IngestLineDto) lines!: IngestLineDto[];
+  @IsOptional() @ValidateNested() @Type(() => DeliveryDto) delivery?: DeliveryDto;
+  @IsOptional() @ValidateNested() @Type(() => PaymentDto) payment?: PaymentDto;
   @IsOptional() @ValidateNested() @Type(() => PrescriptionDto) prescription?: PrescriptionDto;
 }
+class QuoteItemDto { @IsString() sku!: string; @IsInt() @Min(1) @Max(50) qty!: number; }
+class QuoteDeliveryDto { @IsOptional() @IsString() method?: string; }
+class QuoteDto {
+  @IsString() pharmacyId!: string;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => QuoteItemDto) items!: QuoteItemDto[];
+  @IsOptional() @ValidateNested() @Type(() => QuoteDeliveryDto) delivery?: QuoteDeliveryDto;
+}
+class RxValidateDto { @IsString() orderId!: string; @IsString() prescriptionRef!: string; @IsString() verificationToken!: string; @IsOptional() @IsString() patientRef?: string; }
+class CancelDto { @IsOptional() @IsString() reason?: string; }
 
-/** Kiorex -> pharmacy machine API at /marketplace/v1 (outside the /api/v1 prefix, like Kiorly's marketplace API). HMAC-authenticated. */
+/** Kiorex -> pharmacy machine API at /marketplace/v1 (outside the /api/v1 prefix, like Kiorly's marketplace API). HMAC-authenticated; the client key addresses the tenant. Contract: kiorex-contracts openapi/kiorly-pharmacy.v1.openapi.json. */
 @ApiTags("marketplace-v1")
 @Public()
 @UseGuards(MarketplaceHmacGuard, RequiresFlagGuard)
@@ -83,6 +106,15 @@ class IngestDto {
 @Controller("marketplace/v1")
 export class MarketplaceMachineController {
   constructor(@Inject(MarketplaceService) private readonly svc: MarketplaceService) {}
+
+  @Get("pharmacies")
+  pharmacies(@Req() req: { tenant: { id: string } }) { return this.svc.pharmacies(req.tenant.id); }
+
+  @Get("catalogue")
+  catalogue(@Req() req: { tenant: { id: string } }, @Query() q: { q?: string; pharmacyId?: string }) { return this.svc.catalogue(req.tenant.id, { q: q.q, branchId: q.pharmacyId }); }
+
+  @Post("catalogue/quote") @HttpCode(200)
+  quote(@Req() req: { tenant: { id: string } }, @Body() d: QuoteDto) { return this.svc.quote(req.tenant.id, d); }
 
   @Get("availability")
   availability(@Req() req: { tenant: { id: string } }) { return this.svc.availability(req.tenant.id); }
@@ -93,6 +125,9 @@ export class MarketplaceMachineController {
     return { orderId: r.order.externalOrderId, status: r.order.status, slaDueAt: r.order.slaDueAt, replayed: r.replayed };
   }
 
+  @Post("prescriptions/validate") @HttpCode(200)
+  validateRx(@Req() req: { tenant: { id: string } }, @Body() d: RxValidateDto) { return this.svc.validatePrescription(req.tenant.id, d); }
+
   @Post("orders/:orderId/cancel")
-  cancel(@Req() req: { tenant: { id: string } }, @Param("orderId") orderId: string) { return this.svc.cancelByKiorex(req.tenant.id, orderId); }
+  cancel(@Req() req: { tenant: { id: string } }, @Param("orderId") orderId: string, @Body() _d: CancelDto) { return this.svc.cancelByKiorex(req.tenant.id, orderId); }
 }

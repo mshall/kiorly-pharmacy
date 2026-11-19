@@ -1103,6 +1103,12 @@ model KiorexOrder {
   rejectionCode   String?
   readyAt         DateTime?
   dispensingId    String?
+  /// Kiorex patient subject (opaque ref; also the Rx patient externalId). Never shown outside the order.
+  patientRef      String?
+  /// PICKUP | DELIVERY as chosen in Kiorex.
+  deliveryMethod  String?
+  /// Kiorex Pay payment reference (reconciliation only).
+  paymentRef      String?
   createdAt       DateTime          @default(now())
 
   lines KiorexOrderLine[]
@@ -1122,6 +1128,24 @@ model KiorexOrderLine {
   order KiorexOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+/// Kiorex machine-API credentials of ONE tenant (INTEGRATION.md "Vertical partners"): the client key binds the request to the
+/// tenant, so there is no org header. Secrets are AES-GCM sealed (KEK from the secrets adapter in production).
+model IntegrationClient {
+  id               String   @id @default(cuid())
+  orgId            String
+  key              String   @unique
+  secretEnc        String
+  /// KIOREX (only source today).
+  source           String   @default("KIOREX")
+  /// Kiorex API base for outbox events and Rx token verification, e.g. http://localhost:4000 (paths are fixed by the contract).
+  kiorexBaseUrl    String?
+  webhookSecretEnc String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  @@index([orgId])
 }
 
 /// Inbound webhook de-duplication (Kiorex dedups on eventId; so do we).

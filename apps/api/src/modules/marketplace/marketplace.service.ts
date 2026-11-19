@@ -12,14 +12,25 @@ import { KERNEL, type SettlementPort } from "../../kernel-adapter/ports";
 import { isKiorexExposable } from "../catalogue/kiorex-projection";
 import { NotificationsService } from "../../platform/adapters/notifications.service";
 import { DEFAULT_RX_VALIDITY_DAYS } from "../prescriptions/prescriptions.service";
+import { PriceService } from "../catalogue/price.service";
+import { projectDrugForKiorex } from "../catalogue/kiorex-projection";
+import { seal } from "../../common/secret-box";
+import { randomBytes } from "node:crypto";
+
+const toMinor = (v: Prisma.Decimal.Value) => Math.round(D(v).mul(100).toNumber());
 
 export interface IngestOrderInput {
   orderId: string;
   branchId: string;
   customer?: { name?: string; phone?: string; address?: string };
+  /** Kiorex patient subject (opaque). */
+  patientRef?: string;
   prepaid?: boolean;
   lines: Array<{ sku: string; quantity: number; unitPrice: string }>;
-  prescription?: { patientRef?: string; prescriberName?: string; prescriberLicenceNo?: string; issuedAt?: string; scanRef?: string };
+  delivery?: { method: "PICKUP" | "DELIVERY"; address?: Record<string, unknown> };
+  payment?: { reference?: string; totalMinor?: number; currency?: string };
+  /** Either a Kiorex e-Rx (recordRef + verificationToken, verified with Kiorex) or an uploaded scan (prescriberName + scanRef). */
+  prescription?: { patientRef?: string; recordRef?: string; verificationToken?: string; prescriberName?: string; prescriberLicenceNo?: string; issuedAt?: string; scanRef?: string };
 }
 
 @Injectable()
@@ -32,6 +43,7 @@ export class MarketplaceService implements OnModuleInit {
     @Inject(InventoryService) private readonly inv: InventoryService,
     @Inject(KERNEL.settlement) private readonly settlement: SettlementPort,
     @Inject(NotificationsService) private readonly notify: NotificationsService,
+    @Inject(PriceService) private readonly prices: PriceService,
   ) {}
 
   /** KPMKT05: DispenseCompleted fires from the dispensing transaction hook (outbox row commits atomically with the dispense). */
@@ -96,17 +108,30 @@ export class MarketplaceService implements OnModuleInit {
       if (!d) throw new DomainError("UNKNOWN_SKU", `Unknown sku ${l.sku}`, 422, { sku: l.sku });
       if (!isKiorexExposable(d)) throw new DomainError("CONTROLLED_NOT_ORDERABLE", "Controlled medicines can never be ordered through Kiorex", 422, { sku: l.sku });
     }
+    // price authority is the pharmacy's own price book (KPCAT03): a stale Kiorex cart is refused, never silently re-priced
+    const priced = await this.prices.pricesAt(orgId, input.branchId, input.lines.map((l) => l.sku));
+    for (const l of input.lines) {
+      const p = priced.get(l.sku);
+      if (!p) throw new DomainError("NO_PRICE", `No price in force for ${l.sku}`, 422, { sku: l.sku });
+      if (!p.equals(D(l.unitPrice))) throw new DomainError("PRICE_CHANGED", "The pharmacy price changed; re-quote the cart", 409, { sku: l.sku, unitPrice: money(p) });
+    }
     const hasRx = input.lines.some((l) => dm.get(l.sku)!.rxOnly);
-    if (hasRx && !input.prescription?.prescriberName) throw new DomainError("PRESCRIPTION_REQUIRED", "Rx items need prescription details (uploaded by the patient)", 422);
+    const erx = input.prescription?.verificationToken && input.prescription.recordRef;
+    if (hasRx && !input.prescription?.prescriberName && !erx) throw new DomainError("PRESCRIPTION_REQUIRED", "Rx items need a Kiorex prescription (recordRef + verificationToken) or prescription details", 422);
     const orderValue = sum(input.lines.map((l) => D(l.unitPrice).mul(l.quantity)));
     const created = await this.prisma.$transaction(async (tx) => {
       let prescriptionId: string | undefined;
       if (hasRx) {
         const p = input.prescription!;
-        const patient = await tx.patientRef.create({ data: { orgId, externalId: p.patientRef, displayName: input.customer?.name ?? "Kiorex patient", phone: input.customer?.phone } });
+        const patient = await tx.patientRef.create({ data: { orgId, externalId: p.patientRef ?? input.patientRef, displayName: input.customer?.name ?? "Kiorex patient", phone: input.customer?.phone } });
         const issued = p.issuedAt ? new Date(p.issuedAt) : new Date();
         const rx = await tx.prescription.create({
-          data: { orgId, branchId: input.branchId, source: "KIOREX_UPLOAD", patientId: patient.id, prescriberName: p.prescriberName, prescriberLicenceNo: p.prescriberLicenceNo, issuedAt: issued, validUntil: new Date(issued.getTime() + DEFAULT_RX_VALIDITY_DAYS * 86_400_000), sourceRxRef: p.scanRef, kiorexOrderId: input.orderId },
+          data: {
+            orgId, branchId: input.branchId, source: "KIOREX_UPLOAD", patientId: patient.id,
+            // e-Rx from the Kiorex vault: the prescriber is the issuing clinic (Kiorex /rx/verify returns no clinician); the pharmacist still validates (KPMKT04)
+            prescriberName: p.prescriberName ?? "Kiorex e-Rx (clinic prescriber)", prescriberLicenceNo: p.prescriberLicenceNo ?? (erx ? "KIOREX-ERX" : undefined),
+            issuedAt: issued, validUntil: new Date(issued.getTime() + DEFAULT_RX_VALIDITY_DAYS * 86_400_000), sourceRxRef: p.recordRef ?? p.scanRef, kiorexOrderId: input.orderId,
+          },
         });
         for (const l of input.lines.filter((x) => dm.get(x.sku)!.rxOnly)) {
           const d = dm.get(l.sku)!;
@@ -116,7 +141,8 @@ export class MarketplaceService implements OnModuleInit {
       }
       const o = await tx.kiorexOrder.create({
         data: {
-          orgId, branchId: input.branchId, externalOrderId: input.orderId, hasRx, prescriptionId, customerName: input.customer?.name, customerPhone: input.customer?.phone, deliveryAddress: input.customer?.address, prepaid: input.prepaid ?? true,
+          orgId, branchId: input.branchId, externalOrderId: input.orderId, hasRx, prescriptionId, customerName: input.customer?.name, customerPhone: input.customer?.phone, deliveryAddress: input.customer?.address ?? (input.delivery?.address ? JSON.stringify(input.delivery.address) : undefined), prepaid: input.prepaid ?? true,
+          patientRef: input.patientRef, deliveryMethod: input.delivery?.method, paymentRef: input.payment?.reference,
           orderValue, slaDueAt: new Date(Date.now() + setting.slaMinutes * 60_000), lines: { create: input.lines.map((l) => ({ drugId: l.sku, qtyRequested: l.quantity, unitPrice: l.unitPrice })) },
         },
         include: { lines: true },
@@ -209,6 +235,8 @@ export class MarketplaceService implements OnModuleInit {
     const order = await this.prisma.kiorexOrder.findUnique({ where: { orgId_externalOrderId: { orgId, externalOrderId } } });
     if (!order) throw notFound("Order", externalOrderId);
     if (order.status === "DISPENSED") throw new DomainError("ALREADY_DISPENSED", "Order already dispensed", 409);
+    // idempotent: an order that already ended (rejected by us, expired, or cancelled before) is not flipped to CANCELLED
+    if (["REJECTED", "EXPIRED", "CANCELLED"].includes(order.status)) return { status: order.status };
     if (order.dispensingId && ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY"].includes(order.status)) {
       const sys = await this.prisma.staffUser.findFirst({ where: { orgId, role: "OWNER" } });
       if (sys) await this.dispensing.cancel({ userId: sys.id, orgId, role: sys.role, displayName: sys.displayName, branchId: null, market: "EG", edition: "LITE", pharmacistLicenceNo: null, mfa: false }, order.dispensingId, "Cancelled by Kiorex");
@@ -229,4 +257,119 @@ export class MarketplaceService implements OnModuleInit {
     }
     return { expired: overdue.length };
   }
+
+  // ------------------------------------------------------------------------------------------------ Kiorex catalogue / quote / Rx validation (1.4.0)
+  private async optedInBranches(orgId: string, branchId?: string) {
+    const settings = await this.prisma.branchMarketplaceSetting.findMany({ where: { orgId, optedIn: true, ...(branchId ? { branchId } : {}) } });
+    const branches = await this.prisma.branch.findMany({ where: { orgId, id: { in: settings.map((x) => x.branchId) }, active: true } });
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } });
+    return { settings, branches, tenant };
+  }
+
+  /** GET /pharmacies: opted-in branches. `id` is the branch id (= Kiorex pharmacyId). Delivery fee is tenant config (NEEDS_HUMAN #22). */
+  async pharmacies(orgId: string) {
+    const { settings, branches, tenant } = await this.optedInBranches(orgId);
+    const fee = Number(((tenant.settings ?? {}) as { kiorexDeliveryFeeMinor?: number }).kiorexDeliveryFeeMinor ?? 0);
+    return {
+      items: settings.flatMap((s) => {
+        const b = branches.find((x) => x.id === s.branchId);
+        if (!b) return [];
+        const radius = Number(s.deliveryRadiusKm.toString());
+        return [{ id: b.id, name: `${tenant.name} - ${b.name}`, delivery: { enabled: radius > 0, feeMinor: fee, radiusKm: radius }, pickup: true, prepMinutes: s.prepMinutes }];
+      }),
+    };
+  }
+
+  /** GET /catalogue: sellable ATP items with prices (minor units); controlled medicines are never returned (KPRX05). */
+  async catalogue(orgId: string, q: { q?: string; branchId?: string }) {
+    const { settings } = await this.optedInBranches(orgId, q.branchId);
+    const items: Array<Record<string, unknown>> = [];
+    for (const s of settings) {
+      const atp = await this.inv.atp(orgId, s.branchId);
+      const needle = q.q?.trim();
+      const drugs = await this.prisma.drug.findMany({
+        where: { id: { in: [...atp.keys()] }, active: true, controlledSchedule: "NONE", ...(needle ? { OR: [{ brandName: { contains: needle, mode: "insensitive" } }, { activeIngredient: { contains: needle, mode: "insensitive" } }, { brandNameAr: { contains: needle } }] } : {}) },
+        take: 100, orderBy: { brandName: "asc" },
+      });
+      const priced = await this.prices.pricesAt(orgId, s.branchId, drugs.map((d) => d.id));
+      for (const d of drugs) {
+        const p = priced.get(d.id);
+        const proj = projectDrugForKiorex(d);
+        if (!p || !proj) continue; // unpriced items cannot be promised
+        items.push({ pharmacyId: s.branchId, sku: d.id, name: d.brandName, strength: d.strength, form: d.dosageForm, priceMinor: toMinor(p), rxRequired: d.rxOnly, controlled: false, available: (atp.get(d.id) ?? 0) > 0, availableQty: atp.get(d.id) ?? 0 });
+      }
+    }
+    return { items };
+  }
+
+  /** POST /catalogue/quote: authoritative prices + availability (ATP) for a cart. Controlled lines are flagged, never promised. */
+  async quote(orgId: string, b: { pharmacyId: string; items: Array<{ sku: string; qty: number }>; delivery?: { method?: string } }) {
+    const { settings, branches, tenant } = await this.optedInBranches(orgId, b.pharmacyId);
+    if (!settings.length || !branches.length) throw new DomainError("BRANCH_NOT_OPTED_IN", "Branch is not accepting Kiorex orders", 409);
+    const drugs = await this.prisma.drug.findMany({ where: { id: { in: b.items.map((i) => i.sku) }, OR: [{ orgId: null }, { orgId }] } });
+    const dm = new Map(drugs.map((d) => [d.id, d]));
+    const atp = await this.inv.atp(orgId, b.pharmacyId);
+    const priced = await this.prices.pricesAt(orgId, b.pharmacyId, drugs.map((d) => d.id));
+    const items = b.items.map((i) => {
+      const d = dm.get(i.sku);
+      if (!d) throw new DomainError("UNKNOWN_SKU", `Unknown sku ${i.sku}`, 422, { sku: i.sku });
+      const controlled = d.controlledSchedule !== "NONE";
+      const p = priced.get(d.id);
+      return { sku: d.id, name: d.brandName, qty: i.qty, unitPriceMinor: p ? toMinor(p) : 0, rxRequired: d.rxOnly, controlled, available: !controlled && !!p && d.active && (atp.get(d.id) ?? 0) >= i.qty };
+    });
+    const fee = Number(((tenant.settings ?? {}) as { kiorexDeliveryFeeMinor?: number }).kiorexDeliveryFeeMinor ?? 0);
+    return { items, ...(b.delivery?.method === "DELIVERY" ? { delivery: { feeMinor: fee } } : {}) };
+  }
+
+  /** Where Kiorex lives for this tenant (Rx token verification). */
+  private async kiorexBase(orgId: string): Promise<string> {
+    const c = await this.prisma.integrationClient.findFirst({ where: { orgId, active: true }, orderBy: { createdAt: "asc" } });
+    return (c?.kiorexBaseUrl ?? process.env.KIOREX_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+  }
+
+  private async verifyWithKiorex(orgId: string, token: string): Promise<{ valid: boolean; status?: string; clinicId?: string; signedAt?: string } | null> {
+    try {
+      const res = await fetch(`${await this.kiorexBase(orgId)}/api/v1/rx/verify?t=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(5000) });
+      return res.ok ? ((await res.json()) as { valid: boolean; status?: string; clinicId?: string; signedAt?: string }) : null;
+    } catch {
+      return null; // Kiorex unreachable: stay PENDING, the pharmacist can verify manually
+    }
+  }
+
+  /**
+   * POST /prescriptions/validate (KPMKT04). The pharmacy checks the opaque token with Kiorex (GET /api/v1/rx/verify): an unknown or
+   * revoked token => INVALID and the order is rejected (OrderRejected => Kiorex full refund). A valid token still needs the
+   * pharmacist's validation (safety control, never auto): answer PENDING until a pharmacist validated, VALID afterwards.
+   */
+  async validatePrescription(orgId: string, b: { orderId: string; prescriptionRef: string; verificationToken: string; patientRef?: string }): Promise<{ status: "VALID" | "INVALID" | "PENDING"; reason?: string }> {
+    const order = await this.prisma.kiorexOrder.findUnique({ where: { orgId_externalOrderId: { orgId, externalOrderId: b.orderId } } });
+    if (!order) throw notFound("Order", b.orderId);
+    if (!order.hasRx || !order.prescriptionId) return { status: "INVALID", reason: "ORDER_HAS_NO_PRESCRIPTION" };
+    const verdict = await this.verifyWithKiorex(orgId, b.verificationToken);
+    if (!verdict) return { status: "PENDING", reason: "KIOREX_UNREACHABLE" };
+    if (!verdict.valid) {
+      await this.prisma.prescription.update({ where: { id: order.prescriptionId }, data: { status: "REJECTED", rejectionReason: `Kiorex token ${verdict.status ?? "INVALID"}` } });
+      if (["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED"].includes(order.status)) {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.kiorexOrder.update({ where: { id: order.id }, data: { status: "REJECTED", rejectionReason: "Prescription token invalid", rejectionCode: "RX_INVALID", respondedAt: new Date() } });
+          await this.outbox.enqueue({ orgId, type: "OrderRejected", aggregateId: order.externalOrderId, dedupeKey: `OrderRejected:${order.id}`, data: { orderId: order.externalOrderId, pharmacyId: await this.pharmacyId(tx, orgId), rejectedAt: new Date().toISOString(), reason: "Prescription token invalid", reasonCode: "RX_INVALID" } }, tx);
+          await tx.auditLog.create({ data: { orgId, action: "order.rx_invalid", entityType: "KiorexOrder", entityId: order.id } });
+        });
+      }
+      return { status: "INVALID", reason: `RX_${verdict.status ?? "INVALID"}` };
+    }
+    const rx = await this.prisma.prescription.update({ where: { id: order.prescriptionId }, data: { clinicRef: verdict.clinicId ?? undefined, ...(verdict.signedAt ? { issuedAt: new Date(verdict.signedAt) } : {}) } });
+    return rx.status === "VALIDATED" && rx.validatedBy ? { status: "VALID" } : { status: "PENDING", reason: "PHARMACIST_VALIDATION_REQUIRED" };
+  }
+
+  /** Integration client management (owner): the secret is returned ONCE. */
+  async createClient(user: AuthUser, d: { kiorexBaseUrl?: string; webhookSecret?: string; key?: string; secret?: string }) {
+    const key = d.key ?? `kp_${randomBytes(9).toString("hex")}`;
+    const secret = d.secret ?? randomBytes(32).toString("base64url");
+    const webhookSecret = d.webhookSecret ?? randomBytes(32).toString("base64url");
+    const c = await this.prisma.integrationClient.create({ data: { orgId: user.orgId, key, secretEnc: seal(secret), webhookSecretEnc: seal(webhookSecret), kiorexBaseUrl: d.kiorexBaseUrl } });
+    await this.prisma.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "integration_client.create", entityType: "IntegrationClient", entityId: c.id } });
+    return { id: c.id, key, secret, webhookSecret, kiorexBaseUrl: c.kiorexBaseUrl };
+  }
+  listClients(orgId: string) { return this.prisma.integrationClient.findMany({ where: { orgId }, select: { id: true, key: true, source: true, kiorexBaseUrl: true, active: true, createdAt: true } }); }
 }

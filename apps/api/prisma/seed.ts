@@ -21,6 +21,8 @@ import { CustomersService } from "../src/modules/pos/customers.service";
 import { PrescriptionsService } from "../src/modules/prescriptions/prescriptions.service";
 import { MarketplaceService } from "../src/modules/marketplace/marketplace.service";
 import { hashPassword } from "../src/auth/password";
+import { seal } from "../src/common/secret-box";
+import { PARTNER_DEV_DEFAULTS } from "@kiorex/contracts";
 import { marketToday } from "../src/common/dates";
 import type { AuthUser } from "../src/auth/auth-user";
 
@@ -96,6 +98,17 @@ export async function seed(): Promise<{ tenantId: string }> {
     await mkStaff("manager", "BRANCH_MANAGER", "Mona Manager", { branchId: b1.id });
     await mkStaff("chain", "CHAIN_OPS", "Chain Ops");
 
+    // DEV registration of Kiorex as a machine client of this tenant (kiorex-contracts PARTNER_DEV_DEFAULTS; local only, never in production).
+    if (process.env.NODE_ENV !== "production") {
+      const d = PARTNER_DEV_DEFAULTS.pharmacy;
+      await prisma.integrationClient.upsert({
+        where: { key: d.clientKey },
+        create: { orgId: org, key: d.clientKey, secretEnc: seal(d.clientSecret), webhookSecretEnc: seal(d.webhookSecret), kiorexBaseUrl: process.env.KIOREX_BASE_URL ?? "http://localhost:4000" },
+        update: { orgId: org, secretEnc: seal(d.clientSecret), webhookSecretEnc: seal(d.webhookSecret), active: true },
+      });
+      console.log(`seed: dev Kiorex client ${d.clientKey} registered (secrets in INTEGRATION.md)`);
+    }
+    await prisma.branchMarketplaceSetting.upsert({ where: { branchId: b1.id }, create: { orgId: org, branchId: b1.id, optedIn: true, prepMinutes: 25, slaMinutes: 10 }, update: { optedIn: true } });
     if ((await prisma.stockLot.count({ where: { orgId: org } })) > 0) {
       console.log(`seed: demo tenant already has stock; global drugs created=${seeded.created} updated=${seeded.updated}`);
       return { tenantId: org };
@@ -150,7 +163,8 @@ export async function seed(): Promise<{ tenantId: string }> {
     await rx.intakePaper(pharmU, { branchId: b1.id, patient: { displayName: "Hassan Demo", phone: "+201022223333", allergies: ["sulfonamide"] }, prescriberName: "Dr. Demo Clinician", prescriberLicenceNo: "SYN-MD-77", lines: [{ drugId: rxDrug.id, quantity: 1, directions: "1 capsule every 8 hours for 7 days" }] });
     const market = app.get(MarketplaceService);
     await prisma.branchMarketplaceSetting.upsert({ where: { branchId: b1.id }, create: { orgId: org, branchId: b1.id, optedIn: true, prepMinutes: 25, slaMinutes: 10 }, update: { optedIn: true } });
-    await market.ingest(org, { orderId: "kx-demo-order-1", branchId: b1.id, customer: { name: "Amira Demo", phone: "+201033334444", address: "Zamalek, Cairo" }, prepaid: true, lines: [{ sku: otc[0]!.id, quantity: 2, unitPrice: "50.00" }] });
+    const demoPrice = (await prices.priceAt(org, b1.id, otc[0]!.id))!.toFixed(2);
+    await market.ingest(org, { orderId: "kx-demo-order-1", branchId: b1.id, customer: { name: "Amira Demo", phone: "+201033334444", address: "Zamalek, Cairo" }, prepaid: true, lines: [{ sku: otc[0]!.id, quantity: 2, unitPrice: demoPrice }] });
     console.log(`seed: ok — ${drugs.length} synthetic drugs, tenant ${org}, login owner@demo.kiorly.local / ${DEMO_PASSWORD}`);
     return { tenantId: org };
   } finally {

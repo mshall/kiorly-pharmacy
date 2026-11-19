@@ -15,9 +15,9 @@ describe("per-flag OFF contract (PH-OFF01..04): 403 FEATURE_DISABLED {key, scope
   const off = (...flags: Array<{ key: string; values: object }>) => t.flags.setSnapshot(snap(flags));
   const reset = () => t.flags.setSnapshot(null);
 
-  const machine = (path: string, orgId: string, method: "GET" | "POST" = "GET") => {
-    const s = signKiorlyRequest({ clientKey: "kx_dev_client", clientSecret: "kx_dev_secret_change_me", method, path, body: "" });
-    return (method === "GET" ? t.http.get(path) : t.http.post(path)).set({ ...s.headers, "x-kiorex-org-id": orgId });
+  const machine = (path: string, fx: Fixture, method: "GET" | "POST" = "GET") => {
+    const s = signKiorlyRequest({ clientKey: fx.client.key, clientSecret: fx.client.secret, method, path, body: "" });
+    return (method === "GET" ? t.http.get(path) : t.http.post(path)).set({ ...s.headers });
   };
 
   it("PH-OFF01 pharmacy.module OFF: no new sign-ups, no new e-Rx intake; dependents report scope=dependency; existing data stays readable", async () => {
@@ -27,8 +27,8 @@ describe("per-flag OFF contract (PH-OFF01..04): 403 FEATURE_DISABLED {key, scope
     assert.equal(signup.status, 403);
     assert.deepEqual({ code: signup.body.code, key: signup.body.key, scope: signup.body.scope }, { code: "FEATURE_DISABLED", key: "pharmacy.module", scope: "global" });
     const body = JSON.stringify({ eventId: "e1", type: "PrescriptionIssued" });
-    const signed = signWebhook({ secret: "kx_dev_webhook_secret", body });
-    const wh = await t.http.post("/api/v1/webhooks/kiorex").set({ ...signed.headers, "x-kiorex-org-id": f.externalOrgId }).send(body);
+    const signed = signWebhook({ secret: f.client.webhookSecret, body, clientKey: f.client.key });
+    const wh = await t.http.post("/api/v1/webhooks/kiorex").set({ ...signed.headers }).send(body);
     assert.equal(wh.body.code, "FEATURE_DISABLED");
     const dep = await t.http.get("/api/v1/kiorex-orders").set(auth(f.users.pharmacist.token));
     assert.equal(dep.status, 403);
@@ -48,10 +48,10 @@ describe("per-flag OFF contract (PH-OFF01..04): 403 FEATURE_DISABLED {key, scope
     off({ key: "pharmacy.kiorex_orders", values: { orgs: { [f.orgId]: "OFF" } } });
     const inbox = await t.http.get("/api/v1/kiorex-orders").set(auth(f.users.pharmacist.token));
     assert.deepEqual({ s: inbox.status, code: inbox.body.code, key: inbox.body.key, scope: inbox.body.scope }, { s: 403, code: "FEATURE_DISABLED", key: "pharmacy.kiorex_orders", scope: "org" });
-    const av = await machine("/marketplace/v1/availability", f.externalOrgId);
+    const av = await machine("/marketplace/v1/availability", f);
     assert.equal(av.status, 403);
     assert.equal(av.body.scope, "org");
-    assert.equal((await machine("/marketplace/v1/availability", other.externalOrgId)).status, 200, "other tenants unaffected");
+    assert.equal((await machine("/marketplace/v1/availability", other)).status, 200, "other tenants unaffected");
     assert.equal(await t.prisma.branchMarketplaceSetting.count({ where: { orgId: f.orgId } }), 1, "data not deleted");
     off({ key: "pharmacy.kiorex_orders", values: { markets: { EG: "OFF" } } });
     assert.equal((await t.http.get("/api/v1/kiorex-orders").set(auth(other.users.pharmacist.token))).body.scope, "market");

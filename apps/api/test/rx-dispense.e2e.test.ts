@@ -4,7 +4,6 @@ import { signWebhook } from "@kiorex/contracts";
 import { auth, bootApp, key, ledgerOnHand, openShift, receive, seedDrug, seedTenant, type Fixture, type TestApp } from "./helpers";
 import { randomUUID } from "node:crypto";
 
-const SECRET = "kx_dev_webhook_secret";
 function eRx(overrides: { eventId?: string; consentToken?: string; items?: object[]; patientRef?: string } = {}) {
   const eventId = overrides.eventId ?? `ev_${randomUUID()}`;
   return {
@@ -21,16 +20,16 @@ describe("e-Rx intake (KPRX01) and golden flow Rx -> dispense -> stock -> event"
   before(async () => { t = await bootApp(); f = await seedTenant(t); await openShift(t, f); });
   after(async () => { await t.close(); });
 
-  const post = (body: object, org = f.externalOrgId, secret = SECRET, tamper = false) => {
+  const post = (body: object, clientKey = f.client.key, secret = f.client.webhookSecret, tamper = false) => {
     const raw = JSON.stringify(body);
-    const signed = signWebhook({ secret, body: raw, eventType: "PrescriptionIssued", eventId: (body as { eventId: string }).eventId });
-    return t.http.post("/api/v1/webhooks/kiorex").set({ ...signed.headers, "x-kiorex-org-id": org, "x-kiorex-branch-id": f.branchId }).send(tamper ? raw.replace("amoxicillin", "warfarin") : raw);
+    const signed = signWebhook({ secret, body: raw, eventType: "PrescriptionIssued", eventId: (body as { eventId: string }).eventId, clientKey });
+    return t.http.post("/api/v1/webhooks/kiorex").set({ ...signed.headers, "x-kiorex-branch-id": f.branchId }).send(tamper ? raw.replace("amoxicillin", "warfarin") : raw);
   };
 
   it("rejects bad signatures, unknown orgs; ignores unknown event types; requires consent (safety.pharmacy.consent_enforcement)", async () => {
-    assert.equal((await post(eRx(), f.externalOrgId, "wrong-secret")).status, 401);
-    assert.equal((await post(eRx(), f.externalOrgId, SECRET, true)).status, 401, "tampered body");
-    assert.equal((await post(eRx(), "org_nope")).status, 404);
+    assert.equal((await post(eRx(), f.client.key, "wrong-secret")).status, 401);
+    assert.equal((await post(eRx(), f.client.key, f.client.webhookSecret, true)).status, 401, "tampered body");
+    assert.equal((await post(eRx(), "kc_unknown")).status, 401, "unknown client key (the key addresses the tenant)");
     const unknown = await post({ ...eRx(), type: "SomethingElse" });
     assert.equal(unknown.status, 200);
     assert.equal(unknown.body.ignored, true);
