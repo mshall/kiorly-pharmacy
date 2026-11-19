@@ -55,7 +55,8 @@ export class CatalogueService {
           packSize: r.packSize, gtin: r.gtin ?? null, manufacturer: r.manufacturer ?? null, rxOnly: rxOnly || controlled !== "NONE", controlledSchedule: controlled,
           coldChain: r.coldChain ?? false, otc, marketCodes: (r.marketCodes ?? undefined) as Prisma.InputJsonValue | undefined, vatRate: r.vatRate ?? null, substitutionGroupId,
         };
-        const key = r.sourceKey ?? (r.gtin ? `${orgId ?? "global"}:gtin:${r.gtin}` : undefined);
+        // tenant imports are namespaced by org so two pharmacies can import the same dataset ids; the global seed uses the raw dataset key
+        const key = r.sourceKey ? (orgId ? `${orgId}:${r.sourceKey}` : r.sourceKey) : r.gtin ? `${orgId ?? "global"}:gtin:${r.gtin}` : undefined;
         let drugId: string;
         const existing = key ? await tx.drug.findUnique({ where: { sourceKey: key } }) : null;
         if (existing) {
@@ -106,9 +107,9 @@ export class CatalogueService {
   }
 
   async create(orgId: string, actorId: string, r: DrugInput) {
-    const sourceKey = r.sourceKey ?? `${orgId}:local:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    const sourceKey = r.sourceKey ?? `local:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
     await this.importDrugs(orgId, [{ ...r, sourceKey }], actorId);
-    return this.prisma.drug.findUniqueOrThrow({ where: { sourceKey } });
+    return this.prisma.drug.findUniqueOrThrow({ where: { sourceKey: `${orgId}:${sourceKey}` } });
   }
 
   async update(orgId: string, actorId: string, id: string, patch: Partial<DrugInput>) {

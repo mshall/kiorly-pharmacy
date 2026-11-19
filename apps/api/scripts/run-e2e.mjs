@@ -8,4 +8,4 @@ const run = (cmd, args) => { const r = spawnSync(cmd, args, { stdio: "inherit", 
 
 run("npx", ["prisma", "migrate", "deploy"]);
 const files = process.argv.slice(2);
-run("node", ["--import", "tsx", "--test", "--test-concurrency=1", ...(files.length ? files : ["test/**/*.e2e.test.ts"])]);
+run("node", ["--require", "@swc-node/register", "--test", "--test-concurrency=1", ...(files.length ? files : ["test/**/*.e2e.test.ts"])]);

@@ -20,7 +20,7 @@ export class MarketplaceHmacGuard implements CanActivate {
     const secret = process.env.KIOREX_CLIENT_SECRET ?? "kx_dev_secret_change_me";
     const expectedKey = process.env.KIOREX_CLIENT_KEY ?? "kx_dev_client";
     if (!key || key !== expectedKey) throw deny("unknown client key");
-    const v = verifyKiorlyRequest({ headers: req.headers, method: req.method, path: req.originalUrl.split("?")[0]!, body: req.rawBody ?? (req.body ? JSON.stringify(req.body) : ""), secret });
+    const v = verifyKiorlyRequest({ headers: req.headers, method: req.method, path: req.originalUrl.split("?")[0]!, body: req.rawBody?.length ? req.rawBody : "", secret });
     if (!v.ok) throw deny(v.reason);
     const nonce = req.headers[KIORLY_HEADERS.nonce.toLowerCase()]!;
     const now = Date.now();

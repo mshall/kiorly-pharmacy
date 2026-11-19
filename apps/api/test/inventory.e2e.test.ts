@@ -94,7 +94,7 @@ describe("inventory (KPINV01-07)", () => {
     const lot = await receive(t, f, { drugId: drug.id, quantity: 20 });
     const c = await t.http.post("/api/v1/inventory/counts").set(auth(f.users.manager.token)).send({ type: "CYCLE", drugIds: [drug.id] });
     assert.equal(c.status, 201, JSON.stringify(c.body));
-    await t.http.put(`/api/v1/inventory/counts/${c.body.id}/lines`).set(auth(f.users.manager.token)).send({ branchId: f.branchId, lines: [{ lotId: lot.id, qtyCounted: 17 }] });
+    await t.http.put(`/api/v1/inventory/counts/${c.body.id}/lines`).set(auth(f.users.manager.token)).send({ lines: [{ lotId: lot.id, qtyCounted: 17 }] });
     const sub = await t.http.post(`/api/v1/inventory/counts/${c.body.id}/submit`).set(auth(f.users.manager.token));
     assert.equal(sub.body.status, "PENDING_APPROVAL");
     const self = await t.http.post(`/api/v1/inventory/counts/${c.body.id}/approve`).set(auth(f.users.manager.token));
