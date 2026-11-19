@@ -1,8 +1,9 @@
 import { Module } from "@nestjs/common";
+import { KiorexOrdersController, MarketplaceMachineController } from "./marketplace.controller";
+import { MarketplaceService } from "./marketplace.service";
+import { MarketplaceHmacGuard } from "./marketplace-hmac.guard";
+import { DispensingModule } from "../dispensing/dispensing.module";
+import { InventoryModule } from "../inventory/inventory.module";
 
-/**
- * PLACEHOLDER (KX-06 bounded context "Kiorex orders (phase 2)", requirements KPMKT*).
- * No behaviour until its build-sequence steps are scheduled; see Docs/pharmacy-cursor-build-sequence.md.
- */
-@Module({})
+@Module({ imports: [DispensingModule, InventoryModule], controllers: [KiorexOrdersController, MarketplaceMachineController], providers: [MarketplaceService, MarketplaceHmacGuard], exports: [MarketplaceService] })
 export class MarketplaceModule {}

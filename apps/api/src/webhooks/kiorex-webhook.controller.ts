@@ -1,0 +1,50 @@
+import { Controller, Headers, HttpCode, Inject, Module, Post, Req, UnauthorizedException, UseGuards, BadRequestException } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { verifyWebhook } from "@kiorex/contracts";
+import { Public } from "../auth/decorators";
+import { PrismaService } from "../prisma/prisma.service";
+import { PrescriptionsService } from "../modules/prescriptions/prescriptions.service";
+import { PrescriptionsModule } from "../modules/prescriptions/prescriptions.module";
+import { RequiresFlag, RequiresFlagGuard } from "../feature-flags/requires-flag.guard";
+import { DomainError } from "../common/errors";
+
+/**
+ * Inbound Kiorex events (Kiorex -> pharmacy), signed with the webhook scheme (X-Kiorly-Timestamp seconds + X-Kiorly-Signature sha256=HMAC(ts.body)).
+ * Handles PrescriptionIssued (KPRX01). At-least-once delivery: de-duplicated on eventId. Unknown types are acknowledged (forward compatibility).
+ * NEEDS_HUMAN: addressing the target pharmacy tenant/branch via X-Kiorex-Org-Id / X-Kiorex-Branch-Id is our assumption (contract has no pharmacy id on PrescriptionIssued).
+ */
+@ApiTags("webhooks")
+@Public()
+@Controller("webhooks")
+export class KiorexWebhookController {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PrescriptionsService) private readonly rx: PrescriptionsService) {}
+
+  @Post("kiorex")
+  @HttpCode(200)
+  @UseGuards(RequiresFlagGuard)
+  @RequiresFlag("pharmacy.module")
+  async receive(@Req() req: { rawBody?: Buffer; body: Record<string, unknown>; flagContext?: { orgId?: string; market?: string } }, @Headers() h: Record<string, string>) {
+    const secret = process.env.KIOREX_WEBHOOK_INBOUND_SECRET ?? process.env.KIOREX_WEBHOOK_SECRET ?? "kx_dev_webhook_secret";
+    const raw = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
+    const v = verifyWebhook({ secret, body: raw, timestamp: h["x-kiorly-timestamp"], signature: h["x-kiorly-signature"] });
+    if (!v.ok) throw new UnauthorizedException({ statusCode: 401, code: "BAD_SIGNATURE", message: v.reason });
+    const type = String(req.body.type ?? "");
+    const eventId = String(req.body.eventId ?? "");
+    if (!eventId) throw new BadRequestException({ statusCode: 400, code: "EVENT_ID_REQUIRED", message: "eventId required" });
+    if (type !== "PrescriptionIssued") {
+      return { accepted: true, ignored: true, type };
+    }
+    const ext = h["x-kiorex-org-id"];
+    const tenant = ext ? await this.prisma.tenant.findUnique({ where: { externalOrgId: ext } }) : null;
+    if (!tenant) throw new DomainError("UNKNOWN_ORG", "X-Kiorex-Org-Id does not match a pharmacy tenant", 404);
+    const branchId = h["x-kiorex-branch-id"] ?? (await this.prisma.branch.findFirst({ where: { orgId: tenant.id, active: true }, orderBy: { createdAt: "asc" } }))?.id;
+    if (!branchId) throw new DomainError("NO_BRANCH", "Tenant has no branch", 409);
+    const dup = await this.prisma.inboundEvent.findUnique({ where: { eventId } });
+    if (dup) return { accepted: true, duplicate: true };
+    const r = await this.rx.intakeEvent(tenant.id, branchId, req.body);
+    return { accepted: true, ...r };
+  }
+}
+
+@Module({ imports: [PrescriptionsModule], controllers: [KiorexWebhookController] })
+export class WebhooksModule {}

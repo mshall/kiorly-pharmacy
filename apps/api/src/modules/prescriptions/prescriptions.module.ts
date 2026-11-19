@@ -1,8 +1,6 @@
 import { Module } from "@nestjs/common";
+import { PrescriptionsController } from "./prescriptions.controller";
+import { PrescriptionsService } from "./prescriptions.service";
 
-/**
- * PLACEHOLDER (KX-06 bounded context "Rx intake and validation", requirements KPRX*).
- * No behaviour until its build-sequence steps are scheduled; see Docs/pharmacy-cursor-build-sequence.md.
- */
-@Module({})
+@Module({ controllers: [PrescriptionsController], providers: [PrescriptionsService], exports: [PrescriptionsService] })
 export class PrescriptionsModule {}

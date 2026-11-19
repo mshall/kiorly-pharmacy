@@ -1,8 +1,7 @@
 import { Module } from "@nestjs/common";
+import { CatalogueController } from "./catalogue.controller";
+import { CatalogueService } from "./catalogue.service";
+import { PriceService } from "./price.service";
 
-/**
- * PLACEHOLDER (KX-06 bounded context "Catalogue", requirements KPCAT*).
- * No behaviour until its build-sequence steps are scheduled; see Docs/pharmacy-cursor-build-sequence.md.
- */
-@Module({})
+@Module({ controllers: [CatalogueController], providers: [CatalogueService, PriceService], exports: [CatalogueService, PriceService] })
 export class CatalogueModule {}
