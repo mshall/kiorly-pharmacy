@@ -13,8 +13,8 @@
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "NODE_ENV=test node --import tsx --test \"src/**/*.node.test.ts\"",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "seed": "tsx prisma/seed.ts",
-    "openapi:export": "tsx scripts/export-openapi.ts"
+    "seed": "node --require @swc-node/register prisma/seed.ts",
+    "openapi:export": "node --require @swc-node/register scripts/export-openapi.ts"
   },
   "dependencies": {
     "@kiorex/contracts": "file:../../../kiorex-contracts/dist-pack/kiorex-contracts-1.0.0.tgz",

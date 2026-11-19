@@ -20,7 +20,8 @@
   },
   "include": [
     "src/**/*",
-    "test/**/*"
+    "test/**/*",
+    "prisma/seed.ts"
   ],
   "exclude": [
     "node_modules",
