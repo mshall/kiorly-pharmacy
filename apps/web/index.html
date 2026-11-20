@@ -10,6 +10,14 @@
     <meta name="description" content="Kiorly Pharmacy — dispensing and inventory" />
     <meta name="theme-color" content="#3730A3" />
     <title>Kiorly Pharmacy by Kiorex</title>
+    <script>/* Apply saved theme + language before first paint (no flash). Keys match src/brand/ui-kit.tsx and src/lib/i18n.ts. */
+      (function () { try {
+        var r = document.documentElement, p = localStorage.getItem("kx-theme") || "system";
+        var d = p === "dark" || (p === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (d) r.classList.add("dark"); r.dataset.theme = d ? "dark" : "light"; r.style.colorScheme = d ? "dark" : "light";
+        var l = localStorage.getItem("kiorly.lang"); if (l !== "en") l = "ar"; r.lang = l; r.dir = l === "ar" ? "rtl" : "ltr";
+      } catch (e) {} })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

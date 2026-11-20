@@ -2,7 +2,8 @@
   "app": {
     "product": "Kiorly Pharmacy",
     "docTitle": "Kiorly Pharmacy by Kiorex",
-    "lang": "العربية"
+    "lang": "العربية",
+    "tagline": "Pharmacy Management"
   },
   "common": {
     "all": "All",
@@ -1797,5 +1798,10 @@
       "RECALL_ACTIVE": "an active recall is blocking stock",
       "CREDIT_LIMIT": "customer is over their credit limit"
     }
+  },
+  "lang": {
+    "label": "Language",
+    "english": "English",
+    "arabic": "Arabic"
   }
 }

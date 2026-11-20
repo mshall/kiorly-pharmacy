@@ -3,10 +3,11 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
+import { setLang } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { ArrowRight, Check } from "lucide-react";
 import { Button, ErrorNote, Field, Input, PageHeader } from "@/components/ui";
-import { KiorlyBrand, Skeleton, Stepper, StatusChip } from "@/brand/ui-kit";
+import { KiorlyBrandLockup, KxControlPair, LanguageToggle, Skeleton, ThemeToggle, Stepper, StatusChip } from "@/brand/ui-kit";
 import type { Page, Drug } from "@/lib/types";
 
 function Step({ n, title, done, children }: { n: number; title: string; done?: boolean; children: React.ReactNode }) {
@@ -35,7 +36,10 @@ export function Onboarding() {
   const current = branch.isSuccess ? (hasDrugs ? 2 : 1) : 0;
   return (
     <div className="mx-auto min-h-screen max-w-2xl px-4 py-8 sm:py-12">
-      <KiorlyBrand height={40} />
+      <div className="flex items-start justify-between gap-3">
+        <KiorlyBrandLockup height={40} />
+        <KxControlPair><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} /><LanguageToggle onChange={setLang} /></KxControlPair>
+      </div>
       <PageHeader className="mt-8" eyebrow={t("onb.eyebrow")} title={t("onb.title", { name: me?.tenant.name })} description={t("onb.lede")} />
       <Stepper steps={steps} current={current} className="mb-6" />
       <div className="space-y-4">

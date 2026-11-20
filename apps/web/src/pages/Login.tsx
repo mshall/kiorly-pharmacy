@@ -4,19 +4,18 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { Button, ErrorNote, Field, Input } from "@/components/ui";
-import { KiorlyBrand, KiorlyFootText, Pulse, ThemeToggle } from "@/brand/ui-kit";
+import { KiorlyBrandLockup, KiorlyFootText, KxControlPair, LanguageToggle, Pulse, ThemeToggle } from "@/brand/ui-kit";
 import { KiorexLogo } from "@/brand/components";
-import { setLang, type Lang } from "@/lib/i18n";
+import { setLang } from "@/lib/i18n";
 
 function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
-  const next: Lang = i18n.language === "ar" ? "en" : "ar";
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-[var(--kx-indigo-950)] p-12 text-white lg:flex">
         <div className="pointer-events-none absolute -end-32 -top-32 size-[28rem] rounded-full bg-[var(--kx-indigo-800)]/50 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -start-24 size-[26rem] rounded-full bg-[var(--kx-ocean-700)]/40 blur-3xl" />
-        <KiorexLogo variant="lockup" product="pharmacy" lang={i18n.language} tone="inverse" height={52} className="relative" />
+        <div className="relative"><KiorexLogo variant="lockup" product="pharmacy" lang={i18n.language} tone="inverse" height={52} /><p data-kx-tagline className="mt-1 text-xs text-white/70">{t("app.tagline")}</p></div>
         <div className="relative max-w-md">
           <Pulse size={28} loop />
           <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-balance">{t("auth.heroTitle")}</h2>
@@ -26,8 +25,8 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
         <p className="relative text-xs text-white/60"><KiorlyFootText text={t("auth.heroFoot")} word={t("auth.heroFootWord")} /></p>
       </aside>
       <main className="flex min-h-screen flex-col px-5 py-6 sm:px-10">
-        <div className="flex items-center justify-between gap-3"><span className="lg:invisible"><KiorlyBrand height={40} /></span>
-          <div className="flex items-center gap-2"><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} className="size-9" /><Button variant="outline" size="sm" onClick={() => setLang(next)}>{t("app.lang")}</Button></div></div>
+        <div className="flex items-center justify-between gap-3"><span className="lg:invisible"><KiorlyBrandLockup height={40} /></span>
+          <KxControlPair><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} /><LanguageToggle onChange={setLang} /></KxControlPair></div>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}

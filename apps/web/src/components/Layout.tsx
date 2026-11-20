@@ -3,11 +3,11 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { setLang, type Lang } from "@/lib/i18n";
+import { setLang } from "@/lib/i18n";
 import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
 import { api } from "@/lib/api";
-import { KiorlyBrand, ThemeToggle } from "@/brand/ui-kit";
+import { KiorlyBrandLockup, KxControlPair, LanguageToggle, ThemeToggle } from "@/brand/ui-kit";
 import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
 interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon; group: "" | "counter" | "clinical" | "stock" | "money" | "admin" }
@@ -23,7 +23,7 @@ export function useOnline(): boolean {
 }
 
 export function Layout() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { me, can, flag, logout, branchId, setBranchId } = useAuth();
   const online = useOnline();
   const unreadQ = useQuery({ queryKey: ["alerts-count"], queryFn: () => api<{ unread: number; critical: number }>("/notifications/unread-count"), enabled: can("notifications.read"), refetchInterval: 60_000 });
@@ -49,13 +49,12 @@ export function Layout() {
   ];
   const items = all.filter((i) => (!i.perm || can(i.perm)) && (!i.flag || flag(i.flag)));
   const groups = ["", "counter", "clinical", "stock", "money", "admin"].map((g) => ({ g, items: items.filter((i) => i.group === g) })).filter((x) => x.items.length);
-  const next: Lang = i18n.language === "ar" ? "en" : "ar";
 
   return (
     <div className="min-h-screen md:flex">
       <a href="#main" className="skip-link">{t("common.skip")}</a>
       <nav aria-label={t("nav.main")} className="no-print border-b border-border bg-card md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-e">
-        <div className="px-4 py-3 md:py-4"><KiorlyBrand height={36} /><div className="mt-1.5 hidden text-sm font-semibold md:block">{t("app.product")}</div></div>
+        <div className="px-4 py-3 md:py-4"><KiorlyBrandLockup height={36} /></div>
         <div className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0 md:overflow-visible">
           {groups.map(({ g, items: gi }) => (
             <ul key={g || "root"} className="flex gap-1 md:mb-2 md:flex-col">
@@ -85,8 +84,7 @@ export function Layout() {
           <div className="flex items-center gap-2">
             {can("notifications.read") && <Link to="/notifications" aria-label={`${t("nav.notifications")}${unreadQ.data?.unread ? ` (${unreadQ.data.unread})` : ""}`} className="relative inline-flex size-8 items-center justify-center rounded-lg border border-input text-muted-foreground hover:bg-muted hover:text-foreground"><Bell aria-hidden className="size-4" />{!!unreadQ.data?.unread && <span className={cn("absolute -end-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold text-white", unreadQ.data.critical ? "bg-[hsl(var(--danger-text))]" : "bg-primary")}>{unreadQ.data.unread > 99 ? "99+" : unreadQ.data.unread}</span>}</Link>}
             <span className="hidden text-sm sm:inline">{me?.user.displayName} · {me ? t(`roles.${me.user.role}`) : ""}</span>
-            <ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} className="size-8 text-sm" />
-            <Button variant="outline" size="sm" onClick={() => setLang(next)}>{t("app.lang")}</Button>
+            <KxControlPair><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} /><LanguageToggle onChange={setLang} /></KxControlPair>
             <Button variant="outline" size="sm" onClick={logout}>{t("auth.logout")}</Button>
           </div>
         </header>
