@@ -26,11 +26,13 @@ import { JobsModule } from "./jobs/jobs.module";
 import { CustomersModule } from "./modules/customers/customers.module";
 import { ClinicalModule } from "./modules/clinical/clinical.module";
 import { ControlledModule } from "./modules/controlled/controlled.module";
+import { PurchasingModule } from "./modules/purchasing/purchasing.module";
+import { FinanceModule } from "./modules/finance/finance.module";
 
 @Module({
   imports: [
     PrismaModule, HooksModule, AuditModule, OutboxModule, KernelAdapterModule, PlatformModule, FeatureFlagsModule, AuthModule, ApprovalModule, HealthModule, TenancyModule,
-    CatalogueModule, InventoryModule, PrescriptionsModule, DispensingModule, PosModule, SuppliersModule, MarketplaceModule, ForecastingModule, ClaimsModule, ReportsModule, DashboardModule, WebhooksModule, JobsModule, CustomersModule, ClinicalModule, ControlledModule,
+    CatalogueModule, InventoryModule, PrescriptionsModule, DispensingModule, PosModule, SuppliersModule, MarketplaceModule, ForecastingModule, ClaimsModule, ReportsModule, DashboardModule, WebhooksModule, JobsModule, CustomersModule, ClinicalModule, ControlledModule, PurchasingModule, FinanceModule,
   ],
 })
 export class AppModule {}

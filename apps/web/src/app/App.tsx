@@ -23,6 +23,7 @@ import { Customers } from "@/pages/Customers";
 import { Controlled } from "@/pages/Controlled";
 import { Safety } from "@/pages/Safety";
 import { Promotions } from "@/pages/Promotions";
+import { Finance } from "@/pages/Finance";
 
 const qc = new QueryClient({ /** networkMode "always": the till must keep running (and queue sales) while offline; react-query would otherwise pause mutations. */
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000, networkMode: "always" }, mutations: { networkMode: "always" } } });
@@ -56,6 +57,7 @@ export function App() {
                 <Route path="customers" element={<Customers />} />
                 <Route path="controlled" element={<Controlled />} />
                 <Route path="promotions" element={<Promotions />} />
+                <Route path="finance" element={<Finance />} />
                 <Route path="safety" element={<Safety />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="catalogue" element={<Catalogue />} />

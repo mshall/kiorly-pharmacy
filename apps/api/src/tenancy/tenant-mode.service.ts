@@ -14,6 +14,10 @@ export interface TenantSettings {
   loyalty?: { enabled?: boolean; earnPer?: string; pointsPerEarn?: number; redeemValue?: string; tiers?: Array<{ name: string; minSpend: string }> };
   maxCashierDiscountPct?: number;
   refillReminderDays?: number;
+  /** Receiving flags a line whose cost differs from the PO / previous cost by more than this percentage (default 5). */
+  costVarianceTolerancePct?: number;
+  /** Days before a customer credit charge is overdue (receivables aging), default 30. */
+  customerCreditDays?: number;
   ownerPhone?: string; ownerEmail?: string; receiptFooter?: string; shiftVarianceThreshold?: string;
   [k: string]: unknown;
 }

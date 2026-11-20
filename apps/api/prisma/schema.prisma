@@ -1119,6 +1119,9 @@ model GoodsReceiptLine {
   lotId     String
   quantity  Int
   unitCost  Decimal @db.Decimal(14, 2)
+  /// Cost price variance: the PO line cost and the previous receipt cost per base unit at receipt time.
+  poUnitCost   Decimal? @db.Decimal(14, 2)
+  prevUnitCost Decimal? @db.Decimal(14, 2)
 
   receipt GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
 
@@ -1312,6 +1315,13 @@ model InsurerClaim {
   policyNo      String?
   amountClaimed Decimal     @db.Decimal(14, 2)
   patientCopay  Decimal     @default(0) @db.Decimal(14, 2)
+  /// Insurer's approved amount (may be lower than claimed), what has actually been paid, and the rejection reason.
+  approvedAmount  Decimal?  @db.Decimal(14, 2)
+  paidAmount      Decimal   @default(0) @db.Decimal(14, 2)
+  rejectionReason String?
+  /// Batch / submission reference given to the insurer.
+  submissionRef   String?
+  dueAt           DateTime?
   status        ClaimStatus @default(DRAFT)
   submittedAt   DateTime?
   resolvedAt    DateTime?
@@ -1651,4 +1661,107 @@ model UomConversion {
 
   @@unique([drugId, name])
   @@index([orgId, drugId])
+}
+
+// ------------------------------------------------------ purchasing & finance suite ----
+
+/// Request for quotation: ask several suppliers to price the same lines, compare, award (creates POs).
+model RequestForQuote {
+  id             String    @id @default(cuid())
+  orgId          String
+  branchId       String
+  number         String
+  /// DRAFT | SENT | QUOTED | AWARDED | CLOSED | CANCELLED
+  status         String    @default("DRAFT")
+  notes          String?
+  dueAt          DateTime?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  awardedAt      DateTime?
+
+  lines  RfqLine[]
+  quotes RfqQuote[]
+
+  @@unique([orgId, number])
+  @@index([orgId, status])
+}
+
+model RfqLine {
+  id     String @id @default(cuid())
+  rfqId  String
+  drugId String
+  qty    Int
+
+  rfq RequestForQuote @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId])
+}
+
+model RfqQuote {
+  id           String    @id @default(cuid())
+  rfqId        String
+  supplierId   String
+  /// INVITED | QUOTED | DECLINED | AWARDED
+  status       String    @default("INVITED")
+  leadTimeDays Int?
+  validUntil   DateTime?
+  notes        String?
+  receivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  rfq   RequestForQuote @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  lines RfqQuoteLine[]
+
+  @@unique([rfqId, supplierId])
+  @@index([rfqId])
+}
+
+model RfqQuoteLine {
+  id        String  @id @default(cuid())
+  quoteId   String
+  rfqLineId String
+  unitPrice Decimal @db.Decimal(14, 2)
+
+  quote RfqQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteId, rfqLineId])
+}
+
+/// Operating expense (rent, utilities, salaries ...). Paid from the cash drawer => also a CashMovement OUT.
+model Expense {
+  id             String    @id @default(cuid())
+  orgId          String
+  branchId       String
+  category       String
+  amount         Decimal   @db.Decimal(14, 2)
+  /// VAT included in the amount (informational, for the accountant export only).
+  vatAmount      Decimal   @default(0) @db.Decimal(14, 2)
+  /// CASH | CARD | BANK | OTHER
+  method         String    @default("CASH")
+  description    String
+  supplierId     String?
+  expenseDate    DateTime  @db.Date
+  receiptRef     String?
+  fromDrawer     Boolean   @default(false)
+  cashMovementId String?
+  createdBy      String
+  voidedAt       DateTime?
+  voidedBy       String?
+  createdAt      DateTime  @default(now())
+
+  @@index([orgId, branchId, expenseDate])
+  @@index([orgId, category])
+}
+
+/// A payment received from an insurer against a claim (partial payments allowed).
+model ClaimPayment {
+  id        String   @id @default(cuid())
+  orgId     String
+  claimId   String
+  amount    Decimal  @db.Decimal(14, 2)
+  reference String?
+  paidAt    DateTime @default(now())
+  createdBy String
+
+  @@index([orgId, claimId])
 }

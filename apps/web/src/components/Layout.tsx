@@ -7,7 +7,7 @@ import { setLang, type Lang } from "@/lib/i18n";
 import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
 import { KiorlyBrand, ThemeToggle } from "@/brand/ui-kit";
-import { BarChart3, BookLock, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, BookLock, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
 interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon; group: "" | "counter" | "clinical" | "stock" | "money" | "admin" }
 
@@ -38,6 +38,7 @@ export function Layout() {
     { to: "/inventory", label: t("nav.inventory"), perm: "inventory.read", icon: Boxes, group: "stock" },
     { to: "/receiving", label: t("nav.receiving"), perm: "inventory.receive", icon: PackagePlus, group: "stock" },
     { to: "/purchasing", label: t("nav.purchasing"), perm: "supplier.read", icon: Truck, group: "stock" },
+    { to: "/finance", label: t("nav.finance"), perm: "finance.read", icon: Landmark, group: "money" },
     { to: "/promotions", label: t("nav.promotions"), perm: "promo.manage", icon: Ticket, group: "money" },
     { to: "/reports", label: t("nav.reports"), perm: "reports.read", icon: BarChart3, group: "money" },
     { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings, group: "admin" },

@@ -63,6 +63,8 @@ class SettingsDto {
   @IsOptional() @ValidateNested() @Type(() => LoyaltyDto) loyalty?: LoyaltyDto;
   @IsOptional() @IsNumber() @Min(0) @Max(100) maxCashierDiscountPct?: number;
   @IsOptional() @IsInt() @Min(0) @Max(30) refillReminderDays?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(100) costVarianceTolerancePct?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(365) customerCreditDays?: number;
   @IsOptional() @IsNumberString() vatRate?: string;
   @IsOptional() @IsNumberString() shiftVarianceThreshold?: string;
   @IsOptional() @IsString() ownerPhone?: string;

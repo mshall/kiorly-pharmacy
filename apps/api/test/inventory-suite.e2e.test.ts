@@ -54,7 +54,7 @@ describe("Inventory suite: locations, pack units, movers, auto reorder, cold cha
   it("movers: dead stock, fast and slow classes, days of cover; auto reorder derives min/max and keeps existing policies", async () => {
     const f2 = await seedTenant(t); await openShift(t, f2);
     const o2 = () => auth(f2.users.owner.token), c2 = () => auth(f2.users.cashier.token);
-    const drugs = [];
+    const drugs: Array<{ id: string }> = [];
     for (let i = 1; i <= 6; i++) { const d = await seedDrug(t, f2, { price: "10.00", brandName: `Mover-${i}` }); await receive(t, f2, { drugId: d.id, quantity: 500 }); drugs.push(d); }
     const dead = await seedDrug(t, f2, { price: "10.00", brandName: "Dusty" }); await receive(t, f2, { drugId: dead.id, quantity: 25, unitCost: "4.00" });
     for (const [i, d] of drugs.entries()) await t.http.post("/api/v1/pos/sales").set(c2()).send({ idempotencyKey: key(), lines: [{ drugId: d.id, quantity: (i + 1) * 5 }], payments: [{ method: "CASH", amount: String((i + 1) * 50) }] });

@@ -167,19 +167,24 @@ function RecallsTab() {
   );
 }
 
+import { ApAgingTab, RfqTab, Statement, SupplierReturnsTab, VarianceTab } from "@/pages/purchasing/PurchasingMore";
+
 export function Purchasing() {
   const { t } = useTranslation();
   const { can, me } = useAuth();
   const [tab, setTab] = useState("suppliers");
   const lite = me?.tenant.edition === "LITE";
-  const tabs = [{ id: "suppliers", label: t("sup.suppliers"), icon: <Truck /> }, ...(!lite ? [{ id: "pos", label: t("sup.pos"), icon: <ClipboardList /> }, { id: "reorder", label: t("sup.reorder"), icon: <Wand2 /> }] : []), { id: "recalls", label: t("sup.recalls"), icon: <AlertTriangle /> }];
+  const [stmt, setStmt] = useState<string | null>(null);
+  const sups = useQuery({ queryKey: ["suppliers"], queryFn: () => api<Supplier[]>("/suppliers"), enabled: can("supplier.read") });
+  const tabs = [{ id: "suppliers", label: t("sup.suppliers"), icon: <Truck /> }, ...(!lite ? [{ id: "pos", label: t("sup.pos"), icon: <ClipboardList /> }, { id: "rfq", label: t("pur.tabRfq"), icon: <ClipboardList /> }, { id: "reorder", label: t("sup.reorder"), icon: <Wand2 /> }] : []), { id: "aging", label: t("pur.tabAging") }, { id: "variance", label: t("pur.tabVariance") }, { id: "returns", label: t("pur.tabReturns") }, { id: "recalls", label: t("sup.recalls"), icon: <AlertTriangle /> }];
   return (
     <>
       <PageHeader title={t("sup.title")} subtitle={t("sup.subtitle")} />
       {lite && <p className="mb-4 rounded-xl border border-primary/20 bg-accent p-3 text-sm text-accent-foreground">{t("sup.liteNote")}</p>}
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "suppliers" && can("supplier.read") && <SuppliersTab />}{tab === "pos" && <PosTab />}{tab === "reorder" && <ReorderTab />}{tab === "recalls" && <RecallsTab />}
+        {tab === "suppliers" && can("supplier.read") && <SuppliersTab />}{tab === "pos" && <PosTab />}{tab === "reorder" && <ReorderTab />}{tab === "recalls" && <RecallsTab />}{tab === "rfq" && <RfqTab suppliers={sups.data ?? []} />}{tab === "aging" && <ApAgingTab onStatement={setStmt} />}{tab === "variance" && <VarianceTab />}{tab === "returns" && <SupplierReturnsTab />}
+        <Statement supplierId={stmt} onClose={() => setStmt(null)} />
       </div>
     </>
   );

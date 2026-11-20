@@ -9,6 +9,7 @@ import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import type { AuthUser } from "../../auth/auth-user";
 import { parseGs1 } from "./gs1";
 import { UomService } from "./uom.service";
+import { TenantModeService } from "../../tenancy/tenant-mode.service";
 
 export interface ReceiptLineInput {
   drugId?: string;
@@ -44,6 +45,7 @@ export class ReceivingService {
     @Inject(StockLedger) private readonly ledger: StockLedger,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
     @Inject(UomService) private readonly uoms: UomService,
+    @Inject(TenantModeService) private readonly modes: TenantModeService,
   ) {}
 
   /** KPINV01 scan -> {drug, lot, expiry} prefill. Looks up by GTIN in the tenant's visible catalogue. */
@@ -75,6 +77,8 @@ export class ReceivingService {
         data: { orgId, branchId: input.branchId, supplierId: supplierId ?? po?.supplierId ?? null, purchaseOrderId: po?.id, invoiceNo: input.invoiceNo, invoiceTotal: input.invoiceTotal, idempotencyKey: input.idempotencyKey, receivedBy: user.userId },
       });
       let total = D(0);
+      const tolerance = D((await this.modes.settings(orgId)).costVarianceTolerancePct ?? 5);
+      const variances: Array<{ drugId: string; poUnitCost: string | null; prevUnitCost: string | null; unitCost: string; pctVsPo: number | null; pctVsPrev: number | null }> = [];
       const outLines: Array<{ lotId: string; drugId: string; quantity: number; status: string }> = [];
       for (const rawLine of input.lines) {
         const scan = rawLine.scan ? await this.resolveScan(orgId, rawLine.scan) : null;
@@ -99,6 +103,12 @@ export class ReceivingService {
           if (line.temperatureC == null) throw new DomainError("TEMPERATURE_REQUIRED", "Cold-chain item: record the temperature at receipt", 400, { drugId });
           excursion = line.temperatureC < pack.coldChainRangeC.min || line.temperatureC > pack.coldChainRangeC.max;
         }
+        // cost price variance: vs the PO line cost and vs the previous receipt cost (per base unit)
+        const poLine = po?.lines.find((l) => l.drugId === drugId);
+        const prev = await tx.stockLot.findFirst({ where: { orgId, drugId }, orderBy: { receivedAt: "desc" }, select: { unitCost: true } });
+        const pct = (base: Prisma.Decimal | null | undefined) => (base && base.gt(0) ? Math.round(D(line.unitCost).minus(base).div(base).mul(1000).toNumber()) / 10 : null);
+        const pctVsPo = pct(poLine?.unitCost), pctVsPrev = pct(prev?.unitCost);
+        if ((pctVsPo != null && Math.abs(pctVsPo) > tolerance.toNumber()) || (pctVsPrev != null && Math.abs(pctVsPrev) > tolerance.toNumber())) variances.push({ drugId, poUnitCost: poLine ? money(poLine.unitCost) : null, prevUnitCost: prev ? money(prev.unitCost) : null, unitCost: money(line.unitCost), pctVsPo, pctVsPrev });
         // KPSUP03: a lot number under an ACTIVE recall for this drug is received as RECALLED.
         const recall = await tx.recallNotice.findFirst({ where: { orgId, status: "ACTIVE", drugId, lotNumbers: { has: lotNumber } } });
 
@@ -118,7 +128,7 @@ export class ReceivingService {
         }
         await this.ledger.post(tx, { orgId, branchId: input.branchId, lotId: lot.id, type: "RECEIPT", quantity: line.quantity, performedBy: user.userId, refType: "GoodsReceipt", refId: receipt.id, reason: input.invoiceNo ? `Invoice ${input.invoiceNo}` : "Direct receipt" });
         if (drug.coldChain) await tx.coldChainReading.create({ data: { orgId, lotId: lot.id, temperatureC: line.temperatureC!, excursion, recordedBy: user.userId } });
-        await tx.goodsReceiptLine.create({ data: { receiptId: receipt.id, drugId, lotId: lot.id, quantity: line.quantity, unitCost: line.unitCost } });
+        await tx.goodsReceiptLine.create({ data: { receiptId: receipt.id, drugId, lotId: lot.id, quantity: line.quantity, unitCost: line.unitCost, poUnitCost: poLine?.unitCost, prevUnitCost: prev?.unitCost } });
         total = total.plus(D(line.unitCost).mul(line.quantity));
         outLines.push({ lotId: lot.id, drugId, quantity: line.quantity, status: lot.status });
         if (po) {
@@ -138,7 +148,8 @@ export class ReceivingService {
         await tx.supplier.update({ where: { id: sid }, data: { balance: { increment: amount } } });
       }
       await tx.auditLog.create({ data: { orgId, actorId: user.userId, action: "inventory.receive", entityType: "GoodsReceipt", entityId: receipt.id, meta: { lines: outLines.length, total: money(total), poId: po?.id ?? null } } });
-      return { ...receipt, lines: outLines, total: money(total), replayed: false } as never;
+      if (variances.length) await tx.auditLog.create({ data: { orgId, actorId: user.userId, action: "inventory.cost_variance", entityType: "GoodsReceipt", entityId: receipt.id, meta: { lines: variances.length, tolerancePct: tolerance.toNumber() } } });
+      return { ...receipt, lines: outLines, total: money(total), variances, replayed: false } as never;
     }, { timeout: 30_000 }).catch((e) => {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && input.idempotencyKey) return this.prisma.goodsReceipt.findUniqueOrThrow({ where: { orgId_idempotencyKey: { orgId, idempotencyKey: input.idempotencyKey } } });
       throw e;
