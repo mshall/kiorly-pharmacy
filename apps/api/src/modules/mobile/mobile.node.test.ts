@@ -1,0 +1,41 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { MODULE_DEFS, modulesFor, normalisePlan, planIncludesMobile } from "./mobile-plan";
+import { isEntitlementExempt } from "./mobile-client.guard";
+import { renderPush, PUSH_TEMPLATES } from "./push.service";
+import { isKnownFlagKey } from "../../feature-flags/feature-flag-keys";
+import { isSafetyControlKey } from "../../feature-flags/safety-controls";
+
+describe("Kiorly Work plan mapping (pure)", () => {
+  it("LITE=BASIC, PRO=PRO, CHAIN/ENTERPRISE=ENTERPRISE; mobile from PRO upward; suspended loses it", () => {
+    assert.deepEqual(["LITE", "PRO", "CHAIN", "ENTERPRISE"].map(normalisePlan), ["BASIC", "PRO", "ENTERPRISE", "ENTERPRISE"]);
+    assert.deepEqual(["LITE", "PRO", "CHAIN", "ENTERPRISE"].map((e) => planIncludesMobile(e)), [false, true, true, true]);
+    assert.equal(planIncludesMobile("PRO", "SUSPENDED"), false);
+    assert.equal(planIncludesMobile("PRO", "TRIAL"), true);
+  });
+  it("mobile_staff_app is a registered commercial flag and never a safety control (ADR-025)", () => {
+    assert.ok(isKnownFlagKey("mobile_staff_app"));
+    assert.equal(isSafetyControlKey("mobile_staff_app"), false);
+  });
+  it("modulesFor enables a module only when all its permissions are held; orders need Kiorex integration", () => {
+    const m = modulesFor(new Set(["rx.read", "orders.read", "catalogue.read", "inventory.read"]), false);
+    const on = m.filter((x) => x.enabled).map((x) => x.key).sort();
+    assert.deepEqual(on, ["pharmacy.barcode", "pharmacy.expiry", "pharmacy.rx", "pharmacy.search"]);
+    assert.equal(m.length, MODULE_DEFS.length);
+    assert.ok(modulesFor(new Set(["orders.read"]), true).find((x) => x.key === "pharmacy.orders")?.enabled);
+    assert.ok(modulesFor(new Set(["rx.read", "dispense.signoff"]), false).find((x) => x.key === "pharmacy.rx")?.screens.includes("rx.override"));
+  });
+});
+describe("client entitlement exemptions", () => {
+  it("auth, bootstrap, alerts and device sign-out stay reachable without the entitlement", () => {
+    for (const [m, p] of [["POST", "/api/v1/auth/login"], ["GET", "/api/v1/auth/me"], ["GET", "/api/v1/mobile/bootstrap"], ["GET", "/api/v1/mobile/alerts?status=all"], ["POST", "/api/v1/mobile/alerts/X:1/ack"], ["DELETE", "/api/v1/mobile/devices/abc"]] as const) assert.equal(isEntitlementExempt(m, p), true, `${m} ${p}`);
+    for (const [m, p] of [["GET", "/api/v1/mobile/devices"], ["POST", "/api/v1/mobile/devices"], ["GET", "/api/v1/mobile/inbox"], ["GET", "/api/v1/catalogue/drugs"], ["GET", "/api/v1/mobile/alertsx"]] as const) assert.equal(isEntitlementExempt(m, p), false, `${m} ${p}`);
+  });
+});
+describe("push templates", () => {
+  it("render bilingual text with variables in both locales", () => {
+    const r = renderPush("order.received", { order: "KX1", minutes: 15 });
+    assert.match(r.body, /KX1/); assert.match(r.bodyAr, /KX1/); assert.equal(r.kind, "OPS");
+    for (const k of Object.keys(PUSH_TEMPLATES) as Array<keyof typeof PUSH_TEMPLATES>) { const x = renderPush(k, { drug: "D", expected: 1, counted: 2, days: 3, lot: "L", qty: 4, order: "O", minutes: 5 }); assert.ok(!/[{}]/.test(x.title + x.body + x.titleAr + x.bodyAr), k); }
+  });
+});

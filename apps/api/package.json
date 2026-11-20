@@ -16,13 +16,15 @@
     "seed": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/seed.ts",
     "seed:demo": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/demo/seed-demo.ts",
     "seed:suite": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/demo/seed-suite.ts",
-    "seed:all": "npm run seed && npm run seed:demo && npm run seed:suite",
+    "seed:mobile": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/demo/seed-mobile.ts",
+    "seed:all": "npm run seed && npm run seed:demo && npm run seed:suite && npm run seed:mobile",
     "openapi:export": "node --require @swc-node/register scripts/export-openapi.ts",
     "start:swc": "node --require @swc-node/register src/main.ts",
     "build:seed": "tsc -p tsconfig.seed.json",
     "seed:dist": "node dist-seed/prisma/seed.js",
     "seed:demo:dist": "node dist-seed/prisma/demo/seed-demo.js",
-    "seed:suite:dist": "node dist-seed/prisma/demo/seed-suite.js"
+    "seed:suite:dist": "node dist-seed/prisma/demo/seed-suite.js",
+    "seed:mobile:dist": "node dist-seed/prisma/demo/seed-mobile.js"
   },
   "dependencies": {
     "@kiorex/contracts": "file:../../vendor/kiorex-contracts-1.6.0.tgz",

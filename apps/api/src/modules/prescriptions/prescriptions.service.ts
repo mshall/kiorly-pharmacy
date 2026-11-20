@@ -1,4 +1,5 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { PushService } from "../mobile/push.service";
 import { createHash } from "node:crypto";
 import { Prisma, type RxStatus } from "@prisma/client";
 import { validateEvent } from "@kiorex/contracts";
@@ -45,7 +46,13 @@ export class PrescriptionsService {
     @Inject(StorageAdapter) private readonly storage: StorageAdapter,
     @Inject(PrescribersService) private readonly prescribers: PrescribersService,
     @Inject(PriceService) private readonly prices: PriceService,
+    @Optional() @Inject(PushService) private readonly push?: PushService,
   ) {}
+
+  /** Kiorly Work: mock push to pharmacists/managers (fire-and-forget; never affects intake). */
+  private notifyRxWaiting(orgId: string, rxId: string, branchId?: string | null) {
+    void this.push?.sendTemplate(orgId, "rx.awaiting", {}, { roles: ["PHARMACIST", "OWNER", "BRANCH_MANAGER"], branchId }, { rxId });
+  }
 
   private async upsertPatient(tx: Prisma.TransactionClient, orgId: string, p: NonNullable<PaperRxInput["patient"]>) {
     const phone = normPhone(p.phone);
@@ -106,7 +113,7 @@ export class PrescriptionsService {
       }
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "rx.intake", entityType: "Prescription", entityId: rx.id, meta: { source: rx.source, lines: input.lines.length, refills: rx.refillsAllowed } } });
       return rx;
-    }).then((rx) => this.get(user.orgId, rx.id));
+    }).then((rx) => { this.notifyRxWaiting(user.orgId, rx.id, rx.branchId); return this.get(user.orgId, rx.id); });
   }
 
   /**
@@ -145,6 +152,7 @@ export class PrescriptionsService {
         await tx.auditLog.create({ data: { orgId, action: "rx.intake", entityType: "Prescription", entityId: created.id, meta: { source: "KIORLY_E_RX", eventId: ev.eventId, items: ev.data.items.length } } });
         return created;
       });
+      this.notifyRxWaiting(orgId, rx.id, branchId);
       return { status: "created", prescriptionId: rx.id };
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

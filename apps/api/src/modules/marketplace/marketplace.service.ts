@@ -1,4 +1,5 @@
-import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
+import { PushService } from "../mobile/push.service";
+import { Optional, Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
@@ -44,6 +45,7 @@ export class MarketplaceService implements OnModuleInit {
     @Inject(KERNEL.settlement) private readonly settlement: SettlementPort,
     @Inject(NotificationsService) private readonly notify: NotificationsService,
     @Inject(PriceService) private readonly prices: PriceService,
+    @Optional() @Inject(PushService) private readonly push?: PushService,
   ) {}
 
   /** KPMKT05: DispenseCompleted fires from the dispensing transaction hook (outbox row commits atomically with the dispense). */
@@ -153,6 +155,7 @@ export class MarketplaceService implements OnModuleInit {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } });
     const s = (tenant.settings ?? {}) as { ownerPhone?: string; defaultLocale?: "ar" | "en" };
     if (s.ownerPhone) await this.notify.send({ orgId, channel: "WHATSAPP", recipient: s.ownerPhone, template: "order.inbox", locale: s.defaultLocale ?? "ar", vars: { order: input.orderId, minutes: setting.slaMinutes }, refType: "KiorexOrder", refId: created.id });
+    void this.push?.sendTemplate(orgId, "order.received", { order: input.orderId, minutes: setting.slaMinutes }, { roles: ["PHARMACIST", "OWNER", "BRANCH_MANAGER"], branchId: created.branchId }, { orderId: created.id });
     return { order: created, replayed: false };
   }
 

@@ -1,5 +1,6 @@
 import { marketToday } from "../../common/dates";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { PushService } from "../mobile/push.service";
 import { Prisma, type LotStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
@@ -22,6 +23,7 @@ export class InventoryService {
     @Inject(StockLedger) private readonly ledger: StockLedger,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
     @Inject(NotificationsService) private readonly notify: NotificationsService,
+    @Optional() @Inject(PushService) private readonly push?: PushService,
   ) {}
 
   async lots(orgId: string, q: LotQuery) {
@@ -170,6 +172,7 @@ export class InventoryService {
       const tenant = await this.prisma.tenant.findUnique({ where: { id: lot.orgId } });
       const settings = (tenant?.settings ?? {}) as { ownerPhone?: string; defaultLocale?: "ar" | "en" };
       if (settings.ownerPhone) await this.notify.send({ orgId: lot.orgId, channel: "WHATSAPP", recipient: settings.ownerPhone, template: "expiry.alert", vars: { drug: lot.drug.brandName, lot: lot.lotNumber, days: Math.max(days, 0), qty: lot.qtyOnHand }, refType: "StockLot", refId: lot.id, locale: settings.defaultLocale ?? "ar" });
+      void this.push?.sendTemplate(lot.orgId, "stock.expiry", { drug: lot.drug.brandName, lot: lot.lotNumber, days: Math.max(days, 0), qty: lot.qtyOnHand }, { roles: ["PHARMACIST", "OWNER", "BRANCH_MANAGER"], branchId: lot.branchId }, { lotId: lot.id });
       await this.prisma.auditLog.create({ data: { orgId: lot.orgId, action: "expiry.alert", entityType: "StockLot", entityId: lot.id, meta: { thresholdDays: tightest, days } } });
       alerts++;
     }

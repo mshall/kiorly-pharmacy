@@ -10,5 +10,5 @@ import { CashService } from "./cash.service";
 import { InventoryModule } from "../inventory/inventory.module";
 import { CatalogueModule } from "../catalogue/catalogue.module";
 
-@Module({ imports: [InventoryModule, CatalogueModule], controllers: [PosController], providers: [PosService, SalesService, ShiftsService, CustomersService, PromotionsService, HeldCartsService, CashService], exports: [SalesService, PosService, CashService] })
+@Module({ imports: [InventoryModule, CatalogueModule], controllers: [PosController], providers: [PosService, SalesService, ShiftsService, CustomersService, PromotionsService, HeldCartsService, CashService], exports: [SalesService, PosService, CashService, ShiftsService] })
 export class PosModule {}

@@ -1792,3 +1792,77 @@ model Alert {
   @@unique([orgId, dedupeKey])
   @@index([orgId, resolvedAt, createdAt])
 }
+
+// ------------------------------------------------------------- Kiorly Work (mobile staff app) ----
+
+/// A staff phone/tablet registered for the Kiorly Work app. Device-bound token (opaque, only its sha256 is stored); revoking = remote sign-out.
+model MobileDevice {
+  id           String    @id @default(cuid())
+  orgId        String
+  userId       String
+  /// Client-generated install id, stable per install.
+  deviceId     String
+  /// ios | android | web
+  platform     String
+  name         String
+  appVersion   String?
+  tokenHash    String
+  pushToken    String?
+  /// expo | mock
+  pushProvider String?
+  /// ACTIVE | REVOKED
+  status       String    @default("ACTIVE")
+  lastSeenAt   DateTime?
+  revokedAt    DateTime?
+  revokedBy    String?
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([orgId, status])
+}
+
+/// In-app inbox row = the mock push provider's "dev inbox" (MODE=mock). One row per recipient user.
+model PushMessage {
+  id          String    @id @default(cuid())
+  orgId       String
+  userId      String
+  /// GENERAL | SAFETY | CLINICAL | OPS
+  kind        String
+  title       String
+  titleAr     String
+  body        String
+  bodyAr      String
+  data        Json?
+  provider    String    @default("mock")
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([orgId, createdAt])
+}
+
+/// Acknowledgement of a derived safety alert (ADR-025: alerts are never gated by plan). alertKey = "<KIND>:<subjectId>".
+model MobileAlertAck {
+  id       String   @id @default(cuid())
+  orgId    String
+  alertKey String
+  ackedBy  String
+  note     String?
+  ackedAt  DateTime @default(now())
+
+  @@unique([orgId, alertKey])
+}
+
+/// Second-person countersign of a controlled-drug discrepancy (witness must differ from the reporter).
+model ControlledCountersign {
+  id            String   @id @default(cuid())
+  orgId         String
+  discrepancyId String
+  witnessId     String
+  note          String?
+  signedAt      DateTime @default(now())
+
+  @@unique([orgId, discrepancyId, witnessId])
+  @@index([orgId, discrepancyId])
+}

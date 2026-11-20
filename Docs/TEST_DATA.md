@@ -34,3 +34,12 @@ Known limits: Kiorex's provider sync and the Nurse-lab push-back call Kiorly Cli
 
 ## Q10 notes
 No new pharmacy flows were added after the last data pass; the Kiorex-origin orders still mirror `kx_ph_demo_*`. The seed now accepts `DEMO_SUB_MAP_JSON` (real Kiorex/Cognito subs on AWS) and refuses unless `DEMO_SEED_ALLOWED=true` in a non-production environment (`src/common/demo-seed-guard.ts`; the npm scripts set the flag). `--reset` still cannot remove append-only stock rows (the 2 reported statements); the log noise about append-only deletes and the duplicate `SettlementEntry` on re-runs is expected and harmless.
+
+## Kiorly Work mobile (added 20 Nov 2026)
+`npm run seed:mobile -w api` (also part of `seed:all`; idempotent, demo-seed guard applies; run after `seed` and `seed:suite`). One tenant per plan so the plan gate and the upgrade path are demonstrable. Password for all: `Demo@12345` (DEV ONLY). API http://localhost:3100/api/v1 (`POST /auth/login`).
+| Plan (edition) | Tenant | Logins |
+|---|---|---|
+| ENTERPRISE (CHAIN) | Kiorly Demo Pharmacy (INTEGRATED, Kiorex orders on) | `owner@` / `pharmacist@` / `manager@` / `cashier@` / `assistant@demo.kiorly.local` |
+| PRO | Kiorly Solo Pharmacy (DEMO) (STANDALONE) | `solo.owner@` / `solo.pharmacist@` / `solo.manager@` / `solo.cashier@` / `solo.assistant@demo.kiorly.local` |
+| BASIC (LITE) | Kiorly Corner Pharmacy (DEMO, Lite) | `owner.basic@` / `pharmacist.basic@` / `cashier.basic@demo.kiorly.local` (bootstrap: `PLAN_BELOW_PRO`, safety-alert inbox only) |
+Every tenant gets open safety alerts (a controlled-drug discrepancy for "Morphicure 10 mg (DEMO)" awaiting a witness, one already countersigned) and two inbox messages per user (welcome + a SAFETY one). Try: log in as `pharmacist@` -> `GET /mobile/bootstrap`, `GET /mobile/alerts`, `GET /mobile/pharmacy/controlled/pending-witness`; countersign as `manager@` (a different person than the reporter `pharmacist@`). Switch the app off for a PRO org: set `mobile_staff_app` OFF at org scope in the Kiorex flag control plane -> `FLAG_OFF`.

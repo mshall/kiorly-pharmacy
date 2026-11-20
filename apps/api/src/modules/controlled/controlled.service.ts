@@ -1,4 +1,5 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { PushService } from "../mobile/push.service";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
@@ -8,7 +9,7 @@ import type { AuthUser } from "../../auth/auth-user";
 /** Controlled-substance register (running balance), physical audits, discrepancy reports. The register rows are written by the stock ledger itself. */
 @Injectable()
 export class ControlledService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(StockLedger) private readonly ledger: StockLedger) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(StockLedger) private readonly ledger: StockLedger, @Optional() @Inject(PushService) private readonly push?: PushService) {}
 
   /** The register book for one drug (or all controlled drugs) with the running balance after each movement. */
   async register(orgId: string, q: { branchId?: string; drugId?: string; from?: Date; to?: Date; skip: number; take: number }) {
@@ -50,6 +51,7 @@ export class ControlledService {
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: diff === 0 ? "controlled.audit_ok" : "controlled.discrepancy", entityType: "Drug", entityId: d.drugId, meta: { branchId: d.branchId, expected, counted: d.countedQty, difference: diff, witnessId: d.witness.id } } });
       return disc;
     });
+    if (r) void this.push?.sendTemplate(user.orgId, "controlled.discrepancy", { drug: drug.brandName, expected, counted: d.countedQty }, { roles: ["OWNER", "BRANCH_MANAGER", "PHARMACIST"], branchId: d.branchId }, { discrepancyId: r.id, alertId: `CONTROLLED_DRUG_DISCREPANCY:${r.id}` });
     return { match: diff === 0, expected, counted: d.countedQty, difference: diff, discrepancy: r };
   }
 
