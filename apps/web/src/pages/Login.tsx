@@ -16,7 +16,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
       <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-[var(--kx-indigo-950)] p-12 text-white lg:flex">
         <div className="pointer-events-none absolute -end-32 -top-32 size-[28rem] rounded-full bg-[var(--kx-indigo-800)]/50 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -start-24 size-[26rem] rounded-full bg-[var(--kx-ocean-700)]/40 blur-3xl" />
-        <KiorexLogo variant="lockup" product="pharmacy" tone="inverse" height={52} className="relative" />
+        <KiorexLogo variant="lockup" product="pharmacy" lang={i18n.language} tone="inverse" height={52} className="relative" />
         <div className="relative max-w-md">
           <Pulse size={28} loop />
           <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-balance">{t("auth.heroTitle")}</h2>
