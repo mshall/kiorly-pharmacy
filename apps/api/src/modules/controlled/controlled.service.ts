@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { PushService } from "../mobile/push.service";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
 import { StockLedger } from "../inventory/stock-ledger.service";

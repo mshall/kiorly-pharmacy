@@ -1,4 +1,4 @@
-import type { Drug } from "@prisma/client";
+import type { Drug } from "../../generated/prisma/client";
 
 /**
  * Everything that leaves the pharmacy towards Kiorex goes through this projection (KPCAT02 / KPRX05):

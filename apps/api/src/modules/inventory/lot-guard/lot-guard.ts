@@ -1,4 +1,4 @@
-import type { LotStatus } from "@prisma/client";
+import type { LotStatus } from "../../../generated/prisma/client";
 import { DomainError } from "../../../common/errors";
 import { marketToday } from "../../../common/dates";
 

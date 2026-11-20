@@ -2,7 +2,7 @@ import { Body, Controller, Get, Inject, Injectable, Module, Param, Post, Query, 
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { ArrayMinSize, IsArray, IsDateString, IsIn, IsNumberString, IsOptional, IsString, MinLength } from "class-validator";
-import type { ClaimStatus } from "@prisma/client";
+import type { ClaimStatus } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurrentUser, Perm } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";

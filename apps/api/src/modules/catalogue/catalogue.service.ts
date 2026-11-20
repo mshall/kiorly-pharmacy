@@ -1,6 +1,6 @@
 import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
-import { Prisma, type ControlledSchedule } from "@prisma/client";
+import { Prisma, type ControlledSchedule } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
 import { groupKey } from "./normalize";

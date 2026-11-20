@@ -13,7 +13,7 @@ import { ApprovalService } from "../../auth/approval.service";
 import { RequiresEntitlement, RequiresEntitlementGuard } from "../../kernel-adapter/requires-entitlement.guard";
 import * as dto from "./inventory.dto";
 import { DomainError } from "../../common/errors";
-import type { LotStatus } from "@prisma/client";
+import type { LotStatus } from "../../generated/prisma/client";
 
 @ApiTags("inventory")
 @ApiBearerAuth()

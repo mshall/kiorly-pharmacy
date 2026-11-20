@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { Prisma, type PrismaClient, type StockMovementType, type StockLot } from "@prisma/client";
+import { Prisma, type PrismaClient, type StockMovementType, type StockLot } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError } from "../../common/errors";
 import { allocateFefo, assertSellable, type PickLine } from "./lot-guard/lot-guard";

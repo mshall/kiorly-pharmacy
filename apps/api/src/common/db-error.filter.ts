@@ -1,5 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../generated/prisma/client";
 import type { Response } from "express";
 
 /** Maps database invariant violations (last line of defence, ADR-025) and Prisma errors to uniform API errors. */

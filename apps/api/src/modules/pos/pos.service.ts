@@ -1,6 +1,6 @@
 import { marketToday } from "../../common/dates";
 import { Inject, Injectable } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
 import { D, money, round2, sum } from "../../common/money";
@@ -9,7 +9,7 @@ import { PriceService } from "../catalogue/price.service";
 import { SalesService, type CartLine, type CheckoutInput } from "./sales.service";
 import { ApprovalService, type ApprovalDto } from "../../auth/approval.service";
 import { PspAdapter } from "../../platform/adapters/psp.adapter";
-import type { PaymentMethod } from "@prisma/client";
+import type { PaymentMethod } from "../../generated/prisma/client";
 import type { AuthUser } from "../../auth/auth-user";
 import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import { renderInvoiceA4Html, renderReceiptHtml } from "./receipt-template";

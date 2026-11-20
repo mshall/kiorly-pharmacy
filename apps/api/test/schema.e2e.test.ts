@@ -3,10 +3,14 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../src/generated/prisma/client";
 import { loadEnv } from "../src/config/env";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { schemaSmoke } from "./schema.pharmacy.cases";
+
+/** Prisma 7 has no `Prisma.dmmf`: model names and scalar fields come from the generated `ModelName` / `<Model>ScalarFieldEnum` objects (no @@map in this schema, so table name = model name). */
+const modelNames = Object.values(Prisma.ModelName);
+const scalarFields = (m: Prisma.ModelName): string[] => Object.keys(Prisma[`${m}ScalarFieldEnum`]);
 
 describe("schema smoke (FROZEN-v1)", () => {
   const prisma = new PrismaService();
@@ -20,22 +24,21 @@ describe("schema smoke (FROZEN-v1)", () => {
   });
 
   it("generated client exposes the expected core models", () => {
-    const names = Prisma.dmmf.datamodel.models.map((m) => m.name);
+    const names: string[] = modelNames;
     for (const n of schemaSmoke.models) assert.ok(names.includes(n), `model ${n}`);
   });
 
   it("every model is tenant-scoped (orgId) except reference/child tables", () => {
-    const missing = Prisma.dmmf.datamodel.models
-      .filter((m) => !schemaSmoke.unscoped.includes(m.name))
-      .filter((m) => !m.fields.some((f) => f.name === "orgId"))
-      .map((m) => m.name);
+    const missing = modelNames
+      .filter((m) => !schemaSmoke.unscoped.includes(m))
+      .filter((m) => !scalarFields(m).includes("orgId"));
     assert.deepEqual(missing, []);
   });
 
   it("migration is applied: every model has a table", async () => {
     const rows = await prisma.$queryRaw<{ table_name: string }[]>`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`;
     const have = new Set(rows.map((r) => r.table_name));
-    for (const m of Prisma.dmmf.datamodel.models) assert.ok(have.has(m.dbName ?? m.name), `table ${m.name}`);
+    for (const m of modelNames) assert.ok(have.has(m), `table ${m}`);
   });
 
   it("domain invariants hold at the database level", async () => {

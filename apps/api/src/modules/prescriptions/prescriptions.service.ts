@@ -1,7 +1,7 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { PushService } from "../mobile/push.service";
 import { createHash } from "node:crypto";
-import { Prisma, type RxStatus } from "@prisma/client";
+import { Prisma, type RxStatus } from "../../generated/prisma/client";
 import { validateEvent } from "@kiorex/contracts";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";

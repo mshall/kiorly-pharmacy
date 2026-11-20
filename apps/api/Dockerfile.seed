@@ -10,7 +10,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages ./packages
 COPY vendor ./vendor
-RUN npm ci && npm install -g prisma@6.19.3
+RUN npm ci && npm install -g prisma@7.10.1
 COPY apps/api ./apps/api
 WORKDIR /repo/apps/api
 ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
@@ -21,6 +21,7 @@ RUN dnf install -y openssl ca-certificates && dnf clean all
 COPY --from=build /repo/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 COPY --from=build /repo/packages ${LAMBDA_TASK_ROOT}/packages
 COPY --from=build /repo/apps/api/prisma ${LAMBDA_TASK_ROOT}/prisma
+COPY --from=build /repo/apps/api/prisma.config.ts ${LAMBDA_TASK_ROOT}/prisma.config.ts
 COPY --from=build /repo/apps/api/dist-seed ${LAMBDA_TASK_ROOT}/dist-seed
 COPY infra/lambda/demo-seed/run.mjs ${LAMBDA_TASK_ROOT}/demo-seed.mjs
 COPY infra/lambda/demo-seed/run.mjs ${LAMBDA_TASK_ROOT}/index.mjs

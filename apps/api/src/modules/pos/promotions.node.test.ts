@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { applyPromotions, type PromoCartLine, type PromoDef } from "./promotions";
 
 const D = (v: number | string) => new Prisma.Decimal(v);

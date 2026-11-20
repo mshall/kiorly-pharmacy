@@ -22,3 +22,6 @@ infra/**/*.tfvars
 test-results/
 playwright-report/
 dist-seed
+
+# Prisma 7 generated client (npm run prisma:generate)
+apps/api/src/generated/

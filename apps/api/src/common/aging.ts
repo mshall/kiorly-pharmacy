@@ -1,10 +1,10 @@
-import { Prisma } from "@prisma/client";
-import { D, round2 } from "./money";
+import { Prisma } from "../generated/prisma/client";
+import { D, round2, type DecimalValue } from "./money";
 
 /** Pure payables / receivables aging. Credits (payments, return credits) are applied to the OLDEST invoices first (FIFO); what remains is bucketed by days past due. */
 export const AGING_BUCKETS = ["current", "d1_30", "d31_60", "d61_90", "d90_plus"] as const;
 export type AgingBucket = (typeof AGING_BUCKETS)[number];
-export interface AgingInvoice { id: string; at: Date; dueDays: number; amount: Prisma.Decimal.Value }
+export interface AgingInvoice { id: string; at: Date; dueDays: number; amount: DecimalValue }
 export interface AgingResult { outstanding: Prisma.Decimal; credit: Prisma.Decimal; buckets: Record<AgingBucket, Prisma.Decimal>; open: Array<{ id: string; at: Date; dueAt: Date; remaining: Prisma.Decimal; daysPastDue: number; bucket: AgingBucket }> }
 
 export function bucketFor(daysPastDue: number): AgingBucket {
@@ -12,7 +12,7 @@ export function bucketFor(daysPastDue: number): AgingBucket {
 }
 
 /** `credits` is the total of payments + credit notes (positive number). Any credit beyond the invoices is returned as `credit` (an advance / overpayment). */
-export function ageInvoices(invoices: readonly AgingInvoice[], credits: Prisma.Decimal.Value, asOf: Date = new Date()): AgingResult {
+export function ageInvoices(invoices: readonly AgingInvoice[], credits: DecimalValue, asOf: Date = new Date()): AgingResult {
   let left = D(credits);
   const buckets = Object.fromEntries(AGING_BUCKETS.map((b) => [b, D(0)])) as Record<AgingBucket, Prisma.Decimal>;
   const open: AgingResult["open"] = [];

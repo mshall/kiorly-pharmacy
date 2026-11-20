@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { rollbackTx } from "./tx";
 
 /** FROZEN-v1 schema expectations (KX-06, PH-D02). Changes need a new named migration. */

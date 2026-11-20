@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { D, round2 } from "../../common/money";
 
 /** Pure promotion engine: given the priced cart (per drug) and the promotions in force, returns the discount per drug and what was applied. */

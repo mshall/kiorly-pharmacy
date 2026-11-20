@@ -1,4 +1,4 @@
-import type { Edition } from "@prisma/client";
+import type { Edition } from "../../generated/prisma/client";
 
 /** Kiorly Work (mobile staff app) entitlement key. Commercial entitlement, never a safety control (ADR-025). */
 export const MOBILE_FLAG = "mobile_staff_app";

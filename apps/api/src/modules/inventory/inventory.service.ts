@@ -1,7 +1,7 @@
 import { marketToday } from "../../common/dates";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { PushService } from "../mobile/push.service";
-import { Prisma, type LotStatus } from "@prisma/client";
+import { Prisma, type LotStatus } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
 import { D, money, round2 } from "../../common/money";

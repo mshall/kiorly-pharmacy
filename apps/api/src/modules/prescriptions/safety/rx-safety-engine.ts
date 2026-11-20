@@ -1,4 +1,4 @@
-import type { SafetyCheckKind, SafetyCheckOutcome } from "@prisma/client";
+import type { SafetyCheckKind, SafetyCheckOutcome } from "../../../generated/prisma/client";
 import { CROSS_CLASS, INGREDIENT_CLASSES, INTERACTION_RULES, type InteractionRule, type Severity } from "./interaction-dataset";
 import type { ClinicalSnapshot } from "../../clinical/knowledge";
 import { dailyDoseMg } from "../../clinical/dose";

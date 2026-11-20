@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../generated/prisma/client";
 
 export interface DispenseCompletedContext {
   orgId: string; branchId: string; dispensingId: string; kiorexOrderRef: string | null; pharmacistId: string; signedOffAt: Date; dispensedAt: Date; saleId: string; saleTotal: string;

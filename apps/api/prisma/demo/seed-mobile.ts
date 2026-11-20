@@ -7,7 +7,8 @@
  *   npm run seed:mobile -w api        idempotent; run after `seed` (and `seed:suite` for the PRO tenant)
  */
 import "reflect-metadata";
-import { PrismaClient, type StaffRole } from "@prisma/client";
+import { PrismaClient, type StaffRole } from "../../src/generated/prisma/client";
+import { createPgAdapter } from "../../src/prisma/pg-adapter";
 import { loadEnv } from "../../src/config/env";
 import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
 import { hashPassword } from "../../src/auth/password";
@@ -19,7 +20,7 @@ const DAY = 86_400_000;
 async function main() {
   assertDemoSeedAllowed("Kiorly Pharmacy Kiorly Work (mobile) demo");
   loadEnv();
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({ adapter: createPgAdapter() });
   try {
     const hash = await hashPassword(DEMO_PASSWORD);
     const mkStaff = async (orgId: string, email: string, role: StaffRole, displayName: string, extra: object = {}) =>

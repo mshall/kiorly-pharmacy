@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { createHmac } from "node:crypto";
-import { Prisma, type PaymentMethod } from "@prisma/client";
+import { Prisma, type PaymentMethod } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
 import { D, money, sum } from "../../common/money";

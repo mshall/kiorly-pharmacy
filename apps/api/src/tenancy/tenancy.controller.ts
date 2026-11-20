@@ -10,7 +10,7 @@ import { AuditService } from "../audit/audit.service";
 import { KERNEL, type EntitlementsPort, type MarketPackPort } from "../kernel-adapter/ports";
 import { DomainError, conflict, notFound } from "../common/errors";
 import { RequiresFlag, RequiresFlagGuard } from "../feature-flags/requires-flag.guard";
-import { StaffRole } from "@prisma/client";
+import { StaffRole } from "../generated/prisma/client";
 
 class BranchDto {
   @IsString() @MinLength(2) name!: string;

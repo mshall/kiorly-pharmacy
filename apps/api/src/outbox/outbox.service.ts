@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "../generated/prisma/client";
 import { createId } from "../common/ids";
 import { validateEvent } from "@kiorex/contracts";
 import { PrismaService } from "../prisma/prisma.service";

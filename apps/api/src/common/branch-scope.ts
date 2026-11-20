@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "../generated/prisma/client";
 import type { AuthUser } from "../auth/auth-user";
 import { badRequest, forbidden } from "./errors";
 

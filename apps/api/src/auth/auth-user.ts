@@ -1,4 +1,4 @@
-import type { StaffRole } from "@prisma/client";
+import type { StaffRole } from "../generated/prisma/client";
 import type { Permission } from "./permissions";
 
 export interface AuthUser {

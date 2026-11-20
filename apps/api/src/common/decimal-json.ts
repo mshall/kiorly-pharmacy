@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../generated/prisma/client";
 
 /**
  * API money convention: Decimal values serialise as strings with at least 2 decimal places ("200.00"), never as JS numbers

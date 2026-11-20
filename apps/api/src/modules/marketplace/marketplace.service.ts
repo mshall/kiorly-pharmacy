@@ -1,9 +1,9 @@
 import { PushService } from "../mobile/push.service";
 import { Optional, Inject, Injectable, OnModuleInit } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError, notFound } from "../../common/errors";
-import { D, money, sum } from "../../common/money";
+import { D, money, sum, type DecimalValue } from "../../common/money";
 import type { AuthUser } from "../../auth/auth-user";
 import { OutboxService } from "../../outbox/outbox.service";
 import { DispenseHooks } from "../../common/dispense-hooks";
@@ -18,7 +18,7 @@ import { projectDrugForKiorex } from "../catalogue/kiorex-projection";
 import { seal } from "../../common/secret-box";
 import { randomBytes } from "node:crypto";
 
-const toMinor = (v: Prisma.Decimal.Value) => Math.round(D(v).mul(100).toNumber());
+const toMinor = (v: DecimalValue) => Math.round(D(v).mul(100).toNumber());
 
 export interface IngestOrderInput {
   orderId: string;

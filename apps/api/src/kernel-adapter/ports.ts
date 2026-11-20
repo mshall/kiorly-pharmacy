@@ -4,7 +4,7 @@
  * implementations and flip the providers in kernel-adapter.module.ts — no module outside src/kernel-adapter changes.
  * Prices/fees below are DEFAULTS marked NEEDS_HUMAN (KX-12 pricing is a test point, not a decision).
  */
-import type { Edition } from "@prisma/client";
+import type { Edition } from "../generated/prisma/client";
 
 export type Capability = "purchasing" | "forecasting" | "transfers" | "central_price_book" | "insurer_claims" | "kiorex_orders";
 

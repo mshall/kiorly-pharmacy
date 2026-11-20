@@ -1,4 +1,4 @@
-import type { StaffRole } from "@prisma/client";
+import type { StaffRole } from "../generated/prisma/client";
 
 /** Fine-grained permissions. Roles map to sets below; guards check permissions, never roles (RBAC, KX-08 §09). */
 export const PERMISSIONS = [

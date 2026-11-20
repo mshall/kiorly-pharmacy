@@ -1,5 +1,5 @@
-import type { Prisma } from "@prisma/client";
-import { D } from "./money";
+import type { Prisma } from "../generated/prisma/client";
+import { D, type DecimalValue } from "./money";
 import type { TenantSettings } from "../tenancy/tenant-mode.service";
 
 type Tx = Prisma.TransactionClient;
@@ -17,14 +17,14 @@ export function loyaltyConfig(s: TenantSettings | null | undefined): LoyaltyConf
   return { enabled: l.enabled !== false, earnPer: D(l.earnPer ?? 10), pointsPerEarn: l.pointsPerEarn ?? 1, redeemValue: D(l.redeemValue ?? "0.50"), tiers };
 }
 
-export function tierFor(lifetimeSpend: Prisma.Decimal.Value, cfg: LoyaltyConfig): string {
+export function tierFor(lifetimeSpend: DecimalValue, cfg: LoyaltyConfig): string {
   let name = cfg.tiers[0]?.name ?? "BRONZE";
   for (const t of cfg.tiers) if (D(lifetimeSpend).gte(t.minSpend)) name = t.name;
   return name;
 }
 
 /** Points earned for a spend (floor): spend / earnPer * pointsPerEarn * tier multiplier. Pure. */
-export function pointsFor(total: Prisma.Decimal.Value, tier: string, cfg: LoyaltyConfig): number {
+export function pointsFor(total: DecimalValue, tier: string, cfg: LoyaltyConfig): number {
   if (!cfg.enabled || cfg.earnPer.lte(0)) return 0;
   return Math.floor(D(total).div(cfg.earnPer).floor().mul(cfg.pointsPerEarn).toNumber() * (TIER_MULTIPLIER[tier] ?? 1));
 }
@@ -32,7 +32,7 @@ export function pointsFor(total: Prisma.Decimal.Value, tier: string, cfg: Loyalt
 /** Value (money) of a number of points. Pure. */
 export const pointsValue = (points: number, cfg: LoyaltyConfig) => cfg.redeemValue.mul(points);
 
-async function post(tx: Tx, p: { orgId: string; patientId: string; kind: string; points: number; saleId?: string; note?: string; by?: string; spend?: Prisma.Decimal.Value }, cfg: LoyaltyConfig) {
+async function post(tx: Tx, p: { orgId: string; patientId: string; kind: string; points: number; saleId?: string; note?: string; by?: string; spend?: DecimalValue }, cfg: LoyaltyConfig) {
   const cur = await tx.patientRef.findUniqueOrThrow({ where: { id: p.patientId }, select: { loyaltyPoints: true, lifetimeSpend: true } });
   const balance = cur.loyaltyPoints + p.points;
   const spend = D(cur.lifetimeSpend).plus(p.spend ?? 0);
@@ -42,7 +42,7 @@ async function post(tx: Tx, p: { orgId: string; patientId: string; kind: string;
 }
 
 /** Accrue points (and lifetime spend / tier) for a completed sale. No-op when loyalty is off or the customer is unknown. */
-export async function earnForSale(tx: Tx, p: { orgId: string; patientId: string; saleId: string; total: Prisma.Decimal.Value; by?: string }, cfg: LoyaltyConfig) {
+export async function earnForSale(tx: Tx, p: { orgId: string; patientId: string; saleId: string; total: DecimalValue; by?: string }, cfg: LoyaltyConfig) {
   if (!cfg.enabled) return 0;
   const cur = await tx.patientRef.findFirst({ where: { id: p.patientId, orgId: p.orgId }, select: { loyaltyTier: true } });
   if (!cur) return 0;

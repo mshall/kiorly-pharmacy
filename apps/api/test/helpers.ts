@@ -3,7 +3,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
-import type { PrismaClient, StaffRole, Edition } from "@prisma/client";
+import type { PrismaClient, StaffRole, Edition } from "../src/generated/prisma/client";
 import { loadEnv } from "../src/config/env";
 import { AppModule } from "../src/app.module";
 import { configureApp } from "../src/app.setup";

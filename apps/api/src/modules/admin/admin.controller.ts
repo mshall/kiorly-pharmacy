@@ -2,7 +2,7 @@ import { Body, Controller, Get, Header, Inject, Param, Post, Put, Query, Res } f
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import type { Response } from "express";
-import { StaffRole } from "@prisma/client";
+import { StaffRole } from "../../generated/prisma/client";
 import { CurrentUser, Perm } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";
 import { DomainError } from "../../common/errors";

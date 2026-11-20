@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { Edition } from "@prisma/client";
-import { Prisma } from "@prisma/client";
+import type { Edition } from "../../generated/prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import type {
   Capability, CreditWalletPort, EntitlementsPort, MarketPack, MarketPackPort, PlanDefinition, PlansPort, SettlementPort, SubscriptionsPort,
