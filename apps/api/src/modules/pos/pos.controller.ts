@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Header, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumberString, IsOptional, IsString, Min, MinLength, ValidateNested } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumberString, IsObject, IsOptional, IsString, Min, MinLength, ValidateNested } from "class-validator";
 import { CurrentUser, Perm } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";
 import { ApprovalDto } from "../../auth/approval.service";
@@ -9,6 +9,9 @@ import { PosService } from "./pos.service";
 import { SalesService } from "./sales.service";
 import { ShiftsService } from "./shifts.service";
 import { CustomersService } from "./customers.service";
+import { PromotionsService, PROMO_KINDS } from "./promotions.service";
+import { HeldCartsService } from "./held-carts.service";
+import { CashService } from "./cash.service";
 import { resolveBranchId, branchFilter } from "../../common/branch-scope";
 import { PrismaService } from "../../prisma/prisma.service";
 import { pageArgs } from "../../common/pagination";
@@ -33,10 +36,12 @@ class CheckoutDto {
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => PaymentDto) payments!: PaymentDto[];
   @IsOptional() @IsString() customerAccountId?: string;
   @IsOptional() @IsString() patientId?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) couponCodes?: string[];
   @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto;
 }
 class QuoteDto {
   @IsOptional() @IsString() branchId?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) couponCodes?: string[];
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => CartLineDto) lines!: CartLineDto[];
 }
 class SyncSaleDto {
@@ -61,6 +66,28 @@ class ReturnDto {
   @IsIn(METHODS.filter((m) => m !== "LOYALTY_POINTS")) refundMethod!: Exclude<(typeof METHODS)[number], "LOYALTY_POINTS">;
   @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto;
 }
+class ExchangeDto {
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ReturnLineDto) returnLines!: ReturnLineDto[];
+  @IsString() @MinLength(3) reason!: string;
+  @IsIn(METHODS.filter((m) => m !== "LOYALTY_POINTS")) refundMethod!: Exclude<(typeof METHODS)[number], "LOYALTY_POINTS">;
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => CartLineDto) newLines!: CartLineDto[];
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => PaymentDto) payments!: PaymentDto[];
+  @IsString() @MinLength(8) idempotencyKey!: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) couponCodes?: string[];
+  @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto;
+}
+class HoldDto { @IsOptional() @IsString() branchId?: string; @IsOptional() @IsString() label?: string; @IsOptional() @IsString() patientId?: string; @IsObject() payload!: Record<string, unknown>; }
+class CashDto { @IsOptional() @IsString() branchId?: string; @IsIn(["IN", "OUT"]) kind!: "IN" | "OUT"; @IsString() category!: string; @IsNumberString() amount!: string; @IsString() @MinLength(3) reason!: string; }
+class PromoDto {
+  @IsString() @MinLength(2) name!: string; @IsOptional() @IsString() nameAr?: string; @IsIn(PROMO_KINDS) kind!: (typeof PROMO_KINDS)[number];
+  @IsOptional() @IsString() couponCode?: string; @IsOptional() @IsArray() @IsString({ each: true }) drugIds?: string[]; @IsObject() params!: Record<string, unknown>;
+  @IsOptional() @IsDateString() startsAt?: string; @IsOptional() @IsDateString() endsAt?: string; @IsOptional() @IsNumberString() minSubtotal?: string; @IsOptional() @IsInt() @Min(1) maxUses?: number;
+  @IsOptional() @IsInt() priority?: number; @IsOptional() @IsBoolean() stackable?: boolean; @IsOptional() @IsString() branchId?: string; @IsOptional() @IsBoolean() active?: boolean;
+}
+class PromoPatchDto {
+  @IsOptional() @IsString() name?: string; @IsOptional() @IsString() nameAr?: string; @IsOptional() @IsIn(PROMO_KINDS) kind?: (typeof PROMO_KINDS)[number]; @IsOptional() @IsObject() params?: Record<string, unknown>; @IsOptional() @IsArray() @IsString({ each: true }) drugIds?: string[];
+  @IsOptional() @IsDateString() endsAt?: string; @IsOptional() @IsNumberString() minSubtotal?: string; @IsOptional() @IsInt() maxUses?: number; @IsOptional() @IsInt() priority?: number; @IsOptional() @IsBoolean() stackable?: boolean; @IsOptional() @IsBoolean() active?: boolean;
+}
 class VoidDto { @IsString() @MinLength(3) reason!: string; @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto; }
 class OpenShiftDto { @IsOptional() @IsString() branchId?: string; @IsNumberString() openingFloat!: string; }
 class CloseShiftDto { @IsNumberString() countedCash!: string; }
@@ -77,6 +104,9 @@ export class PosController {
     @Inject(SalesService) private readonly sales: SalesService,
     @Inject(ShiftsService) private readonly shifts: ShiftsService,
     @Inject(CustomersService) private readonly customers: CustomersService,
+    @Inject(PromotionsService) private readonly promos: PromotionsService,
+    @Inject(HeldCartsService) private readonly held: HeldCartsService,
+    @Inject(CashService) private readonly cash: CashService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
 
@@ -84,7 +114,7 @@ export class PosController {
   async lookup(@CurrentUser() u: AuthUser, @Query("code") code: string, @Query("branchId") branchId?: string) { return this.pos.lookup(u, await resolveBranchId(this.prisma, u, branchId), code); }
 
   @Post("cart/quote") @Perm("pos.sell")
-  async quote(@CurrentUser() u: AuthUser, @Body() d: QuoteDto) { return this.pos.quote(u, await resolveBranchId(this.prisma, u, d.branchId), d.lines); }
+  async quote(@CurrentUser() u: AuthUser, @Body() d: QuoteDto) { return this.pos.quote(u, await resolveBranchId(this.prisma, u, d.branchId), d.lines, d.couponCodes); }
 
   @Get("offline-bundle") @Perm("pos.sell")
   async bundle(@CurrentUser() u: AuthUser, @Query("branchId") branchId?: string) { return this.pos.offlineBundle(u, await resolveBranchId(this.prisma, u, branchId)); }
@@ -102,10 +132,13 @@ export class PosController {
   receipt(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.pos.receipt(u.orgId, id); }
 
   @Get("sales/:id/receipt.html") @Header("Content-Type", "text/html; charset=utf-8") @Perm("pos.sell")
-  receiptHtml(@CurrentUser() u: AuthUser, @Param("id") id: string, @Query("lang") lang?: string) { return this.pos.receiptHtml(u.orgId, id, lang === "en" ? "en" : "ar"); }
+  receiptHtml(@CurrentUser() u: AuthUser, @Param("id") id: string, @Query("lang") lang?: string, @Query("format") format?: string) { return this.pos.receiptHtml(u.orgId, id, lang === "en" ? "en" : "ar", format === "a4" ? "a4" : format === "thermal" ? "thermal" : undefined); }
 
   @Post("sales/:id/returns") @Perm("pos.sell")
   ret(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: ReturnDto) { return this.pos.returnItems(u, id, d); }
+
+  @Post("sales/:id/exchange") @Perm("pos.sell")
+  exchange(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: ExchangeDto) { return this.pos.exchange(u, id, d); }
 
   @Post("sales/:id/void") @Perm("pos.sell")
   void(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: VoidDto) { return this.pos.voidSale(u, id, d.reason, d.approval); }
@@ -126,6 +159,8 @@ export class PosController {
   async current(@CurrentUser() u: AuthUser, @Query("branchId") branchId?: string) { return (await this.shifts.current(u.orgId, await resolveBranchId(this.prisma, u, branchId))) ?? null; }
   @Get("shifts") @Perm("pos.shift")
   shiftList(@CurrentUser() u: AuthUser, @Query("branchId") branchId?: string) { return this.shifts.list(u.orgId, branchFilter(u, branchId).branchId); }
+  @Get("shifts/:id/x-report") @Perm("pos.shift")
+  x(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.shifts.zReport(u.orgId, id); }
   @Get("shifts/:id/z-report") @Perm("pos.shift")
   z(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.shifts.zReport(u.orgId, id); }
   @Post("shifts/:id/close") @Perm("pos.shift")
@@ -142,4 +177,28 @@ export class PosController {
   custLimit(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: LimitDto) { return this.customers.setLimit(u, id, d.creditLimit); }
   @Post("customers/:id/payments") @Perm("customer.credit")
   async custPay(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: CustPayDto) { return this.customers.pay(u, id, d.amount, await resolveBranchId(this.prisma, u, d.branchId)); }
+
+  // ---- held carts
+  @Post("held") @Perm("pos.sell")
+  async hold(@CurrentUser() u: AuthUser, @Body() d: HoldDto) { return this.held.hold(u, await resolveBranchId(this.prisma, u, d.branchId), { label: d.label, patientId: d.patientId, payload: d.payload as never }); }
+  @Get("held") @Perm("pos.sell")
+  async heldList(@CurrentUser() u: AuthUser, @Query("branchId") branchId?: string) { return this.held.list(u.orgId, await resolveBranchId(this.prisma, u, branchId)); }
+  @Post("held/:id/resume") @Perm("pos.sell")
+  resume(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.held.resume(u, id); }
+  @Delete("held/:id") @Perm("pos.sell")
+  discard(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.held.discard(u, id); }
+
+  // ---- cash drawer
+  @Post("cash-movements") @Perm("pos.cash_drawer")
+  async cashMove(@CurrentUser() u: AuthUser, @Body() d: CashDto) { return this.cash.record(u, await resolveBranchId(this.prisma, u, d.branchId), d); }
+  @Get("cash-movements") @Perm("pos.cash_drawer")
+  cashList(@CurrentUser() u: AuthUser, @Query() q: { shiftId?: string; branchId?: string }) { return this.cash.list(u.orgId, { shiftId: q.shiftId, ...branchFilter(u, q.branchId) }); }
+
+  // ---- promotions & coupons
+  @Get("promotions") @Perm("pos.sell")
+  promoList(@CurrentUser() u: AuthUser, @Query() q: { active?: string; q?: string }) { return this.promos.list(u.orgId, { active: q.active === undefined ? undefined : q.active === "true", q: q.q }); }
+  @Post("promotions") @Perm("promo.manage")
+  promoCreate(@CurrentUser() u: AuthUser, @Body() d: PromoDto) { return this.promos.create(u, d); }
+  @Patch("promotions/:id") @Perm("promo.manage")
+  promoUpdate(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: PromoPatchDto) { return this.promos.update(u, id, d); }
 }

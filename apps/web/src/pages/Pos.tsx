@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { ScanLine, X } from "lucide-react";
+import { Banknote, ParkingSquare, ScanLine, Ticket, X } from "lucide-react";
+import { CustomerPicker } from "@/components/pickers";
+import { CashModal, ExchangeModal, HeldModal, XReportModal, type HeldCartRow } from "@/pages/pos/PosExtras";
 import { api, ApiError, newKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Badge, Button, Empty, ErrorNote, Field, Input, Modal, Select, Table, Td, cn, errorMessage } from "@/components/ui";
@@ -11,13 +13,14 @@ import { drugName, fmtDateTime, fmtMoney } from "@/lib/format";
 import { listQueue, loadCatalogue, queueSale, removeQueued, saveCatalogue, searchOffline, type OfflineItem, type QueuedSale } from "@/lib/offline";
 import { printHtml } from "@/lib/print";
 import { useToast } from "@/lib/toast";
-import type { Sale } from "@/lib/types";
+import type { Customer as RegistryCustomer, Sale } from "@/lib/types";
 
 interface CartLine { item: OfflineItem; qty: number }
 interface Customer { id: string; displayName: string; creditLimit: string; balance: string; available: string }
 interface Shift { id: string; openedAt: string; openingFloat: string }
 interface Pay { method: string; amount: string }
-const METHODS = ["CASH", "CARD", "INSTAPAY", "FAWRY", "WALLET", "CUSTOMER_CREDIT"] as const;
+const METHODS = ["CASH", "CARD", "INSTAPAY", "FAWRY", "WALLET", "CUSTOMER_CREDIT", "LOYALTY_POINTS"] as const;
+interface Quote { subtotal: string; discountTotal: string; vatTotal: string; total: string; promotions: Array<{ promoId: string; name: string; amount: string }>; invalidCoupons: string[] }
 
 /** Touch-first till. Search + barcode run against a local catalogue copy (IndexedDB) so the till keeps working offline; sales ring up with an idempotency key. */
 export function Pos() {
@@ -30,6 +33,9 @@ export function Pos() {
   const [pay, setPay] = useState(false); const [shiftModal, setShiftModal] = useState<"open" | "close" | null>(null); const [history, setHistory] = useState(false); const [conflictsOpen, setConflictsOpen] = useState(false);
   const [receipt, setReceipt] = useState<{ sale?: Sale; change: string; queued?: boolean } | null>(null);
   const [approval, setApproval] = useState<{ retry: () => void } | null>(null);
+  const [cust, setCust] = useState<RegistryCustomer | null>(null); const [coupons, setCoupons] = useState<string[]>([]); const [couponIn, setCouponIn] = useState("");
+  const [heldOpen, setHeldOpen] = useState(false); const [cashOpen, setCashOpen] = useState(false); const [xOpen, setXOpen] = useState(false);
+  const [exchange, setExchange] = useState<Sale | null>(null);
 
   // --- local catalogue (offline bundle)
   const refreshBundle = useCallback(async () => {
@@ -56,17 +62,24 @@ export function Pos() {
       if (r && !r.found) toast(t("pos.notFound"), "err");
     }
   };
-  const total = cart.reduce((a, l) => a + Number(l.item.price) * l.qty, 0);
+  const localTotal = cart.reduce((a, l) => a + Number(l.item.price) * l.qty, 0);
+  // live quote (promotions, coupons, VAT lines) from the server when online; offline falls back to the list-price sum
+  const quoteQ = useQuery({ queryKey: ["pos-quote", branchId, cart.map((l) => `${l.item.id}:${l.qty}`).join(","), coupons.join(",")], queryFn: () => api<Quote>("/pos/cart/quote", { body: { branchId, lines: cart.map((l) => ({ drugId: l.item.id, quantity: l.qty })), couponCodes: coupons } }), enabled: online && !!branchId && cart.length > 0, retry: false, placeholderData: (p) => p });
+  const quote = online && cart.length ? quoteQ.data : undefined;
+  const total = quote ? Number(quote.total) : localTotal;
+  const heldCount = useQuery({ queryKey: ["held", branchId], queryFn: () => api<unknown[]>("/pos/held", { query: { branchId } }), enabled: online && !!branchId, refetchInterval: 20_000 }).data?.length ?? 0;
+  const hold = useMutation({ mutationFn: () => api("/pos/held", { body: { branchId, label: cust?.displayName, patientId: cust?.id, payload: { lines: cart.map((l) => ({ drugId: l.item.id, quantity: l.qty, brandName: l.item.brandName })), customer: cust ? { id: cust.id, displayName: cust.displayName } : null } } }), onSuccess: () => { toast(t("pos.heldSaved")); setCart([]); setCust(null); setCoupons([]); void qc.invalidateQueries({ queryKey: ["held"] }); }, onError: (e) => toast(errorMessage(e, t as never), "err") });
+  const resumeHeld = (h: HeldCartRow) => { const next: CartLine[] = []; for (const l of h.payload.lines) { const it = items.find((i) => i.id === l.drugId); if (it) next.push({ item: it, qty: l.quantity }); } setCart(next); if (h.payload.customer) void api<RegistryCustomer>(`/customers/${h.payload.customer.id}`).then(setCust).catch(() => undefined); };
 
   // --- sale
   const [pays, setPays] = useState<Pay[]>([]); const [customerId, setCustomerId] = useState(""); const [amount, setAmount] = useState(""); const [method, setMethod] = useState<string>("CASH");
   const customers = useQuery({ queryKey: ["customers"], queryFn: () => api<Customer[]>("/pos/customers"), enabled: pay && can("customer.credit") && online });
   const paid = pays.reduce((a, p) => a + Number(p.amount), 0);
   const due = Math.max(total - paid, 0);
-  const reset = () => { setCart([]); setPays([]); setPay(false); setCustomerId(""); setAmount(""); setQ(""); };
+  const reset = () => { setCart([]); setPays([]); setPay(false); setCustomerId(""); setAmount(""); setQ(""); setCust(null); setCoupons([]); setCouponIn(""); };
   const checkout = useMutation({
     mutationFn: async (vars: { approval?: { email: string; password: string }; key: string }) => {
-      const body = { idempotencyKey: vars.key, lines: cart.map((l) => ({ drugId: l.item.id, quantity: l.qty })), payments: pays, customerAccountId: customerId || undefined, approval: vars.approval };
+      const body = { idempotencyKey: vars.key, lines: cart.map((l) => ({ drugId: l.item.id, quantity: l.qty })), payments: pays, customerAccountId: customerId || (pays.some((p) => p.method === "CUSTOMER_CREDIT") ? cust?.customerAccount?.id : undefined) || undefined, patientId: cust?.id, couponCodes: coupons.length ? coupons : undefined, approval: vars.approval };
       try { return await api<{ sale: Sale; change: string }>("/pos/sales", { body: { ...body, branchId } }); }
       catch (e) {
         if (e instanceof ApiError && e.isNetwork) {
@@ -125,6 +138,9 @@ export function Pos() {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {online && <Button size="sm" variant="outline" onClick={() => setHeldOpen(true)}><ParkingSquare aria-hidden className="size-4" />{t("pos.held")}{heldCount > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">{heldCount}</span>}</Button>}
+          {shift && online && can("pos.cash_drawer") && <Button size="sm" variant="outline" onClick={() => setCashOpen(true)}><Banknote aria-hidden className="size-4" />{t("pos.cashInOut")}</Button>}
+          {shift && online && can("pos.shift") && <Button size="sm" variant="outline" onClick={() => setXOpen(true)}>{t("pos.xReport")}</Button>}
           {shift ? <><Button size="sm" variant="outline" onClick={() => setHistory(true)}>{t("pos.sales")}</Button><Button size="sm" variant="outline" onClick={() => setShiftModal("close")}>{t("pos.closeShift")}</Button></> : online && can("pos.shift") && <Button onClick={() => setShiftModal("open")}>{t("pos.openShift")}</Button>}
           {!!queuedCount && <Button size="sm" variant="outline" disabled={!online || sync.isPending} onClick={() => sync.mutate()}>{t("pos.sync", { count: queuedCount })}</Button>}
           {can("pos.refund_approve") && <Button size="sm" variant="ghost" onClick={() => setConflictsOpen(true)}>{t("pos.conflicts")}</Button>}
@@ -158,6 +174,7 @@ export function Pos() {
         </div>
         <section aria-label={t("pos.cart")} className="flex max-h-[calc(100vh-7rem)] flex-col rounded-2xl border border-border/80 bg-card shadow-[var(--kx-shadow-2)] lg:sticky lg:top-20">
           <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3"><h2 className="text-base font-semibold">{t("pos.cart")}</h2>{itemCount > 0 && <><span className="text-xs tabular-nums text-muted-foreground">{t("pos.items", { count: itemCount })}</span><Button size="sm" variant="ghost" onClick={() => setCart([])}>{t("pos.clear")}</Button></>}</header>
+          {online && can("customer.read") && <div className="border-b border-border px-4 py-2"><CustomerPicker value={cust} onChange={setCust} label={t("pos.attachCustomer")} />{cust && cust.loyaltyPoints > 0 && <p className="mt-1 text-xs text-muted-foreground">{t("pos.redeemPoints")}: {cust.loyaltyPoints}</p>}</div>}
           <div className="min-h-32 flex-1 overflow-y-auto px-4">
             {!cart.length ? <Empty>{t("pos.emptyCart")}</Empty> : (
               <ul className="divide-y divide-border">
@@ -175,7 +192,13 @@ export function Pos() {
               </ul>
             )}
           </div>
-          <footer className="border-t border-border px-4 py-3"><div className="flex items-baseline justify-between text-2xl font-bold"><span className="text-base font-semibold">{t("pos.total")}</span><span data-testid="cart-total" className="tabular-nums">{fmtMoney(total)}</span></div>
+          <footer className="border-t border-border px-4 py-3">
+            {online && cart.length > 0 && <form className="mb-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); const c = couponIn.trim(); if (c && !coupons.includes(c)) setCoupons([...coupons, c]); setCouponIn(""); }}><Input aria-label={t("pos.coupon")} placeholder={t("pos.coupon")} dir="ltr" value={couponIn} onChange={(e) => setCouponIn(e.target.value)} className="min-h-10" /><Button type="submit" variant="outline" size="sm"><Ticket aria-hidden className="size-4" />{t("pos.applyCoupon")}</Button></form>}
+            {coupons.length > 0 && <p className="mb-1 flex flex-wrap gap-1">{coupons.map((c) => <span key={c} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs" dir="ltr">{c}<button type="button" aria-label={t("common.remove")} onClick={() => setCoupons(coupons.filter((x) => x !== c))}>✕</button></span>)}</p>}
+            {!!quote?.invalidCoupons.length && <p role="alert" className="mb-1 text-xs text-[hsl(var(--danger-text))]">{t("pos.couponInvalid", { codes: quote.invalidCoupons.join(", ") })}</p>}
+            {!!quote?.promotions.length && <ul aria-label={t("pos.promoApplied")} className="mb-2 space-y-0.5 text-xs text-[hsl(var(--success))]">{quote.promotions.map((p) => <li key={p.promoId} className="flex justify-between"><span>{p.name}</span><span className="kx-num">−{fmtMoney(p.amount)}</span></li>)}</ul>}
+            <div className="flex items-baseline justify-between text-2xl font-bold"><span className="text-base font-semibold">{t("pos.total")}</span><span data-testid="cart-total" className="tabular-nums">{fmtMoney(total)}</span></div>
+            {online && cart.length > 0 && <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => hold.mutate()} disabled={hold.isPending}><ParkingSquare aria-hidden className="size-4" />{t("pos.hold")}</Button>}
             <Button size="lg" className="mt-3 w-full" disabled={!cart.length || (online && !shift)} onClick={startPay}>{t("pos.pay")}<kbd aria-hidden="true" className="ms-1 hidden rounded border border-primary-foreground/40 px-1.5 text-xs font-normal opacity-80 sm:inline">F9</kbd></Button></footer>
         </section>
       </div>
@@ -186,7 +209,7 @@ export function Pos() {
             <div className="rounded-xl bg-muted p-4"><div className="text-xs font-medium text-muted-foreground">{t("pos.total")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(total)}</div></div>
             <div className={cn("rounded-xl p-4", due > 0 ? "bg-[var(--kx-coral-50)] ring-1 ring-inset ring-[var(--kx-coral-200)] dark:bg-[hsl(var(--warning)/0.14)] dark:ring-0" : "bg-[hsl(var(--success)/0.14)]")} aria-live="polite"><div className="text-xs font-medium text-muted-foreground">{due > 0 ? t("pos.due") : t("pos.change")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(due > 0 ? due : paid - total)}</div></div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={t("pos.method")}>{METHODS.map((m) => <Button key={m} size="lg" className="min-h-14" variant={method === m ? "primary" : "outline"} aria-pressed={method === m} disabled={!online && !["CASH", "CUSTOMER_CREDIT"].includes(m)} onClick={() => setMethod(m)}>{t(`method.${m}`)}</Button>)}</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={t("pos.method")}>{METHODS.filter((m) => m !== "LOYALTY_POINTS" || (!!cust && cust.loyaltyPoints > 0 && online)).map((m) => <Button key={m} size="lg" className="min-h-14" variant={method === m ? "primary" : "outline"} aria-pressed={method === m} disabled={!online && !["CASH", "CUSTOMER_CREDIT"].includes(m)} onClick={() => setMethod(m)}>{t(`method.${m}`)}</Button>)}</div>
           {method === "CUSTOMER_CREDIT" && <Field label={t("pos.customer")}>{(id) => <Select id={id} value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">—</option>{customers.data?.map((c) => <option key={c.id} value={c.id}>{c.displayName} ({t("pos.creditAvailable")}: {fmtMoney(c.available)})</option>)}</Select>}</Field>}
           <div className="space-y-2">
             <div className="flex items-end gap-2">
@@ -203,8 +226,12 @@ export function Pos() {
       {approval && <ApprovalModal onClose={() => setApproval(null)} onApprove={(a) => { setApproval(null); checkout.mutate({ key: saleKey, approval: a }); }} message={t("pos.negativeStock")} />}
       <ReceiptModal data={receipt} onClose={() => { setReceipt(null); scanRef.current?.focus(); }} />
       <ShiftModal mode={shiftModal} shift={shift} onClose={() => setShiftModal(null)} branchId={branchId} />
-      <HistoryModal open={history} onClose={() => setHistory(false)} shiftId={shift?.id} />
+      <HistoryModal open={history} onClose={() => setHistory(false)} shiftId={shift?.id} onExchange={(s) => { setHistory(false); setExchange(s); }} />
       <ConflictsModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
+      <HeldModal open={heldOpen} onClose={() => setHeldOpen(false)} onResume={resumeHeld} />
+      <CashModal open={cashOpen} onClose={() => setCashOpen(false)} shiftId={shift?.id} />
+      <XReportModal open={xOpen} onClose={() => setXOpen(false)} shiftId={shift?.id} />
+      <ExchangeModal sale={exchange} items={items} onClose={() => setExchange(null)} onDone={() => void qc.invalidateQueries({ queryKey: ["sales-shift"] })} />
     </div>
   );
 }
@@ -245,7 +272,7 @@ function ReceiptModal({ data, onClose }: { data: { sale?: Sale; change: string; 
                 <div className="flex justify-between border-t border-dashed border-border pt-1 text-sm font-bold"><dt>{t("pos.total")}</dt><dd>{fmtMoney(sale.total)}</dd></div>
               </dl>
             </div>
-            <div className="text-center"><Button variant="outline" onClick={() => void printHtml(`/pos/sales/${sale.id}/receipt.html`, { lang: document.documentElement.lang })}>{t("pos.printReceipt")}</Button></div></>}
+            <div className="flex flex-wrap justify-center gap-2"><Button variant="outline" onClick={() => void printHtml(`/pos/sales/${sale.id}/receipt.html`, { lang: document.documentElement.lang, format: "thermal" })}>{t("pos.printThermal")}</Button><Button variant="outline" onClick={() => void printHtml(`/pos/sales/${sale.id}/receipt.html`, { lang: document.documentElement.lang, format: "a4" })}>{t("pos.printA4")}</Button></div></>}
           <Button size="lg" className="w-full" onClick={onClose}>{t("pos.newSale")}</Button>
         </div>
       )}
@@ -281,7 +308,7 @@ function ShiftModal({ mode, shift, onClose, branchId }: { mode: "open" | "close"
   );
 }
 
-function HistoryModal({ open, onClose, shiftId }: { open: boolean; onClose: () => void; shiftId?: string }) {
+function HistoryModal({ open, onClose, shiftId, onExchange }: { open: boolean; onClose: () => void; shiftId?: string; onExchange: (s: Sale) => void }) {
   const { t } = useTranslation();
   const { can } = useAuth();
   const qc = useQueryClient(); const toast = useToast();
@@ -301,7 +328,7 @@ function HistoryModal({ open, onClose, shiftId }: { open: boolean; onClose: () =
       <Table head={[t("pos.receiptNo"), t("common.date"), t("pos.total"), t("common.status"), ""]} empty={!res.data?.items.length ? <Empty>{t("common.none")}</Empty> : null}>
         {res.data?.items.map((s) => <tr key={s.id}><Td className="font-mono text-xs">{s.receiptNo}</Td><Td>{new Date(s.soldAt).toLocaleTimeString()}</Td><Td>{fmtMoney(s.total)}</Td><Td><Badge tone={s.status === "COMPLETED" ? "good" : "warn"}>{t(`saleStatus.${s.status}`)}</Badge></Td>
           <Td><div className="flex gap-1"><Button size="sm" variant="outline" onClick={() => void printHtml(`/pos/sales/${s.id}/receipt.html`, { lang: document.documentElement.lang })}>{t("pos.printReceipt")}</Button>
-            {s.status === "COMPLETED" && can("pos.sell") && <><Button size="sm" variant="outline" onClick={() => setAppr({ sale: s, kind: "return" })}>{t("pos.return")}</Button><Button size="sm" variant="danger" onClick={() => setAppr({ sale: s, kind: "void" })}>{t("pos.void")}</Button></>}</div></Td></tr>)}
+            {s.status === "COMPLETED" && can("pos.sell") && <><Button size="sm" variant="outline" onClick={() => setAppr({ sale: s, kind: "return" })}>{t("pos.return")}</Button><Button size="sm" variant="outline" onClick={() => onExchange(s)}>{t("pos.exchange")}</Button><Button size="sm" variant="danger" onClick={() => setAppr({ sale: s, kind: "void" })}>{t("pos.void")}</Button></>}</div></Td></tr>)}
       </Table>
       {appr && <ApprovalModal onClose={() => setAppr(null)} message={t("pos.refundApproval")} onApprove={(a) => act.mutate({ ...appr, approval: a })} />}
     </Modal>

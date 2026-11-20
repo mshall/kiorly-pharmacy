@@ -48,7 +48,8 @@
     "groupMoney": "Money",
     "groupAdmin": "Admin",
     "controlled": "Controlled register",
-    "safety": "Clinical safety"
+    "safety": "Clinical safety",
+    "promotions": "Promotions"
   },
   "auth": {
     "email": "Email",
@@ -87,7 +88,7 @@
       "INSUFFICIENT_STOCK": "Not enough stock.",
       "SHIFT_REQUIRED": "Open a shift first.",
       "PERMISSION_DENIED": "You do not have permission for this action.",
-      "APPROVAL_REQUIRED": "Manager approval is required.",
+      "APPROVAL_REQUIRED": "A manager must approve this.",
       "APPROVAL_DENIED": "Approver credentials are invalid or lack permission.",
       "PAYMENT_DECLINED": "Payment was declined.",
       "UNDERPAID": "Payments do not cover the total.",
@@ -127,7 +128,15 @@
       "PATIENT_REQUIRED": "Choose or enter a patient.",
       "NOT_CONTROLLED": "This medicine is not a controlled substance.",
       "ALREADY_RESOLVED": "Already resolved.",
-      "RULE_EXISTS": "This pharmacy already has a rule for that entry."
+      "RULE_EXISTS": "This pharmacy already has a rule for that entry.",
+      "INVALID_COUPON": "That coupon is not valid for this cart.",
+      "PROMOTION_EXHAUSTED": "A promotion in this sale reached its usage limit.",
+      "INVALID_PROMOTION": "The promotion settings are not valid.",
+      "COUPON_EXISTS": "A promotion with this coupon code already exists.",
+      "EXCHANGE_REPLACEMENT_FAILED": "The return was posted but the replacement sale failed; sell the new items normally.",
+      "INVALID_CATEGORY": "That category is not valid here.",
+      "TOO_MANY_HELD": "Too many held carts.",
+      "NOT_HELD": "This cart was already resumed or discarded."
     }
   },
   "dash": {
@@ -567,7 +576,55 @@
     "exact": "Exact",
     "receiptPreview": "Receipt preview",
     "subtotal": "Subtotal",
-    "vat": "VAT"
+    "vat": "VAT",
+    "attachCustomer": "Attach customer",
+    "walkIn": "Walk-in customer",
+    "coupon": "Coupon code",
+    "applyCoupon": "Apply",
+    "couponInvalid": "Coupon not valid for this cart: {{codes}}",
+    "discount": "Discount",
+    "promoApplied": "Offers applied",
+    "redeemPoints": "Loyalty points",
+    "pointsAvailable": "{{points}} pts ({{value}})",
+    "hold": "Hold cart",
+    "held": "Held carts",
+    "heldEmpty": "No held carts",
+    "heldLabel": "Label (e.g. customer name)",
+    "resume": "Resume",
+    "heldSaved": "Cart held",
+    "cashDrawer": "Cash drawer",
+    "cashIn": "Cash in",
+    "cashOut": "Cash out",
+    "cashCategory": "Category",
+    "cashReason": "Reason",
+    "cashAmount": "Amount",
+    "cashMovements": "Movements this shift",
+    "cashCat": {
+      "FLOAT_TOP_UP": "Float top-up",
+      "OWNER_DEPOSIT": "Owner deposit",
+      "OTHER_IN": "Other (in)",
+      "PETTY_CASH": "Petty cash",
+      "BANK_DEPOSIT": "Bank deposit",
+      "SUPPLIER_PAYMENT": "Supplier payment",
+      "EXPENSE": "Expense",
+      "OWNER_WITHDRAWAL": "Owner withdrawal",
+      "OTHER_OUT": "Other (out)"
+    },
+    "xReport": "X report",
+    "xReportNote": "Live snapshot of the open shift — does not close it.",
+    "exchange": "Exchange",
+    "exchangeTitle": "Exchange items",
+    "exchangeReturn": "Items coming back",
+    "exchangeNew": "Items going out",
+    "exchangeRefund": "Refund method",
+    "exchangePay": "Customer pays",
+    "exchangeReason": "Reason for the exchange",
+    "exchangeDone": "Exchange completed — refund {{refund}}",
+    "printA4": "Print A4 invoice",
+    "printThermal": "Print receipt (80 mm)",
+    "openingFloatShort": "Opening float",
+    "cashInOut": "Cash in / out",
+    "sold": "Sold"
   },
   "method": {
     "CASH": "Cash",
@@ -593,7 +650,9 @@
     "cashSales": "Cash sales",
     "expectedCash": "Expected cash",
     "countedCash": "Counted cash",
-    "variance": "Variance"
+    "variance": "Variance",
+    "cashIn": "Cash in",
+    "cashOut": "Cash out"
   },
   "sup": {
     "title": "Purchasing",
@@ -1062,5 +1121,48 @@
     "overriddenBy": "Pharmacist",
     "reason": "Reason given",
     "when": "When"
+  },
+  "promo": {
+    "title": "Promotions & coupons",
+    "subtitle": "Percent and amount offers, buy-X-get-Y, bundle deals and coupon codes.",
+    "new": "New promotion",
+    "edit": "Edit promotion",
+    "name": "Name",
+    "nameAr": "Arabic name",
+    "kindLabel": "Type",
+    "kind": {
+      "PERCENT_OFF": "Percent off",
+      "AMOUNT_OFF": "Amount off per unit",
+      "BUY_X_GET_Y": "Buy X get Y free",
+      "BUNDLE_PRICE": "Bundle price"
+    },
+    "percent": "Percent",
+    "amount": "Amount per unit",
+    "buy": "Buy",
+    "get": "Get free",
+    "bundlePrice": "Bundle price",
+    "products": "Products (empty = whole cart)",
+    "bundleItems": "Bundle contents",
+    "addProduct": "Add product",
+    "coupon": "Coupon code (optional)",
+    "starts": "Starts",
+    "ends": "Ends",
+    "minSubtotal": "Minimum cart value",
+    "maxUses": "Maximum uses",
+    "priority": "Priority",
+    "stackable": "Can stack with other offers",
+    "used": "Used",
+    "given": "Discount given",
+    "state": {
+      "LIVE": "Live",
+      "SCHEDULED": "Scheduled",
+      "ENDED": "Ended",
+      "EXHAUSTED": "Used up",
+      "OFF": "Off"
+    },
+    "empty": "No promotions yet",
+    "emptyHint": "Create an offer or a coupon code to use at the till.",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off"
   }
 }

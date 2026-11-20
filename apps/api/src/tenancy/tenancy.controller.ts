@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { IsBoolean, IsEmail, IsIn, IsNumberString, IsOptional, IsString, MinLength } from "class-validator";
+import { Type } from "class-transformer";
+import { ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsNumberString, IsOptional, IsString, Matches, Max, Min, MinLength, ValidateNested } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { CurrentUser, Perm, Public } from "../auth/decorators";
 import type { AuthUser } from "../auth/auth-user";
@@ -41,7 +42,27 @@ class StaffPatchDto {
   @IsOptional() @IsBoolean() active?: boolean;
   @IsOptional() @IsString() @MinLength(8) password?: string;
 }
+class ReceiptSettingsDto {
+  @IsOptional() @IsString() header?: string; @IsOptional() @IsString() footer?: string; @IsOptional() @IsBoolean() showVat?: boolean; @IsOptional() @IsBoolean() showLicence?: boolean;
+  @IsOptional() @IsIn(["80mm", "a4"]) paper?: "80mm" | "a4"; @IsOptional() @IsString() logoText?: string;
+}
+class PrinterDto { @IsString() id!: string; @IsString() name!: string; @IsIn(["RECEIPT", "LABEL", "A4"]) kind!: "RECEIPT" | "LABEL" | "A4"; @IsOptional() @IsString() paper?: string; @IsOptional() @IsString() note?: string; }
+class TaxRateDto { @IsString() @MinLength(1) code!: string; @IsString() @MinLength(1) label!: string; @IsNumberString() rate!: string; }
+class TierDto { @IsString() name!: string; @IsNumberString() minSpend!: string; }
+class LoyaltyDto {
+  @IsOptional() @IsBoolean() enabled?: boolean; @IsOptional() @IsNumberString() earnPer?: string; @IsOptional() @IsInt() @Min(1) pointsPerEarn?: number; @IsOptional() @IsNumberString() redeemValue?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(8) @ValidateNested({ each: true }) @Type(() => TierDto) tiers?: TierDto[];
+}
 class SettingsDto {
+  @IsOptional() @IsIn(["STANDALONE", "INTEGRATED"]) mode?: "STANDALONE" | "INTEGRATED";
+  @IsOptional() @Matches(/^[A-Z]{3}$/) currency?: string;
+  @IsOptional() @IsArray() @IsIn(["ar", "en"], { each: true }) languages?: Array<"ar" | "en">;
+  @IsOptional() @ValidateNested() @Type(() => ReceiptSettingsDto) receipt?: ReceiptSettingsDto;
+  @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => PrinterDto) printers?: PrinterDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => TaxRateDto) taxRates?: TaxRateDto[];
+  @IsOptional() @ValidateNested() @Type(() => LoyaltyDto) loyalty?: LoyaltyDto;
+  @IsOptional() @IsNumber() @Min(0) @Max(100) maxCashierDiscountPct?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(30) refillReminderDays?: number;
   @IsOptional() @IsNumberString() vatRate?: string;
   @IsOptional() @IsNumberString() shiftVarianceThreshold?: string;
   @IsOptional() @IsString() ownerPhone?: string;

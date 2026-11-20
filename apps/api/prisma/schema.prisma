@@ -1526,3 +1526,85 @@ model ControlledDiscrepancy {
 
   @@index([orgId, status])
 }
+
+// ------------------------------------------------------------------- POS suite ----
+
+/// Promotions, coupons and bundle deals. kind: PERCENT_OFF {percent} | AMOUNT_OFF {amount per unit} | BUY_X_GET_Y {buy,get,percentOff?} | BUNDLE_PRICE {items:[{drugId,qty}],price}.
+/// drugIds scope the promotion (empty = whole cart for PERCENT_OFF). A couponCode makes it redeemable only with that code.
+model Promotion {
+  id               String    @id @default(cuid())
+  orgId            String
+  /// null = all branches.
+  branchId         String?
+  name             String
+  nameAr           String?
+  kind             String
+  couponCode       String?
+  drugIds          String[]
+  params           Json
+  startsAt         DateTime  @default(now())
+  endsAt           DateTime?
+  minSubtotal      Decimal?  @db.Decimal(14, 2)
+  maxUses          Int?
+  usedCount        Int       @default(0)
+  priority         Int       @default(0)
+  /// false = a drug already discounted by a higher-priority promotion is skipped.
+  stackable        Boolean   @default(false)
+  active           Boolean   @default(true)
+  createdBy        String?
+  createdAt        DateTime  @default(now())
+
+  @@unique([orgId, couponCode])
+  @@index([orgId, active, startsAt])
+}
+
+model PromotionRedemption {
+  id             String   @id @default(cuid())
+  orgId          String
+  promotionId    String
+  saleId         String
+  patientId      String?
+  discountAmount Decimal  @db.Decimal(14, 2)
+  couponCode     String?
+  createdAt      DateTime @default(now())
+
+  @@index([orgId, promotionId])
+  @@index([saleId])
+}
+
+/// A parked cart at the till (customer stepped away / fetching the Rx): resumed later by any till user of the branch.
+model HeldCart {
+  id        String    @id @default(cuid())
+  orgId     String
+  branchId  String
+  userId    String
+  label     String
+  patientId String?
+  payload   Json
+  /// HELD | RESUMED | DISCARDED
+  status    String    @default("HELD")
+  createdAt DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([orgId, branchId, status])
+}
+
+/// Cash drawer movements inside a shift (petty cash, bank deposit, float top-up, supplier cash, expense paid from the till).
+model CashMovement {
+  id        String   @id @default(cuid())
+  orgId     String
+  branchId  String
+  shiftId   String
+  /// IN | OUT
+  kind      String
+  category  String
+  amount    Decimal  @db.Decimal(14, 2)
+  reason    String
+  refType   String?
+  refId     String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([orgId, shiftId])
+  @@index([orgId, branchId, createdAt])
+}

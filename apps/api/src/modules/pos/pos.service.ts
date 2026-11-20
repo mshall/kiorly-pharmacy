@@ -9,9 +9,12 @@ import { PriceService } from "../catalogue/price.service";
 import { SalesService, type CartLine, type CheckoutInput } from "./sales.service";
 import { ApprovalService, type ApprovalDto } from "../../auth/approval.service";
 import { PspAdapter } from "../../platform/adapters/psp.adapter";
+import type { PaymentMethod } from "@prisma/client";
 import type { AuthUser } from "../../auth/auth-user";
 import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
-import { renderReceiptHtml } from "./receipt-template";
+import { renderInvoiceA4Html, renderReceiptHtml } from "./receipt-template";
+import { TenantModeService } from "../../tenancy/tenant-mode.service";
+import { adjustPoints, loyaltyConfig, pointsFor } from "../../common/loyalty";
 
 export interface SyncSaleInput extends Omit<CheckoutInput, "branchId" | "offline"> { clientCreatedAt: string }
 export type SyncResult = { idempotencyKey: string; status: "APPLIED" | "DUPLICATE" | "CONFLICT"; saleId?: string; reason?: string; conflictId?: string };
@@ -26,6 +29,7 @@ export class PosService {
     @Inject(ApprovalService) private readonly approvals: ApprovalService,
     @Inject(PspAdapter) private readonly psp: PspAdapter,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
+    @Inject(TenantModeService) private readonly modes: TenantModeService,
   ) {}
 
   /** KPPOS01 lookup by barcode / name: drug + price + FEFO lot + availability + substitutes when short. */
@@ -40,10 +44,17 @@ export class PosService {
     return { found: true as const, drug: { id: drug.id, brandName: drug.brandName, brandNameAr: drug.brandNameAr, strength: drug.strength, dosageForm: drug.dosageForm, rxOnly: drug.rxOnly, controlled: drug.controlledSchedule !== "NONE" }, price: price?.toFixed(2) ?? null, available, suggestedLot: plan.picks[0] ?? null, requiresPrescription: drug.rxOnly || drug.controlledSchedule !== "NONE" };
   }
 
-  async quote(user: AuthUser, branchId: string, lines: CartLine[]) {
-    const priced = await this.sales.priceCart(this.prisma, user, branchId, lines, new Date(), false);
+  /** Cart preview: FEFO lots, prices, manual + promotion discounts (auto promos and coupons), VAT lines and totals. */
+  async quote(user: AuthUser, branchId: string, lines: CartLine[], couponCodes: string[] = []) {
+    let priced = await this.sales.priceCart(this.prisma, user, branchId, lines, new Date(), false);
+    const pr = await this.sales.applyPromos(this.prisma, user, branchId, priced, couponCodes, new Date());
+    priced = pr.lines;
     const t = this.sales.totals(priced);
-    return { lines: priced.map((l) => ({ drugId: l.drugId, lotId: l.lotId, quantity: l.quantity, unitPrice: money(l.unitPrice), discount: money(l.discount), vatAmount: money(l.vatAmount) })), subtotal: money(t.subtotal), discountTotal: money(t.discountTotal), vatTotal: money(t.vatTotal), total: money(t.total) };
+    return {
+      lines: priced.map((l) => ({ drugId: l.drugId, lotId: l.lotId, quantity: l.quantity, unitPrice: money(l.unitPrice), discount: money(l.discount), vatAmount: money(l.vatAmount) })),
+      subtotal: money(t.subtotal), discountTotal: money(t.discountTotal), vatTotal: money(t.vatTotal), total: money(t.total),
+      promotions: pr.applied.map((a) => ({ promoId: a.promoId, name: a.name, amount: money(a.amount), couponCode: a.couponCode ?? null })), invalidCoupons: pr.unusedCoupons,
+    };
   }
 
   /** Offline bundle for the PWA cache: sellable (non-Rx, non-controlled) stocked items with current price + barcode. */
@@ -90,6 +101,13 @@ export class PosService {
         if (!sale.customerAccountId) throw new DomainError("CUSTOMER_REQUIRED", "Sale has no customer account", 409);
         await tx.customerCreditEntry.create({ data: { orgId: user.orgId, accountId: sale.customerAccountId, kind: "PAYMENT", amount: refundTotal.neg(), saleId, note: "return", createdBy: user.userId } });
         await tx.customerAccount.update({ where: { id: sale.customerAccountId }, data: { balance: { decrement: refundTotal } } });
+      }
+      if (sale.patientId) {
+        // loyalty: take back the points earned on the refunded value (never below zero)
+        const cfg = loyaltyConfig(await this.modes.settings(user.orgId));
+        const cust = await tx.patientRef.findUnique({ where: { id: sale.patientId }, select: { loyaltyPoints: true, loyaltyTier: true } });
+        const pts = cust ? Math.min(pointsFor(refundTotal, cust.loyaltyTier, cfg), cust.loyaltyPoints) : 0;
+        if (pts > 0) await adjustPoints(tx, { orgId: user.orgId, patientId: sale.patientId, points: -pts, note: `Return on ${sale.receiptNo ?? saleId}`, by: user.userId, kind: "RETURN" }, cfg);
       }
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "sale.return", entityType: "Sale", entityId: saleId, meta: { refund: money(refundTotal), approvedBy, reason: input.reason } } });
       return refundTotal;
@@ -173,18 +191,51 @@ export class PosService {
     const sale = await this.sales.getSale(orgId, saleId);
     const [branch, tenant] = await Promise.all([this.prisma.branch.findUniqueOrThrow({ where: { id: sale.branchId } }), this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } })]);
     const pack = this.packs.get(tenant.marketCode);
-    const s = (tenant.settings ?? {}) as { receiptFooter?: string };
+    const s = (tenant.settings ?? {}) as { receiptFooter?: string; receipt?: { header?: string; footer?: string; showVat?: boolean; showLicence?: boolean; logoText?: string } };
+    const [customer, redemptions, earn] = await Promise.all([
+      sale.patientId ? this.prisma.patientRef.findUnique({ where: { id: sale.patientId }, select: { displayName: true, customerNo: true, phone: true, loyaltyPoints: true, loyaltyTier: true } }) : null,
+      this.prisma.promotionRedemption.findMany({ where: { saleId }, select: { promotionId: true, discountAmount: true } }),
+      this.prisma.loyaltyEntry.findFirst({ where: { saleId, kind: "EARN" } }),
+    ]);
+    const promoNames = redemptions.length ? new Map((await this.prisma.promotion.findMany({ where: { id: { in: redemptions.map((r) => r.promotionId) } }, select: { id: true, name: true } })).map((p) => [p.id, p.name])) : new Map<string, string>();
+    const byRate = new Map<string, { net: Prisma.Decimal; vat: Prisma.Decimal; gross: Prisma.Decimal }>();
+    for (const l of sale.lines) { const k = l.vatRate.toString(); const gross = l.unitPrice.mul(l.quantity).minus(l.discount); const cur = byRate.get(k) ?? { net: D(0), vat: D(0), gross: D(0) }; byRate.set(k, { net: cur.net.plus(gross.minus(l.vatAmount)), vat: cur.vat.plus(l.vatAmount), gross: cur.gross.plus(gross) }); }
     return {
+      template: { header: s.receipt?.header, showVat: s.receipt?.showVat, showLicence: s.receipt?.showLicence, logoText: s.receipt?.logoText }, customer: customer ? { name: customer.displayName, customerNo: customer.customerNo, phone: customer.phone } : null,
+      loyalty: customer && earn ? { earned: earn.points, balance: customer.loyaltyPoints, tier: customer.loyaltyTier } : null, paper: s.receipt ? (s.receipt as { paper?: string }).paper ?? "80mm" : "80mm",
+      discounts: redemptions.map((r) => ({ name: promoNames.get(r.promotionId) ?? "Promotion", amount: money(r.discountAmount) })),
+      vatBreakdown: [...byRate].map(([rate, v]) => ({ rate, net: money(v.net), vat: money(v.vat), gross: money(v.gross) })),
       receiptNo: sale.receiptNo, soldAt: sale.soldAt, pharmacy: tenant.name, branch: branch.name, branchAddress: branch.address, licenceNo: branch.licenceNo, currency: pack.currency, vatLabel: pack.vat.label, vatLabelAr: pack.vat.labelAr,
       lines: sale.lines.map((l) => ({ name: l.drug?.brandName ?? l.drugId, nameAr: l.drug?.brandNameAr ?? null, strength: l.drug?.strength ?? null, lotNumber: l.lot.lotNumber, quantity: l.quantity, unitPrice: money(l.unitPrice), discount: money(l.discount), lineTotal: money(l.unitPrice.mul(l.quantity).minus(l.discount)), vatRate: l.vatRate.toString(), vatAmount: money(l.vatAmount) })),
       subtotal: money(sale.subtotal), discountTotal: money(sale.discountTotal), vatTotal: money(sale.vatTotal), total: money(sale.total),
-      payments: sale.payments.map((p) => ({ method: p.method, amount: money(p.amount), reference: p.reference })), status: sale.status, footer: s.receiptFooter ?? null,
+      payments: sale.payments.map((p) => ({ method: p.method, amount: money(p.amount), reference: p.reference })), status: sale.status, footer: s.receipt?.footer ?? s.receiptFooter ?? null,
       /** Printed payment record only — the pharmacy issues its own fiscal documents; Kiorly submits nothing to any tax authority. */
       notice: { en: "Payment record. Not a tax invoice.", ar: "إيصال دفع. ليس فاتورة ضريبية." },
     };
   }
 
-  async receiptHtml(orgId: string, saleId: string, lang: "ar" | "en") { return renderReceiptHtml(await this.receipt(orgId, saleId), lang); }
+  /** `format`: thermal (80 mm) | a4 | default (tenant setting Settings > Receipt > paper). */
+  async receiptHtml(orgId: string, saleId: string, lang: "ar" | "en", format?: "thermal" | "a4") {
+    const r = await this.receipt(orgId, saleId);
+    return (format ?? (r.paper === "a4" ? "a4" : "thermal")) === "a4" ? renderInvoiceA4Html(r as never, lang) : renderReceiptHtml(r as never, lang);
+  }
+
+  /** Exchange = approved return of some lines + a replacement sale, linked (Sale.exchangeOfSaleId). The replacement is validated (stock, price) BEFORE the return is posted. */
+  async exchange(user: AuthUser, saleId: string, input: { returnLines: Array<{ saleLineId: string; quantity: number }>; reason: string; refundMethod: "CASH" | "CARD" | "INSTAPAY" | "FAWRY" | "WALLET" | "CUSTOMER_CREDIT"; approval?: ApprovalDto; newLines: CartLine[]; payments: Array<{ method: PaymentMethod; amount: string; walletRef?: string }>; idempotencyKey: string; couponCodes?: string[] }) {
+    const original = await this.prisma.sale.findFirst({ where: { id: saleId, orgId: user.orgId } });
+    if (!original) throw notFound("Sale", saleId);
+    const dup = await this.prisma.sale.findUnique({ where: { orgId_idempotencyKey: { orgId: user.orgId, idempotencyKey: input.idempotencyKey } } });
+    if (dup) return { replayed: true, replacement: await this.sales.getSale(user.orgId, dup.id), refund: null as string | null };
+    await this.sales.priceCart(this.prisma, user, original.branchId, input.newLines, new Date(), false); // fails fast on stock / price / Rx-only problems
+    const ret = await this.returnItems(user, saleId, { lines: input.returnLines, reason: `Exchange: ${input.reason}`, refundMethod: input.refundMethod, approval: input.approval });
+    try {
+      const r = await this.sales.checkout(user, { branchId: original.branchId, idempotencyKey: input.idempotencyKey, lines: input.newLines, payments: input.payments, customerAccountId: original.customerAccountId ?? undefined, patientId: original.patientId ?? undefined, exchangeOfSaleId: saleId, couponCodes: input.couponCodes });
+      return { replayed: false, refund: ret.refund, replacement: r.sale, change: r.change };
+    } catch (e) {
+      const code = e instanceof DomainError ? e.code : "ERROR";
+      throw new DomainError("EXCHANGE_REPLACEMENT_FAILED", `The return (${ret.refund}) was posted but the replacement sale failed (${code}). Retry the replacement as a normal sale.`, 409, { refund: ret.refund, cause: code });
+    }
+  }
 
   async getSale(orgId: string, id: string) { return this.sales.getSale(orgId, id); }
 

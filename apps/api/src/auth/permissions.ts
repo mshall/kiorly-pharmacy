@@ -37,7 +37,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, ReadonlySet<Permission>> = {
     "recall.manage", "rx.read", "rx.intake", "rx.validate", "dispense.create", "dispense.signoff", "dispense.complete",
     "controlled.read", "pos.sell", "pos.shift", "pos.refund_approve", "customer.credit", "supplier.read", "orders.read", "orders.respond",
     "forecast.read", "reports.read",
-    "customer.read", "customer.write", "rx.refill", "rx.transfer", "prescriber.manage", "controlled.manage", "pos.cash_drawer", "notifications.read", "expense.read", "finance.read",
+    "customer.read", "customer.write", "rx.refill", "rx.transfer", "prescriber.manage", "controlled.manage", "pos.cash_drawer", "pos.discount_override", "promo.manage", "notifications.read", "expense.read", "finance.read",
   ]),
   CASHIER: new Set<Permission>(["catalogue.read", "inventory.read", "pos.sell", "pos.shift", "customer.credit", "rx.read", "dispense.create", "dispense.complete", "customer.read", "customer.write", "pos.cash_drawer", "notifications.read"]),
   ASSISTANT: new Set<Permission>(["catalogue.read", "inventory.read", "inventory.receive", "inventory.count", "pos.sell", "pos.shift", "customer.credit", "customer.read", "customer.write", "rx.read", "rx.intake", "dispense.create", "dispense.complete", "notifications.read"]),

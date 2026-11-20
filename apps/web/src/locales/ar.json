@@ -48,7 +48,8 @@
     "groupMoney": "المال",
     "groupAdmin": "الإدارة",
     "controlled": "سجل المراقبة",
-    "safety": "الأمان الدوائي"
+    "safety": "الأمان الدوائي",
+    "promotions": "العروض"
   },
   "auth": {
     "email": "البريد الإلكتروني",
@@ -87,7 +88,7 @@
       "INSUFFICIENT_STOCK": "الكمية المتاحة غير كافية.",
       "SHIFT_REQUIRED": "افتح وردية أولاً.",
       "PERMISSION_DENIED": "ليس لديك صلاحية لهذا الإجراء.",
-      "APPROVAL_REQUIRED": "مطلوب موافقة المدير.",
+      "APPROVAL_REQUIRED": "تلزم موافقة المدير.",
       "APPROVAL_DENIED": "بيانات المعتمد غير صحيحة أو بلا صلاحية.",
       "PAYMENT_DECLINED": "تم رفض الدفع.",
       "UNDERPAID": "المدفوعات لا تغطي الإجمالي.",
@@ -127,7 +128,15 @@
       "PATIENT_REQUIRED": "اختر المريض أو أدخل بياناته.",
       "NOT_CONTROLLED": "هذا الدواء ليس من المواد المراقبة.",
       "ALREADY_RESOLVED": "تم الحل بالفعل.",
-      "RULE_EXISTS": "لدى الصيدلية قاعدة لهذا البند بالفعل."
+      "RULE_EXISTS": "لدى الصيدلية قاعدة لهذا البند بالفعل.",
+      "INVALID_COUPON": "هذا الكود غير صالح لهذه السلة.",
+      "PROMOTION_EXHAUSTED": "وصل أحد العروض إلى حد الاستخدام.",
+      "INVALID_PROMOTION": "إعدادات العرض غير صحيحة.",
+      "COUPON_EXISTS": "يوجد عرض بنفس كود الخصم.",
+      "EXCHANGE_REPLACEMENT_FAILED": "تم تسجيل المرتجع لكن فشل بيع البدائل؛ بعها كبيع عادي.",
+      "INVALID_CATEGORY": "هذا التصنيف غير صالح هنا.",
+      "TOO_MANY_HELD": "عدد السلات المعلقة كبير.",
+      "NOT_HELD": "تم استكمال هذه السلة أو حذفها بالفعل."
     }
   },
   "dash": {
@@ -567,7 +576,55 @@
     "exact": "المبلغ بالضبط",
     "receiptPreview": "معاينة الإيصال",
     "subtotal": "الإجمالي الفرعي",
-    "vat": "ضريبة القيمة المضافة"
+    "vat": "ضريبة القيمة المضافة",
+    "attachCustomer": "ربط عميل",
+    "walkIn": "عميل عابر",
+    "coupon": "كود الخصم",
+    "applyCoupon": "تطبيق",
+    "couponInvalid": "الكود غير صالح لهذه السلة: {{codes}}",
+    "discount": "الخصم",
+    "promoApplied": "العروض المطبقة",
+    "redeemPoints": "نقاط الولاء",
+    "pointsAvailable": "{{points}} نقطة ({{value}})",
+    "hold": "تعليق السلة",
+    "held": "السلات المعلقة",
+    "heldEmpty": "لا توجد سلات معلقة",
+    "heldLabel": "تسمية (مثل اسم العميل)",
+    "resume": "استكمال",
+    "heldSaved": "تم تعليق السلة",
+    "cashDrawer": "درج النقدية",
+    "cashIn": "إيداع",
+    "cashOut": "سحب",
+    "cashCategory": "التصنيف",
+    "cashReason": "السبب",
+    "cashAmount": "المبلغ",
+    "cashMovements": "حركات هذه الوردية",
+    "cashCat": {
+      "FLOAT_TOP_UP": "تعزيز العهدة",
+      "OWNER_DEPOSIT": "إيداع المالك",
+      "OTHER_IN": "أخرى (وارد)",
+      "PETTY_CASH": "مصروفات نثرية",
+      "BANK_DEPOSIT": "إيداع بنكي",
+      "SUPPLIER_PAYMENT": "دفع لمورد",
+      "EXPENSE": "مصروف",
+      "OWNER_WITHDRAWAL": "سحب المالك",
+      "OTHER_OUT": "أخرى (صادر)"
+    },
+    "xReport": "تقرير X",
+    "xReportNote": "لقطة حية للوردية المفتوحة — لا تغلقها.",
+    "exchange": "استبدال",
+    "exchangeTitle": "استبدال أصناف",
+    "exchangeReturn": "الأصناف المرتجعة",
+    "exchangeNew": "الأصناف الجديدة",
+    "exchangeRefund": "طريقة الرد",
+    "exchangePay": "دفع العميل",
+    "exchangeReason": "سبب الاستبدال",
+    "exchangeDone": "تم الاستبدال — المبلغ المرتد {{refund}}",
+    "printA4": "طباعة فاتورة A4",
+    "printThermal": "طباعة إيصال (80 مم)",
+    "openingFloatShort": "عهدة الفتح",
+    "cashInOut": "إيداع / سحب",
+    "sold": "المباع"
   },
   "method": {
     "CASH": "نقدي",
@@ -593,7 +650,9 @@
     "cashSales": "مبيعات نقدية",
     "expectedCash": "النقدية المتوقعة",
     "countedCash": "النقدية المعدودة",
-    "variance": "الفرق"
+    "variance": "الفرق",
+    "cashIn": "إيداع",
+    "cashOut": "سحب"
   },
   "sup": {
     "title": "المشتريات",
@@ -1062,5 +1121,48 @@
     "overriddenBy": "الصيدلي",
     "reason": "السبب المذكور",
     "when": "الوقت"
+  },
+  "promo": {
+    "title": "العروض والكوبونات",
+    "subtitle": "خصومات نسبية وقيمية وعروض اشترِ واحصل وباقات وأكواد خصم.",
+    "new": "عرض جديد",
+    "edit": "تعديل العرض",
+    "name": "الاسم",
+    "nameAr": "الاسم بالعربية",
+    "kindLabel": "النوع",
+    "kind": {
+      "PERCENT_OFF": "خصم نسبة",
+      "AMOUNT_OFF": "خصم مبلغ للوحدة",
+      "BUY_X_GET_Y": "اشترِ X واحصل على Y مجاناً",
+      "BUNDLE_PRICE": "سعر باقة"
+    },
+    "percent": "النسبة %",
+    "amount": "المبلغ للوحدة",
+    "buy": "اشترِ",
+    "get": "مجاناً",
+    "bundlePrice": "سعر الباقة",
+    "products": "الأصناف (فارغ = كل السلة)",
+    "bundleItems": "محتويات الباقة",
+    "addProduct": "إضافة صنف",
+    "coupon": "كود الخصم (اختياري)",
+    "starts": "يبدأ",
+    "ends": "ينتهي",
+    "minSubtotal": "أقل قيمة للسلة",
+    "maxUses": "أقصى عدد استخدامات",
+    "priority": "الأولوية",
+    "stackable": "يمكن دمجه مع عروض أخرى",
+    "used": "الاستخدام",
+    "given": "الخصم الممنوح",
+    "state": {
+      "LIVE": "ساري",
+      "SCHEDULED": "مجدول",
+      "ENDED": "منتهي",
+      "EXHAUSTED": "استُنفد",
+      "OFF": "متوقف"
+    },
+    "empty": "لا توجد عروض بعد",
+    "emptyHint": "أنشئ عرضاً أو كوداً للاستخدام عند البيع.",
+    "turnOn": "تشغيل",
+    "turnOff": "إيقاف"
   }
 }

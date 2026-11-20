@@ -5,6 +5,7 @@ import { D, money, round2, sum } from "../../common/money";
 import type { AuthUser } from "../../auth/auth-user";
 import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import { NotificationsService } from "../../platform/adapters/notifications.service";
+import { CashService } from "./cash.service";
 
 @Injectable()
 export class ShiftsService {
@@ -12,6 +13,7 @@ export class ShiftsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
     @Inject(NotificationsService) private readonly notify: NotificationsService,
+    @Inject(CashService) private readonly cash: CashService,
   ) {}
 
   async open(user: AuthUser, branchId: string, openingFloat: string) {
@@ -46,12 +48,13 @@ export class ShiftsService {
     const cashSales = sum(completed.flatMap((s) => s.payments.filter((p) => p.method === "CASH").map((p) => p.amount)));
     const creditPayments = await this.prisma.customerCreditEntry.aggregate({ where: { orgId, kind: "PAYMENT", createdAt: { gte: shift.openedAt, lte: end }, note: { startsWith: `cash:${shift.branchId}` } }, _sum: { amount: true } });
     const collected = D(creditPayments._sum.amount ?? 0).abs();
-    const expectedCash = round2(D(shift.openingFloat).plus(cashSales).minus(cashRefunds).plus(collected));
+    const drawer = await this.cash.totals(orgId, shiftId);
+    const expectedCash = round2(D(shift.openingFloat).plus(cashSales).minus(cashRefunds).plus(collected).plus(drawer.cashIn).minus(drawer.cashOut));
     return {
       shiftId, branchId: shift.branchId, openedAt: shift.openedAt, closedAt: shift.closedAt, openingFloat: money(shift.openingFloat),
       salesCount: completed.length, grossSales: money(sum(completed.map((s) => s.total))), vatTotal: money(sum(completed.map((s) => s.vatTotal))), discountTotal: money(sum(completed.map((s) => s.discountTotal))),
       byMethod, returnsCount: returns.length, returnsTotal: money(sum(returns.map((r) => r.refund))), voidsCount: voided.length, voidsTotal: money(sum(voided.map((s) => s.total))),
-      cashSales: money(cashSales), cashRefunds: money(cashRefunds), customerCreditCollected: money(collected), expectedCash: money(expectedCash),
+      cashSales: money(cashSales), cashRefunds: money(cashRefunds), cashIn: money(drawer.cashIn), cashOut: money(drawer.cashOut), report: until || shift.closedAt ? "Z" : "X", customerCreditCollected: money(collected), expectedCash: money(expectedCash),
     };
   }
 

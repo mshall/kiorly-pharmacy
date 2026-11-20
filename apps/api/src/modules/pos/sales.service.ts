@@ -13,6 +13,7 @@ import type { AuthUser } from "../../auth/auth-user";
 import { allocateFefo, assertSellable } from "../inventory/lot-guard/lot-guard";
 import { TenantModeService } from "../../tenancy/tenant-mode.service";
 import { earnForSale, loyaltyConfig, redeemPoints } from "../../common/loyalty";
+import { applyPromotions, type AppliedPromo } from "./promotions";
 
 type Tx = Prisma.TransactionClient;
 
@@ -27,6 +28,10 @@ export interface CheckoutInput {
   customerAccountId?: string;
   /** Customer registry id (loyalty accrues here; works without a credit account). */
   patientId?: string;
+  /** Coupon codes entered at the till (promotions with a couponCode). */
+  couponCodes?: string[];
+  /** Set when this sale is the replacement side of an exchange. */
+  exchangeOfSaleId?: string;
   approval?: ApprovalDto;
   /** Already-verified approver (conflict resolution). */
   approvedByOverride?: string;
@@ -100,6 +105,39 @@ export class SalesService {
     return out;
   }
 
+  /** Applies the promotions in force (auto + coupons) on top of the priced cart; manual line discounts are respected as already given. Pure over the supplied lines. */
+  async applyPromos(db: Tx | PrismaService, user: AuthUser, branchId: string, priced: PricedLine[], coupons: string[], at: Date): Promise<{ lines: PricedLine[]; applied: AppliedPromo[]; unusedCoupons: string[] }> {
+    const promos = await db.promotion.findMany({ where: { orgId: user.orgId, active: true, startsAt: { lte: at }, AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, { OR: [{ branchId: null }, { branchId }] }] } });
+    const live = promos.filter((p) => p.maxUses == null || p.usedCount < p.maxUses);
+    const cart = new Map<string, { quantity: number; unitPrice: Prisma.Decimal; manualDiscount: Prisma.Decimal }>();
+    for (const l of priced) { const c = cart.get(l.drugId); if (c) { c.quantity += l.quantity; c.manualDiscount = c.manualDiscount.plus(l.discount); } else cart.set(l.drugId, { quantity: l.quantity, unitPrice: l.unitPrice, manualDiscount: l.discount }); }
+    const r = applyPromotions([...cart].map(([drugId, c]) => ({ drugId, ...c })), live.map((p) => ({ id: p.id, name: p.name, kind: p.kind, couponCode: p.couponCode, drugIds: p.drugIds, params: p.params as never, minSubtotal: p.minSubtotal, priority: p.priority, stackable: p.stackable })), coupons);
+    if (!r.byDrug.size) return { lines: priced, applied: r.applied, unusedCoupons: r.unusedCoupons };
+    const lines = priced.map((l) => ({ ...l }));
+    for (const [drugId, amount] of r.byDrug) {
+      const mine = lines.filter((l) => l.drugId === drugId);
+      const qty = mine.reduce((a, l) => a + l.quantity, 0);
+      let left = amount;
+      mine.forEach((l, i) => {
+        const share = i === mine.length - 1 ? left : round2(amount.mul(l.quantity).div(qty));
+        left = left.minus(share);
+        l.discount = l.discount.plus(share);
+        l.vatAmount = vatFromGross(l.unitPrice.mul(l.quantity).minus(l.discount), l.vatRate);
+      });
+    }
+    return { lines, applied: r.applied, unusedCoupons: r.unusedCoupons };
+  }
+
+  /** Manual discounts above the tenant limit (default 10% of the subtotal) need `pos.discount_override` (own permission or a second approver). */
+  async guardManualDiscount(user: AuthUser, priced: PricedLine[], approval?: ApprovalDto): Promise<string | undefined> {
+    const subtotal = sum(priced.map((l) => l.unitPrice.mul(l.quantity)));
+    const manual = sum(priced.map((l) => l.discount));
+    if (subtotal.lte(0) || manual.lte(0)) return undefined;
+    const limit = (await this.modes.settings(user.orgId)).maxCashierDiscountPct ?? 10;
+    if (manual.div(subtotal).mul(100).lte(limit)) return undefined;
+    return this.approvals.approver(user, "pos.discount_override", approval);
+  }
+
   totals(lines: PricedLine[]) {
     const subtotal = sum(lines.map((l) => l.unitPrice.mul(l.quantity)));
     const discountTotal = sum(lines.map((l) => l.discount));
@@ -115,7 +153,7 @@ export class SalesService {
   /** Persists a sale + lines (+ SALE movements unless stock was already posted by a dispensing) + payments. Call inside a transaction. */
   async persist(tx: Tx, p: {
     user: AuthUser; branchId: string; shiftId: string | null; idempotencyKey: string; lines: PricedLine[]; payments: Array<{ method: PaymentMethod; amount: Prisma.Decimal; reference?: string; status?: string }>;
-    customerAccountId?: string; patientId?: string; exchangeOfSaleId?: string; dispensingId?: string; stockAlreadyPosted?: boolean; approvedBy?: string; offline?: { clientCreatedAt: string }; channel?: "POS" | "KIOREX_ORDER";
+    customerAccountId?: string; patientId?: string; exchangeOfSaleId?: string; dispensingId?: string; stockAlreadyPosted?: boolean; approvedBy?: string; offline?: { clientCreatedAt: string }; channel?: "POS" | "KIOREX_ORDER"; promos?: AppliedPromo[];
   }) {
     const t = this.totals(p.lines);
     const receiptNo = await this.nextReceiptNo(tx, p.branchId);
@@ -134,6 +172,11 @@ export class SalesService {
       }
     }
     for (const pay of p.payments) await tx.salePayment.create({ data: { saleId: sale.id, method: pay.method, amount: pay.amount, reference: pay.reference, status: pay.status ?? "CAPTURED" } });
+    for (const a of p.promos ?? []) {
+      const ok = await tx.promotion.updateMany({ where: { id: a.promoId, orgId: p.user.orgId, OR: [{ maxUses: null }, { usedCount: { lt: (await tx.promotion.findUniqueOrThrow({ where: { id: a.promoId }, select: { maxUses: true } })).maxUses ?? 2_147_483_647 } }] }, data: { usedCount: { increment: 1 } } });
+      if (!ok.count) throw new DomainError("PROMOTION_EXHAUSTED", "A promotion in this sale has reached its usage limit", 409, { promotionId: a.promoId });
+      await tx.promotionRedemption.create({ data: { orgId: p.user.orgId, promotionId: a.promoId, saleId: sale.id, patientId, discountAmount: a.amount, couponCode: a.couponCode } });
+    }
     if (patientId && p.channel !== "KIOREX_ORDER") {
       // loyalty: redeem first (LOYALTY_POINTS tender), then accrue on the money actually paid
       const cfg = loyaltyConfig(await this.modes.settings(p.user.orgId));
@@ -194,6 +237,7 @@ export class SalesService {
     const at = input.offline ? new Date(input.offline.clientCreatedAt) : new Date();
     let approvedBy: string | undefined;
     let priced: PricedLine[];
+    let promos: AppliedPromo[] = [];
     try {
       priced = await this.priceCart(this.prisma, user, input.branchId, input.lines, at, false);
     } catch (e) {
@@ -201,6 +245,12 @@ export class SalesService {
         approvedBy = input.approvedByOverride ?? (await this.approvals.approver(user, "inventory.negative_stock", input.approval));
         priced = await this.priceCart(this.prisma, user, input.branchId, input.lines, at, true);
       } else throw e;
+    }
+    if (!input.offline) {
+      await this.guardManualDiscount(user, priced, input.approval);
+      const pr = await this.applyPromos(this.prisma, user, input.branchId, priced, input.couponCodes ?? [], at);
+      if (pr.unusedCoupons.length) throw new DomainError("INVALID_COUPON", `Coupon not valid for this cart: ${pr.unusedCoupons.join(", ")}`, 409, { coupons: pr.unusedCoupons });
+      priced = pr.lines; promos = pr.applied;
     }
     const total = this.totals(priced).total;
     if (input.customerAccountId) {
@@ -217,7 +267,7 @@ export class SalesService {
           const [acct] = await tx.$queryRaw<Array<{ balance: Prisma.Decimal; creditLimit: Prisma.Decimal }>>`SELECT balance, "creditLimit" FROM "CustomerAccount" WHERE id = ${input.customerAccountId} AND "orgId" = ${user.orgId} FOR UPDATE`;
           if (!acct || D(acct.balance).plus(credit).gt(acct.creditLimit)) throw new DomainError("CREDIT_LIMIT_EXCEEDED", "Customer credit limit would be exceeded", 402, { balance: money(acct?.balance), limit: money(acct?.creditLimit) });
         }
-        const s = await this.persist(tx, { user, branchId: input.branchId, shiftId, idempotencyKey: input.idempotencyKey, lines: priced, payments, customerAccountId: input.customerAccountId, patientId: input.patientId, approvedBy, offline: input.offline });
+        const s = await this.persist(tx, { user, branchId: input.branchId, shiftId, idempotencyKey: input.idempotencyKey, lines: priced, payments, customerAccountId: input.customerAccountId, patientId: input.patientId, exchangeOfSaleId: input.exchangeOfSaleId, approvedBy, offline: input.offline, promos });
         if (credit.gt(0)) {
           await tx.customerCreditEntry.create({ data: { orgId: user.orgId, accountId: input.customerAccountId!, kind: "CHARGE", amount: credit, saleId: s.id, createdBy: user.userId } });
           await tx.customerAccount.update({ where: { id: input.customerAccountId! }, data: { balance: { increment: credit } } });
