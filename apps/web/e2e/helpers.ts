@@ -1,6 +1,9 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { createHash, randomUUID } from "node:crypto";
-import { signKiorlyRequest, signWebhook } from "@kiorex/contracts";
+import { PARTNER_DEV_DEFAULTS, signKiorlyRequest, signWebhook, WEBHOOK_HEADERS } from "@kiorex/contracts";
+
+/** The seeded dev registration of Kiorex as a machine client of the demo tenant (`prisma/seed.ts`). The client key addresses the tenant; there is no org header. */
+const KX = PARTNER_DEV_DEFAULTS.pharmacy;
 
 export const API = "http://127.0.0.1:3100";
 export const DEMO_PASSWORD = "Demo@12345";
@@ -26,8 +29,8 @@ export async function sendERx(request: APIRequestContext, ingredient: string, st
   const eventId = `ev_e2e_${randomUUID()}`;
   const body = JSON.stringify({ eventId, type: "PrescriptionIssued", aggregateType: "Prescription", aggregateId: `rx_${eventId}`, target: "KIOREX", occurredAt: new Date().toISOString(),
     data: { prescriptionId: `rx_${eventId}`, encounterId: "enc_e2e", clinicId: "clinic_e2e", patientRef: `sub_${createHash("sha1").update(eventId).digest("hex").slice(0, 10)}`, prescriberId: "clin_e2e_001", consentToken: "ct_e2e_consent_1", issuedAt: new Date().toISOString(), items: [{ activeIngredient: ingredient, strength, quantity, dose: "1 capsule 3 times daily" }] } });
-  const s = signWebhook({ secret: "kx_dev_webhook_secret", body, eventType: "PrescriptionIssued", eventId });
-  const r = await request.post(`${API}/api/v1/webhooks/kiorex`, { headers: { ...s.headers, "x-kiorex-org-id": "org_demo_kiorly" }, data: body });
+  const s = signWebhook({ secret: KX.webhookSecret, body, eventType: "PrescriptionIssued", eventId });
+  const r = await request.post(`${API}/api/v1/webhooks/kiorex`, { headers: { ...s.headers, [WEBHOOK_HEADERS.clientKey]: KX.clientKey, "content-type": "application/json" }, data: body });
   expect(r.ok(), await r.text()).toBeTruthy();
   return (await r.json()) as { prescriptionId: string };
 }
@@ -36,8 +39,8 @@ export async function sendERx(request: APIRequestContext, ingredient: string, st
 export async function sendKiorexOrder(request: APIRequestContext, branchId: string, sku: string, quantity: number, unitPrice: string) {
   const orderId = `kx-e2e-${randomUUID()}`;
   const body = JSON.stringify({ orderId, branchId, customer: { name: "E2E Customer", phone: "+201000000123", address: "Cairo" }, prepaid: true, lines: [{ sku, quantity, unitPrice }] });
-  const s = signKiorlyRequest({ clientKey: "kx_dev_client", clientSecret: "kx_dev_secret_change_me", method: "POST", path: "/marketplace/v1/orders", body });
-  const r = await request.post(`${API}/marketplace/v1/orders`, { headers: { ...s.headers, "x-kiorex-org-id": "org_demo_kiorly", "content-type": "application/json" }, data: body });
+  const s = signKiorlyRequest({ clientKey: KX.clientKey, clientSecret: KX.clientSecret, method: "POST", path: "/marketplace/v1/orders", body });
+  const r = await request.post(`${API}/marketplace/v1/orders`, { headers: { ...s.headers, "content-type": "application/json" }, data: body });
   expect(r.ok(), await r.text()).toBeTruthy();
   return orderId;
 }
