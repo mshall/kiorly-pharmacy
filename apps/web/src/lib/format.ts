@@ -3,7 +3,8 @@ import i18n from "@/lib/i18n";
 const locale = () => (i18n.language === "ar" ? "ar-EG" : "en-GB");
 export const fmtMoney = (v: string | number | null | undefined, currency = "EGP"): string => {
   const n = Number(v ?? 0);
-  return `${new Intl.NumberFormat(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} ${currency}`;
+  const cur = i18n.language === "ar" && currency === "EGP" ? "ج.م" : currency;
+  return `${new Intl.NumberFormat(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)} ${cur}`;
 };
 export const fmtNum = (v: number | string): string => new Intl.NumberFormat(locale()).format(Number(v));
 export const fmtDate = (v: string | Date | null | undefined): string => (v ? new Intl.DateTimeFormat(locale(), { year: "numeric", month: "short", day: "2-digit" }).format(new Date(v)) : "—");

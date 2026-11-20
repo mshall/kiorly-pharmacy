@@ -2,12 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { ScanLine, X } from "lucide-react";
 import { api, ApiError, newKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Modal, Select, Table, Td, errorMessage } from "@/components/ui";
+import { Badge, Button, Empty, ErrorNote, Field, Input, Modal, Select, Table, Td, cn, errorMessage } from "@/components/ui";
 import { useOnline } from "@/components/Layout";
-import { fmtMoney } from "@/lib/format";
-import { drugName } from "@/lib/format";
+import { drugName, fmtDateTime, fmtMoney } from "@/lib/format";
 import { listQueue, loadCatalogue, queueSale, removeQueued, saveCatalogue, searchOffline, type OfflineItem, type QueuedSale } from "@/lib/offline";
 import { printHtml } from "@/lib/print";
 import { useToast } from "@/lib/toast";
@@ -102,69 +102,99 @@ export function Pos() {
   }, [online]);
 
   const needShift = online && !shift && !shiftQ.isLoading;
+  const itemCount = cart.reduce((a, l) => a + l.qty, 0);
+  const queuedCount = queueQ.data?.length ?? 0;
+  // keyboard-first till: "/" or F2 focuses scan, F9 (or Ctrl+Enter) opens payment, Esc clears the scan field
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (e.key === "F2" || (e.key === "/" && tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT")) { e.preventDefault(); scanRef.current?.focus(); }
+      if ((e.key === "F9" || (e.key === "Enter" && e.ctrlKey)) && cart.length && !pay && !(online && !shift)) { e.preventDefault(); startPay(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{t("pos.title")}</h1>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">{t("pos.title")}</h1>
+          {shift ? <Badge tone="good">{t("pos.shiftOpen")}</Badge> : <Badge tone="warn">{t("pos.shiftClosed")}</Badge>}
+          <span data-testid="pos-link" className={cn("inline-flex min-h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ring-1 ring-inset", online ? "bg-muted text-muted-foreground ring-border" : "bg-[hsl(var(--danger-text)/0.12)] text-[hsl(var(--danger-text))] ring-[hsl(var(--danger-text)/0.28)]")}>
+            <span aria-hidden className={cn("size-1.5 rounded-full", online ? "bg-[hsl(var(--success))]" : "bg-[hsl(var(--danger-text))]")} />{online ? t("pos.liveCatalogue") : t("pos.offlineMode")}
+          </span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          {shift ? <><Badge tone="good">{t("pos.shiftOpen")}</Badge><Button size="sm" variant="outline" onClick={() => setHistory(true)}>{t("pos.sales")}</Button><Button size="sm" variant="outline" onClick={() => setShiftModal("close")}>{t("pos.closeShift")}</Button></> : online && can("pos.shift") && <Button onClick={() => setShiftModal("open")}>{t("pos.openShift")}</Button>}
-          {!!queueQ.data?.length && <Button size="sm" variant="outline" disabled={!online || sync.isPending} onClick={() => sync.mutate()}>{t("pos.sync", { count: queueQ.data.length })}</Button>}
+          {shift ? <><Button size="sm" variant="outline" onClick={() => setHistory(true)}>{t("pos.sales")}</Button><Button size="sm" variant="outline" onClick={() => setShiftModal("close")}>{t("pos.closeShift")}</Button></> : online && can("pos.shift") && <Button onClick={() => setShiftModal("open")}>{t("pos.openShift")}</Button>}
+          {!!queuedCount && <Button size="sm" variant="outline" disabled={!online || sync.isPending} onClick={() => sync.mutate()}>{t("pos.sync", { count: queuedCount })}</Button>}
           {can("pos.refund_approve") && <Button size="sm" variant="ghost" onClick={() => setConflictsOpen(true)}>{t("pos.conflicts")}</Button>}
         </div>
       </div>
       <ErrorNote error={sync.error} />
-      {needShift && <p role="alert" className="rounded-md bg-[hsl(var(--warning)/0.18)] p-3 text-sm">{t("pos.needShift")}</p>}
-      <div className="grid gap-4 lg:grid-cols-5">
-        <div className="space-y-3 lg:col-span-3">
-          <form onSubmit={(e) => { e.preventDefault(); void onScanSubmit(); }}>
+      {needShift && <p role="alert" className="rounded-lg border border-[hsl(var(--warning)/0.4)] bg-[hsl(var(--warning)/0.14)] p-3 text-sm">{t("pos.needShift")}</p>}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-3">
+          <form onSubmit={(e) => { e.preventDefault(); void onScanSubmit(); }} className="relative">
             <label htmlFor="pos-scan" className="sr-only">{t("pos.scan")}</label>
-            <Input id="pos-scan" ref={scanRef} autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("pos.scan")} className="min-h-14 text-lg" />
+            <ScanLine aria-hidden="true" className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <Input id="pos-scan" ref={scanRef} autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }} placeholder={t("pos.scan")} className="min-h-14 ps-12 pe-16 text-lg" />
+            <kbd aria-hidden="true" className="pointer-events-none absolute end-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground sm:block">F2</kbd>
           </form>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4" aria-label={t("pos.results")}>
-            {results.map((i) => (
-              <li key={i.id}><button type="button" onClick={() => add(i)} className="min-h-24 w-full rounded-lg bg-card p-3 text-start shadow-sm ring-1 ring-border hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                <div className="line-clamp-2 text-sm font-semibold">{drugName(i)}</div><div className="text-xs text-muted-foreground">{i.strength}</div>
-                <div className="mt-1 flex items-center justify-between"><span className="font-bold">{fmtMoney(i.price)}</span><span className="text-xs text-muted-foreground">{t("inv.available")}: {i.available}</span></div>
-              </button></li>
-            ))}
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-label={t("pos.results")}>
+            {results.map((i) => {
+              const inCart = cart.find((x) => x.item.id === i.id)?.qty ?? 0;
+              const stockTone = i.available <= 0 ? "text-[hsl(var(--danger-text))]" : i.available <= 10 ? "text-[hsl(var(--warning))]" : "text-muted-foreground";
+              return (
+                <li key={i.id}><button type="button" onClick={() => add(i)} className="group relative flex min-h-28 w-full flex-col justify-between rounded-xl bg-card p-3 text-start shadow-[var(--kx-shadow-1)] ring-1 ring-border transition-[box-shadow,transform,background-color] duration-150 hover:-translate-y-px hover:shadow-[var(--kx-shadow-2)] active:translate-y-0 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none">
+                  {inCart > 0 && <span className="absolute -top-2 end-2 grid min-w-6 place-items-center rounded-full bg-primary px-1.5 text-xs font-bold tabular-nums text-primary-foreground shadow-[var(--kx-shadow-1)]" aria-label={t("pos.inCart", { count: inCart })}>{inCart}</span>}
+                  <div><div className="line-clamp-2 text-sm font-semibold leading-snug">{drugName(i)}</div><div className="mt-0.5 text-xs text-muted-foreground">{[i.strength, i.dosageForm].filter(Boolean).join(" · ")}</div></div>
+                  <div className="mt-2 flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5"><span className="whitespace-nowrap text-base font-bold tabular-nums">{fmtMoney(i.price)}</span><span className={cn("whitespace-nowrap text-xs tabular-nums", stockTone)}>{i.available <= 0 ? t("pos.outOfStock") : `${t("inv.available")}: ${i.available}`}</span></div>
+                </button></li>
+              );
+            })}
             {!results.length && <li className="col-span-full"><Empty>{items.length ? t("common.noResults") : t("pos.noCatalogue")}</Empty></li>}
           </ul>
           <p className="text-xs text-muted-foreground">{t("pos.rxNote")} <Link className="underline" to="/rx">{t("nav.rx")}</Link></p>
         </div>
-        <Card className="lg:col-span-2" title={t("pos.cart")}>
-          {!cart.length ? <Empty>{t("pos.emptyCart")}</Empty> : (
-            <ul className="divide-y divide-border">
-              {cart.map((l) => (
-                <li key={l.item.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className="min-w-0"><div className="truncate text-sm font-medium">{drugName(l.item)}</div><div className="text-xs text-muted-foreground">{fmtMoney(l.item.price)}</div></div>
-                  <div className="flex items-center gap-1">
-                    <Button size="sm" variant="outline" aria-label={t("pos.decrease")} onClick={() => setCart(cart.map((x) => (x === l ? { ...x, qty: Math.max(1, x.qty - 1) } : x)))}>−</Button>
-                    <span className="w-8 text-center font-semibold" aria-live="polite">{l.qty}</span>
-                    <Button size="sm" variant="outline" aria-label={t("pos.increase")} onClick={() => setCart(cart.map((x) => (x === l ? { ...x, qty: x.qty + 1 } : x)))}>+</Button>
-                    <Button size="sm" variant="ghost" aria-label={t("common.remove")} onClick={() => setCart(cart.filter((x) => x !== l))}>✕</Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-4 border-t border-border pt-3"><div className="flex items-center justify-between text-xl font-bold"><span>{t("pos.total")}</span><span data-testid="cart-total">{fmtMoney(total)}</span></div>
-            <Button size="lg" className="mt-3 w-full" disabled={!cart.length || (online && !shift)} onClick={startPay}>{t("pos.pay")}</Button></div>
-        </Card>
+        <section aria-label={t("pos.cart")} className="flex max-h-[calc(100vh-7rem)] flex-col rounded-2xl border border-border/80 bg-card shadow-[var(--kx-shadow-2)] lg:sticky lg:top-20">
+          <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3"><h2 className="text-base font-semibold">{t("pos.cart")}</h2>{itemCount > 0 && <><span className="text-xs tabular-nums text-muted-foreground">{t("pos.items", { count: itemCount })}</span><Button size="sm" variant="ghost" onClick={() => setCart([])}>{t("pos.clear")}</Button></>}</header>
+          <div className="min-h-32 flex-1 overflow-y-auto px-4">
+            {!cart.length ? <Empty>{t("pos.emptyCart")}</Empty> : (
+              <ul className="divide-y divide-border">
+                {cart.map((l) => (
+                  <li key={l.item.id} className="py-3">
+                    <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="truncate text-sm font-medium">{drugName(l.item)}</div><div className="text-xs tabular-nums text-muted-foreground">{fmtMoney(l.item.price)} × {l.qty}</div></div><div className="whitespace-nowrap text-sm font-semibold tabular-nums">{fmtMoney(Number(l.item.price) * l.qty)}</div></div>
+                    <div className="mt-2 flex items-center gap-1">
+                      <Button variant="outline" className="size-11 px-0 text-lg" aria-label={t("pos.decrease")} onClick={() => setCart(cart.map((x) => (x === l ? { ...x, qty: Math.max(1, x.qty - 1) } : x)))}>−</Button>
+                      <span className="w-10 text-center text-base font-semibold tabular-nums" aria-live="polite">{l.qty}</span>
+                      <Button variant="outline" className="size-11 px-0 text-lg" aria-label={t("pos.increase")} onClick={() => setCart(cart.map((x) => (x === l ? { ...x, qty: x.qty + 1 } : x)))}>+</Button>
+                      <Button variant="ghost" className="ms-auto size-11 px-0" aria-label={t("common.remove")} onClick={() => setCart(cart.filter((x) => x !== l))}><X aria-hidden="true" className="size-4" /></Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <footer className="border-t border-border px-4 py-3"><div className="flex items-baseline justify-between text-2xl font-bold"><span className="text-base font-semibold">{t("pos.total")}</span><span data-testid="cart-total" className="tabular-nums">{fmtMoney(total)}</span></div>
+            <Button size="lg" className="mt-3 w-full" disabled={!cart.length || (online && !shift)} onClick={startPay}>{t("pos.pay")}<kbd aria-hidden="true" className="ms-1 hidden rounded border border-primary-foreground/40 px-1.5 text-xs font-normal opacity-80 sm:inline">F9</kbd></Button></footer>
+        </section>
       </div>
 
       <Modal open={pay} onClose={() => setPay(false)} title={t("pos.payment")} wide>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-2xl font-bold"><span>{t("pos.total")}</span><span>{fmtMoney(total)}</span></div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t("pos.method")}>{METHODS.map((m) => <Button key={m} variant={method === m ? "primary" : "outline"} aria-pressed={method === m} disabled={!online && !["CASH", "CUSTOMER_CREDIT"].includes(m)} onClick={() => setMethod(m)}>{t(`method.${m}`)}</Button>)}</div>
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-muted p-4"><div className="text-xs font-medium text-muted-foreground">{t("pos.total")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(total)}</div></div>
+            <div className={cn("rounded-xl p-4", due > 0 ? "bg-[hsl(var(--warning)/0.14)]" : "bg-[hsl(var(--success)/0.14)]")} aria-live="polite"><div className="text-xs font-medium text-muted-foreground">{due > 0 ? t("pos.due") : t("pos.change")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(due > 0 ? due : paid - total)}</div></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={t("pos.method")}>{METHODS.map((m) => <Button key={m} size="lg" className="min-h-14" variant={method === m ? "primary" : "outline"} aria-pressed={method === m} disabled={!online && !["CASH", "CUSTOMER_CREDIT"].includes(m)} onClick={() => setMethod(m)}>{t(`method.${m}`)}</Button>)}</div>
           {method === "CUSTOMER_CREDIT" && <Field label={t("pos.customer")}>{(id) => <Select id={id} value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">—</option>{customers.data?.map((c) => <option key={c.id} value={c.id}>{c.displayName} ({t("pos.creditAvailable")}: {fmtMoney(c.available)})</option>)}</Select>}</Field>}
           <div className="flex flex-wrap items-end gap-2">
-            <Field label={t("pos.amount")}>{(id) => <Input id={id} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={due.toFixed(2)} className="w-40 text-lg" />}</Field>
-            <Button onClick={addPay}>{t("pos.addPayment")}</Button>
-            {method === "CASH" && [50, 100, 200].map((n) => <Button key={n} variant="outline" onClick={() => setAmount(String(n))}>{n}</Button>)}
+            <Field label={t("pos.amount")}>{(id) => <Input id={id} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPay(); } }} placeholder={due.toFixed(2)} className="min-h-14 w-44 text-xl tabular-nums" />}</Field>
+            <Button size="lg" onClick={addPay}>{t("pos.addPayment")}</Button>
+            {method === "CASH" && <><Button size="lg" variant="secondary" onClick={() => setAmount(due.toFixed(2))}>{t("pos.exact")}</Button>{[50, 100, 200].map((n) => <Button key={n} size="lg" variant="outline" className="tabular-nums" onClick={() => setAmount(String(n))}>{n}</Button>)}</>}
           </div>
-          {pays.length > 0 && <ul className="space-y-1">{pays.map((p, i) => <li key={i} className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm"><span>{t(`method.${p.method}`)}</span><span className="flex items-center gap-2 font-semibold">{fmtMoney(p.amount)}<Button size="sm" variant="ghost" aria-label={t("common.remove")} onClick={() => setPays(pays.filter((_, k) => k !== i))}>✕</Button></span></li>)}</ul>}
-          <div className="flex justify-between text-lg"><span>{due > 0 ? t("pos.due") : t("pos.change")}</span><span className="font-bold">{fmtMoney(due > 0 ? due : paid - total)}</span></div>
-          {checkout.error && !approval && <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-danger">{errorMessage(checkout.error, t as never)}</p>}
+          {pays.length > 0 && <ul className="space-y-1">{pays.map((p, i) => <li key={i} className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm"><span>{t(`method.${p.method}`)}</span><span className="flex items-center gap-2 font-semibold tabular-nums">{fmtMoney(p.amount)}<Button size="sm" variant="ghost" aria-label={t("common.remove")} onClick={() => setPays(pays.filter((_, k) => k !== i))}><X aria-hidden="true" className="size-4" /></Button></span></li>)}</ul>}
+          {checkout.error && !approval && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-danger">{errorMessage(checkout.error, t as never)}</p>}
           <Button size="lg" className="w-full" disabled={due > 0 || checkout.isPending || !pays.length} onClick={() => checkout.mutate({ key: saleKey })}>{t("pos.complete")}</Button>
         </div>
       </Modal>
@@ -194,15 +224,26 @@ function ApprovalModal({ onClose, onApprove, message }: { onClose: () => void; o
 
 function ReceiptModal({ data, onClose }: { data: { sale?: Sale; change: string; queued?: boolean } | null; onClose: () => void }) {
   const { t } = useTranslation();
+  const sale = data?.sale;
   return (
     <Modal open={!!data} onClose={onClose} title={t("pos.saleDone")}>
       {data && (
-        <div className="space-y-3 text-center">
-          {data.queued ? <p className="text-sm">{t("pos.savedOfflineLong")}</p> : <>
-            <p className="text-3xl font-bold">{fmtMoney(data.sale?.total)}</p>
-            {Number(data.change) > 0 && <p className="text-xl">{t("pos.change")}: <strong>{fmtMoney(data.change)}</strong></p>}
-            <p className="text-sm text-muted-foreground">{t("pos.receiptNo")}: {data.sale?.receiptNo}</p>
-            <Button variant="outline" onClick={() => data.sale && void printHtml(`/pos/sales/${data.sale.id}/receipt.html`, { lang: document.documentElement.lang })}>{t("pos.printReceipt")}</Button></>}
+        <div className="space-y-4">
+          {data.queued ? <p className="rounded-lg bg-[hsl(var(--warning)/0.14)] p-3 text-sm">{t("pos.savedOfflineLong")}</p> : sale && <>
+            <div className="text-center"><div className="text-3xl font-bold tabular-nums">{fmtMoney(sale.total)}</div>{Number(data.change) > 0 && <div className="mt-1 text-lg">{t("pos.change")}: <strong className="tabular-nums">{fmtMoney(data.change)}</strong></div>}</div>
+            <div aria-label={t("pos.receiptPreview")} role="group" className="mx-auto max-w-xs rounded-md border border-dashed border-border bg-background p-4 font-mono text-xs shadow-[var(--kx-shadow-1)]">
+              <div className="text-center font-semibold">{t("app.product")}</div>
+              <div className="text-center text-muted-foreground">{t("pos.receiptNo")}: {sale.receiptNo} · {fmtDateTime(sale.soldAt)}</div>
+              <ul className="my-3 space-y-1 border-y border-dashed border-border py-2">
+                {sale.lines.map((l) => <li key={l.id} className="flex justify-between gap-2"><span className="min-w-0 truncate">{l.quantity} × {drugName(l.drug)}</span><span className="tabular-nums">{fmtMoney(Number(l.unitPrice) * l.quantity - Number(l.discount))}</span></li>)}
+              </ul>
+              <dl className="space-y-0.5 tabular-nums">
+                <div className="flex justify-between"><dt>{t("pos.subtotal")}</dt><dd>{fmtMoney(sale.subtotal)}</dd></div>
+                <div className="flex justify-between"><dt>{t("pos.vat")}</dt><dd>{fmtMoney(sale.vatTotal)}</dd></div>
+                <div className="flex justify-between border-t border-dashed border-border pt-1 text-sm font-bold"><dt>{t("pos.total")}</dt><dd>{fmtMoney(sale.total)}</dd></div>
+              </dl>
+            </div>
+            <div className="text-center"><Button variant="outline" onClick={() => void printHtml(`/pos/sales/${sale.id}/receipt.html`, { lang: document.documentElement.lang })}>{t("pos.printReceipt")}</Button></div></>}
           <Button size="lg" className="w-full" onClick={onClose}>{t("pos.newSale")}</Button>
         </div>
       )}

@@ -22,6 +22,16 @@
 dialog::backdrop { background: var(--kx-overlay); backdrop-filter: blur(2px); }
 .skip-link { position: absolute; inset-inline-start: -999px; top: 0; z-index: 100; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: .5rem 1rem; border-radius: 0 0 .5rem .5rem; }
 .skip-link:focus { inset-inline-start: 0; }
+.kx-table-wrap { max-height: min(70vh, 720px); }
+.kx-table-wrap:focus-visible { outline-offset: -2px; border-radius: .75rem; }
+.kx-table tbody tr { transition: background-color var(--kx-dur-fast, 150ms) ease; }
+.kx-table tbody tr:hover { background: hsl(var(--muted) / .55); }
+.kx-table td, .kx-table th { font-variant-numeric: tabular-nums; }
+.kx-table thead th { box-shadow: inset 0 -1px 0 hsl(var(--border)); }
+.kx-table tr.kx-row-bad > td:first-child { box-shadow: inset 3px 0 0 hsl(var(--danger-text)); }
+.kx-table tr.kx-row-warn > td:first-child { box-shadow: inset 3px 0 0 hsl(var(--warning)); }
+[dir="rtl"] .kx-table tr.kx-row-bad > td:first-child { box-shadow: inset -3px 0 0 hsl(var(--danger-text)); }
+[dir="rtl"] .kx-table tr.kx-row-warn > td:first-child { box-shadow: inset -3px 0 0 hsl(var(--warning)); }
 .kx-sticky-head thead th { position: sticky; top: 0; z-index: 1; background: hsl(var(--card)); }
 @media (prefers-reduced-motion: no-preference) {
   main > * { animation: kx-page-in var(--kx-dur-slow) var(--kx-ease-decelerate) both; }

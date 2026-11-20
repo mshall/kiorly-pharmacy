@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
+import { AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Stepper } from "@/brand/ui-kit";
 import { useTranslation } from "react-i18next";
 import { api, newKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -46,22 +48,30 @@ function LinePicker({ line, branchId, value, onChange }: { line: RxLine; branchI
   );
 }
 
+const rank = (o: string) => (o === "BLOCK" ? 0 : o === "WARN" ? 1 : 2);
 function SafetyPanel({ d, canOverride }: { d: Dispensing; canOverride: boolean }) {
   const { t } = useTranslation();
   const qc = useQueryClient(); const toast = useToast();
   const [ov, setOv] = useState<{ id: string; kind: string } | null>(null); const [reason, setReason] = useState("");
   const m = useMutation({ mutationFn: () => api(`/dispensings/${d.id}/override/${ov!.id}`, { body: { reason } }), onSuccess: () => { toast(t("disp.overridden")); setOv(null); setReason(""); void qc.invalidateQueries({ queryKey: ["dispensing"] }); } });
   return (
-    <Card title={t("disp.safety")}>
+    <Card title={t("disp.safety")} actions={<span className="flex gap-1.5">{(["BLOCK", "WARN", "PASS"] as const).map((o) => { const n = d.safetyChecks.filter((c) => c.outcome === o || (o === "PASS" && c.outcome === "OVERRIDDEN_BY_PHARMACIST")).length; return n ? <Badge key={o} tone={OUTCOME_TONE[o]}>{n} {t(`outcome.${o}`)}</Badge> : null; })}</span>}>
+      {d.safetyChecks.some((c) => c.outcome === "BLOCK") && <p role="alert" className="mb-3 flex items-center gap-2 rounded-lg border-2 border-[hsl(var(--danger-text))] bg-[hsl(var(--danger-text)/0.1)] px-3 py-2 text-sm font-semibold text-[hsl(var(--danger-text))]"><ShieldAlert aria-hidden="true" className="size-5 shrink-0" />{t("disp.resolveBlocks")}</p>}
       <ul className="space-y-2">
-        {d.safetyChecks.map((c) => (
-          <li key={c.id} className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border p-2">
-            <div><div className="flex items-center gap-2"><Badge tone={OUTCOME_TONE[c.outcome] ?? "neutral"}>{t(`outcome.${c.outcome}`)}</Badge><span className="text-sm font-medium">{t(`check.${c.kind}`)}</span></div>
-              {c.detail && <p className="mt-1 text-xs text-muted-foreground">{c.detail}</p>}{c.overrideReason && <p className="mt-1 text-xs">{t("disp.overrideReason")}: {c.overrideReason}</p>}</div>
-            {c.outcome === "BLOCK" && canOverride && !["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <Button size="sm" variant="outline" onClick={() => setOv({ id: c.id, kind: c.kind })}>{t("disp.override")}</Button>}
-            {c.outcome === "BLOCK" && ["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <span className="text-xs text-danger">{t("disp.hardStop")}</span>}
-          </li>
-        ))}
+        {[...d.safetyChecks].sort((x, y) => rank(x.outcome) - rank(y.outcome)).map((c) => {
+          const Icon = c.outcome === "BLOCK" ? ShieldAlert : c.outcome === "WARN" ? AlertTriangle : CheckCircle2;
+          const accent = c.outcome === "BLOCK" ? "border-[hsl(var(--danger-text)/0.5)] bg-[hsl(var(--danger-text)/0.07)]" : c.outcome === "WARN" ? "border-[hsl(var(--warning)/0.5)] bg-[hsl(var(--warning)/0.08)]" : "border-border";
+          const ic = c.outcome === "BLOCK" ? "text-[hsl(var(--danger-text))]" : c.outcome === "WARN" ? "text-[hsl(var(--warning))]" : "text-[hsl(var(--success))]";
+          return (
+            <li key={c.id} className={`flex flex-wrap items-start justify-between gap-2 rounded-xl border p-3 ${accent}`}>
+              <div className="flex min-w-0 gap-3"><Icon aria-hidden="true" className={`mt-0.5 size-5 shrink-0 ${ic}`} />
+                <div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{t(`check.${c.kind}`)}</span><Badge tone={OUTCOME_TONE[c.outcome] ?? "neutral"}>{t(`outcome.${c.outcome}`)}</Badge></div>
+                  {c.detail && <p className="mt-1 text-sm text-muted-foreground">{c.detail}</p>}{c.overrideReason && <p className="mt-1 text-xs">{t("disp.overrideReason")}: {c.overrideReason}</p>}</div></div>
+              {c.outcome === "BLOCK" && canOverride && !["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <Button size="sm" variant="outline" onClick={() => setOv({ id: c.id, kind: c.kind })}>{t("disp.override")}</Button>}
+              {c.outcome === "BLOCK" && ["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <span className="text-xs font-semibold text-[hsl(var(--danger-text))]">{t("disp.hardStop")}</span>}
+            </li>
+          );
+        })}
       </ul>
       <Modal open={!!ov} onClose={() => setOv(null)} title={t("disp.override")}>
         <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="space-y-3">
@@ -94,6 +104,7 @@ export function Workflow({ d, rx }: { d: Dispensing; rx?: Rx }) {
   });
   return (
     <div className="space-y-4">
+      <Stepper steps={[t("disp.stReserved"), t("disp.stSignedOff"), t("disp.stDispensed")]} current={d.status === "DISPENSED" || done ? 2 : d.status === "SIGNED_OFF" ? 1 : 0} />
       <Card title={`${t("disp.title")} · ${t(`dispStatus.${d.status}`)}`} actions={["RESERVED", "SIGNED_OFF", "VALIDATED"].includes(d.status) && <Button size="sm" variant="outline" onClick={() => cancel.mutate()}>{t("common.cancel")}</Button>}>
         <Table head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), t("cat.price")]}>
           {d.lines.map((l) => <tr key={l.id}><Td className="font-medium">{drugName(l.drug)} {l.substitutedFromDrugId && <Badge tone="info">{t("rx.substituted")}</Badge>}</Td><Td className="font-mono text-xs">{l.lot.lotNumber}</Td><Td>{fmtDate(l.lot.expiryDate)}</Td><Td>{l.quantity}</Td><Td>{fmtMoney(l.unitPrice)}</Td></tr>)}

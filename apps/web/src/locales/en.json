@@ -108,7 +108,14 @@
     "syncConflicts": "Offline sales to resolve",
     "shift": "Cash shift",
     "shiftOpen": "A shift is open.",
-    "shiftClosed": "No shift is open. Open one in Point of sale."
+    "shiftClosed": "No shift is open. Open one in Point of sale.",
+    "attention": "Needs attention",
+    "attnExpired": "{{count}} expired lot(s) still in stock. Quarantine or write them off.",
+    "attnConflicts": "{{count}} offline sale(s) need review.",
+    "attnBlocked": "{{count}} lot(s) blocked (quarantine or recall).",
+    "grpSales": "Sales",
+    "grpDispensing": "Dispensing",
+    "grpStock": "Stock and expiry"
   },
   "onb": {
     "title": "Welcome, {{name}}",
@@ -198,7 +205,10 @@
     "variance": "Variance",
     "submitCount": "Submit for approval",
     "approveVariance": "Approve variances",
-    "rejectCount": "Reject count"
+    "rejectCount": "Reject count",
+    "fefoFirst": "Pick first (FEFO)",
+    "expiredAgo": "Expired {{count}} d ago",
+    "inDays": "{{count}} d"
   },
   "lot": {
     "AVAILABLE": "Available",
@@ -316,7 +326,10 @@
     "complete": "Dispense",
     "dispensed": "Dispensed",
     "lotBlocked": "A reserved lot was blocked (recall, quarantine or expiry). Pick other lots.",
-    "repick": "Re-pick lots"
+    "repick": "Re-pick lots",
+    "stReserved": "Stock reserved",
+    "stSignedOff": "Pharmacist sign-off",
+    "stDispensed": "Dispensed"
   },
   "dispStatus": {
     "DRAFT": "Draft",
@@ -391,7 +404,18 @@
     "conflictsHelp": "Sales rung up offline that could not be applied as queued (for example the lot was recalled meanwhile). Nothing was lost: decide how to settle each one.",
     "discard": "Discard",
     "forceApply": "Apply with approval",
-    "tendered": "Cash received"
+    "tendered": "Cash received",
+    "shiftClosed": "No shift",
+    "liveCatalogue": "Live catalogue",
+    "offlineMode": "Offline mode",
+    "inCart": "{{count}} in cart",
+    "outOfStock": "Out of stock",
+    "items": "{{count}} items",
+    "clear": "Clear",
+    "exact": "Exact",
+    "receiptPreview": "Receipt preview",
+    "subtotal": "Subtotal",
+    "vat": "VAT"
   },
   "method": {
     "CASH": "Cash",

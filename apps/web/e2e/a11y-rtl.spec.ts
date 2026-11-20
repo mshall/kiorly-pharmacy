@@ -8,18 +8,19 @@ async function audit(page: Page, name: string) {
   expect(bad.map((v) => `${name}: ${v.id} (${v.nodes.length})`), JSON.stringify(bad.map((v) => ({ id: v.id, n: v.nodes.slice(0, 2).map((x) => x.html) })))).toEqual([]);
 }
 
-for (const lang of ["en", "ar"] as const) {
-  test(`a11y (axe, serious+critical) and direction in ${lang}`, async ({ page }) => {
-    await page.addInitScript((l) => { try { localStorage.setItem("kiorly.lang", l); } catch { /* ignore */ } }, lang);
+for (const [lang, theme] of [["en", "light"], ["ar", "light"], ["en", "dark"], ["ar", "dark"]] as const) {
+  test(`a11y (axe, serious+critical) and direction in ${lang} ${theme}`, async ({ page }) => {
+    await page.addInitScript(([l, th]) => { try { localStorage.setItem("kiorly.lang", l); localStorage.setItem("kx-theme", th); } catch { /* ignore */ } }, [lang, theme]);
     await page.goto("/login");
     await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
     await audit(page, `login-${lang}`);
     await login(page, demo.owner, lang);
     await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
-    for (const path of ["/", "/pos", "/catalogue", "/inventory", "/rx", "/purchasing", "/reports", "/settings"]) {
+    for (const path of ["/", "/pos", "/catalogue", "/inventory", "/rx", "/orders", "/receiving", "/purchasing", "/reports", "/settings"]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
-      await audit(page, `${path}-${lang}`);
+      await audit(page, `${path}-${lang}-${theme}`);
+      if (path === "/inventory") for (const tab of [1, 2]) { await page.getByRole("tab").nth(tab).click(); await page.waitForLoadState("networkidle"); await audit(page, `${path}#${tab}-${lang}-${theme}`); }
     }
   });
 }

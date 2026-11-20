@@ -11,7 +11,7 @@ export const cn = (...i: ClassValue[]) => twMerge(clsx(i));
 
 const button = cva("inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,box-shadow,transform] duration-150 ease-[var(--kx-ease-standard)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50", {
   variants: {
-    variant: { primary: "bg-primary text-primary-foreground shadow-[var(--kx-shadow-1)] hover:bg-[var(--kx-primary-hover)]", secondary: "bg-secondary text-secondary-foreground hover:bg-accent", outline: "border border-input bg-card shadow-[var(--kx-shadow-1)] hover:bg-accent", danger: "bg-destructive text-destructive-foreground shadow-[var(--kx-shadow-1)] hover:opacity-90", ghost: "hover:bg-accent" },
+    variant: { primary: "bg-primary text-primary-foreground shadow-[var(--kx-shadow-1)] hover:bg-[var(--kx-primary-hover)]", secondary: "bg-secondary text-secondary-foreground hover:bg-accent", outline: "border border-input bg-card shadow-[var(--kx-shadow-1)] hover:bg-accent", danger: "bg-destructive text-destructive-foreground dark:bg-[#c92a2a] shadow-[var(--kx-shadow-1)] hover:opacity-90", ghost: "hover:bg-accent" },
     size: { md: "", lg: "min-h-14 rounded-xl px-6 text-base", sm: "min-h-8 px-3 text-xs" },
   },
   defaultVariants: { variant: "primary", size: "md" },
@@ -52,6 +52,7 @@ const tone = {
   warn: "bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))] ring-[hsl(var(--warning)/0.3)]",
   bad: "bg-[hsl(var(--danger-text)/0.12)] text-[hsl(var(--danger-text))] ring-[hsl(var(--danger-text)/0.28)]",
   info: "bg-accent text-accent-foreground ring-primary/20",
+  brand: "bg-primary text-primary-foreground ring-primary",
 } as const;
 export type Tone = keyof typeof tone;
 export const Badge = ({ tone: t = "neutral", children }: { tone?: Tone; children: ReactNode }) => <span className={cn("inline-flex min-h-6 items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", tone[t])}>{children}</span>;
@@ -82,14 +83,21 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 
 export function Table({ head, children, empty }: { head: string[]; children: ReactNode; empty?: ReactNode }) {
   return (
-    <div className="kx-sticky-head overflow-x-auto">
-      <table className="w-full text-start text-sm">
-        <thead><tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground rtl:normal-case rtl:tracking-normal">{head.map((h) => <th key={h} scope="col" className="px-3 py-2.5 text-start font-semibold">{h}</th>)}</tr></thead>
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard-scrollable region (axe scrollable-region-focusable)
+    <div className="kx-sticky-head kx-table-wrap overflow-auto" tabIndex={0} role="region" aria-label={head.filter(Boolean).slice(0, 2).join(" / ")}>
+      <table className="kx-table w-full text-start text-sm">
+        <thead><tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground rtl:normal-case rtl:tracking-normal">{head.map((h) => <th key={h} scope="col" className="whitespace-nowrap px-3 py-2.5 text-start text-[11px] font-semibold">{h}</th>)}</tr></thead>
         <tbody className="divide-y divide-border">{children}</tbody>
       </table>
       {empty}
     </div>
   );
+}
+/** Expiry status chip: expired / <=30 d / <=90 d / ok, with the day count (FEFO reads left to right). */
+export function ExpiryChip({ days, label }: { days: number; label: (k: "expired" | "soon" | "watch" | "ok", n: number) => string }) {
+  const k = days < 0 ? "expired" : days <= 30 ? "soon" : days <= 90 ? "watch" : "ok";
+  const tn: Tone = k === "expired" ? "bad" : k === "soon" ? "warn" : k === "watch" ? "info" : "good";
+  return <Badge tone={tn}>{label(k, days)}</Badge>;
 }
 export const Td = ({ children, className }: { children?: ReactNode; className?: string }) => <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;
 

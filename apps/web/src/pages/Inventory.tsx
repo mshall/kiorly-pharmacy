@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Badge, Button, Card, Empty, ErrorNote, Field, Input, LOT_TONE, Modal, PageHeader, Select, Spinner, Table, Tabs, Td } from "@/components/ui";
+import { Badge, Button, Card, Empty, ErrorNote, ExpiryChip, Field, Input, LOT_TONE, Modal, PageHeader, Select, Spinner, Table, Tabs, Td } from "@/components/ui";
 import { drugName, fmtDate, fmtNum } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 import type { Lot, Page, StockRow } from "@/lib/types";
@@ -23,7 +23,7 @@ function StockTab() {
       {res.isLoading ? <Spinner /> : (
         <Table head={[t("common.product"), t("inv.onHand"), t("inv.reserved"), t("inv.sellable"), t("inv.blocked"), t("inv.nextExpiry"), t("inv.minMax")]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
           {res.data?.items.map((r) => (
-            <tr key={r.drugId}>
+            <tr key={r.drugId} className={r.blocked > 0 ? "kx-row-bad" : r.low ? "kx-row-warn" : undefined}>
               <Td className="font-medium">{drugName(r)} <span className="text-xs text-muted-foreground">{r.strength}</span> {r.low && <Badge tone="warn">{t("inv.low")}</Badge>}</Td>
               <Td>{fmtNum(r.onHand)}</Td><Td>{fmtNum(r.reserved)}</Td><Td className="font-semibold">{fmtNum(r.sellable)}</Td><Td>{r.blocked > 0 ? <Badge tone="bad">{fmtNum(r.blocked)}</Badge> : 0}</Td>
               <Td>{fmtDate(r.nextExpiry)}</Td><Td>{r.minQty !== null ? `${r.minQty} / ${r.maxQty}` : "—"}</Td>
@@ -46,6 +46,14 @@ function ReasonModal({ title, open, onClose, onSubmit, busy, error }: { title: s
       </form>
     </Modal>
   );
+}
+
+const expLabel = (t: (k: string, o?: Record<string, unknown>) => string) => (k: "expired" | "soon" | "watch" | "ok", n: number) => (k === "expired" ? t("inv.expiredAgo", { count: Math.abs(n) }) : t("inv.inDays", { count: n }));
+/** First-expiry-first-out: per product, order sellable lots by expiry and flag the one to pick first. */
+function fefo(lots: Lot[]): Array<{ l: Lot; first: boolean }> {
+  const sorted = [...lots].sort((a, b) => drugName(a.drug).localeCompare(drugName(b.drug)) || a.expiryDate.localeCompare(b.expiryDate));
+  const seen = new Set<string>();
+  return sorted.map((l) => { const sellable = l.status === "AVAILABLE" && l.daysToExpiry >= 0 && l.qtyOnHand > 0; const first = sellable && !seen.has(l.drugId); if (sellable) seen.add(l.drugId); return { l, first }; });
 }
 
 function LotsTab() {
@@ -73,10 +81,10 @@ function LotsTab() {
       <ErrorNote error={res.error} />
       {res.isLoading ? <Spinner /> : (
         <Table head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), t("common.status"), ""]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
-          {res.data?.items.map((l) => (
-            <tr key={l.id}>
+          {fefo(res.data?.items ?? []).map(({ l, first }) => (
+            <tr key={l.id} className={l.status === "RECALLED" || l.status === "EXPIRED" || l.blockReason === "EXPIRED" ? "kx-row-bad" : l.status === "QUARANTINE" ? "kx-row-warn" : undefined}>
               <Td className="font-medium">{drugName(l.drug)}</Td><Td className="font-mono text-xs">{l.lotNumber}</Td>
-              <Td>{fmtDate(l.expiryDate)} <span className={l.daysToExpiry < 0 ? "text-danger" : l.daysToExpiry <= 30 ? "text-[hsl(var(--warning))]" : "text-muted-foreground"}>({l.daysToExpiry})</span></Td>
+              <Td><div className="flex flex-wrap items-center gap-1.5"><span className="whitespace-nowrap">{fmtDate(l.expiryDate)}</span><ExpiryChip days={l.daysToExpiry} label={expLabel(t)} />{first && <Badge tone="brand">{t("inv.fefoFirst")}</Badge>}</div></Td>
               <Td>{fmtNum(l.qtyOnHand)}{l.qtyReserved ? ` (${t("inv.reservedN", { count: l.qtyReserved })})` : ""}</Td>
               <Td><Badge tone={LOT_TONE[l.blockReason ?? l.status] ?? "neutral"}>{t(`lot.${l.blockReason ?? l.status}`, { defaultValue: l.status })}</Badge>{l.blockedReason && <div className="text-xs text-muted-foreground">{l.blockedReason}</div>}</Td>
               <Td><div className="flex flex-wrap gap-1">
@@ -114,11 +122,12 @@ function ExpiryTab() {
     <div className="space-y-4">
       {can("inventory.adjust") && <Button variant="outline" onClick={() => sweep.mutate()} disabled={sweep.isPending}>{t("inv.runSweep")}</Button>}
       <ErrorNote error={res.error || sweep.error} />
+      {res.data && <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={t("inv.tabExpiry")}>{groups.map(([k, label]) => { const n = res.data[k].length; const tone = k === "expired" ? "text-[hsl(var(--danger-text))]" : k === "d30" ? "text-[hsl(var(--warning))]" : "text-foreground"; return <li key={k} className="rounded-xl border border-border/80 bg-card p-3 shadow-[var(--kx-shadow-1)]"><div className="text-xs font-medium text-muted-foreground">{label}</div><div className={`mt-1 text-2xl font-bold tabular-nums ${n ? tone : "text-muted-foreground"}`}>{fmtNum(n)}</div></li>; })}</ul>}
       {res.isLoading ? <Spinner /> : groups.map(([k, label]) => (
         <Card key={k} title={`${label} (${res.data?.[k].length ?? 0})`}>
           {res.data?.[k].length ? (
             <Table head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), ""]}>
-              {res.data[k].map((b) => <tr key={b.lotId}><Td className="font-medium">{drugName(b)}</Td><Td className="font-mono text-xs">{b.lotNumber}</Td><Td>{fmtDate(b.expiryDate)}</Td><Td>{b.qtyOnHand}</Td>
+              {res.data[k].map((b) => <tr key={b.lotId}><Td className="font-medium">{drugName(b)}</Td><Td className="font-mono text-xs">{b.lotNumber}</Td><Td><div className="flex flex-wrap items-center gap-1.5"><span className="whitespace-nowrap">{fmtDate(b.expiryDate)}</span><ExpiryChip days={b.daysToExpiry} label={expLabel(t)} /></div></Td><Td>{fmtNum(b.qtyOnHand)}</Td>
                 <Td>{can("inventory.adjust") && b.supplierId && b.qtyOnHand > 0 && <Button size="sm" variant="outline" onClick={() => setRet(b)}>{t("inv.returnToSupplier")}</Button>}</Td></tr>)}
             </Table>
           ) : <Empty>{t("common.none")}</Empty>}
