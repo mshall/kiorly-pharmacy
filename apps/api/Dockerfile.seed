@@ -1,0 +1,29 @@
+# One-shot idempotent migrate + seed image for the NON-PRODUCTION Lambdas of kiorly-pharmacy (Q10 Part B; handler demo-seed.handler / index.handler).
+# Compiled seeds only: plain `node dist-seed/prisma/demo/seed-demo.js` at run time, no ts-node/tsx. Build from the repo root:
+#   docker build -f apps/api/Dockerfile.seed --build-context contracts=../kiorex-contracts -t kiorly-pharmacy-seed .
+# (`@kiorex/contracts` is a file: dependency on ../kiorex-contracts/dist-pack until it is published; the named build context supplies the tarball.)
+FROM public.ecr.aws/lambda/nodejs:22 AS build
+RUN dnf install -y openssl ca-certificates && dnf clean all
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages ./packages
+COPY --from=contracts dist-pack /kiorex-contracts/dist-pack
+RUN npm ci && npm install -g prisma@6.19.3
+COPY apps/api ./apps/api
+WORKDIR /repo/apps/api
+ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
+RUN npx prisma generate && npm run build:seed
+
+FROM public.ecr.aws/lambda/nodejs:22
+RUN dnf install -y openssl ca-certificates && dnf clean all
+COPY --from=build /repo/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+COPY --from=build /repo/packages ${LAMBDA_TASK_ROOT}/packages
+COPY --from=build /repo/apps/api/prisma ${LAMBDA_TASK_ROOT}/prisma
+COPY --from=build /repo/apps/api/dist-seed ${LAMBDA_TASK_ROOT}/dist-seed
+COPY infra/lambda/demo-seed/run.mjs ${LAMBDA_TASK_ROOT}/demo-seed.mjs
+COPY infra/lambda/demo-seed/run.mjs ${LAMBDA_TASK_ROOT}/index.mjs
+ENV SEED_PRODUCT=kiorly-pharmacy SEED_BASE_ENTRY=dist-seed/prisma/seed.js SEED_DEMO_ENTRY=dist-seed/prisma/demo/seed-demo.js
+ENV PATH="${LAMBDA_TASK_ROOT}/node_modules/.bin:/usr/local/bin:${PATH}"
+CMD ["index.handler"]

@@ -72,3 +72,13 @@ output "app_runner_service_arn" {
   description = "App Runner service ARN."
   value       = one(module.kiorly_pharmacy[*].app_runner_service_arn)
 }
+
+output "demo_seed_function_name" {
+  description = "Demo seed Lambda (staging only; null unless enable_demo_seed)."
+  value       = one(module.kiorly_pharmacy[*].demo_seed_function_name)
+}
+
+output "demo_seed_invoke" {
+  description = "How to run the demo seed after the staging deploy (a human runs it; see scripts/seed-staging.sh)."
+  value       = one(module.kiorly_pharmacy[*].demo_seed_invoke)
+}

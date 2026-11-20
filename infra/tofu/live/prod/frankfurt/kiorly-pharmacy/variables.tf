@@ -192,3 +192,15 @@ variable "observability_enabled" {
   type        = bool
   default     = true
 }
+
+variable "enable_demo_seed" {
+  description = "Demo-data seed Lambda (migrate + base seed + demo seed). NON-PRODUCTION ONLY: true only in staging tfvars; the plan fails for env = prod."
+  type        = bool
+  default     = false
+}
+
+variable "demo_seed_env" {
+  description = "Extra non-secret environment for the demo seed Lambda."
+  type        = map(string)
+  default     = {}
+}

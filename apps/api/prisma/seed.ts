@@ -8,6 +8,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { loadEnv } from "../src/config/env";
+import { assertDemoSeedAllowed } from "../src/common/demo-seed-guard";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { CatalogueService, type DrugInput } from "../src/modules/catalogue/catalogue.service";
@@ -63,7 +64,7 @@ const BASES: Base[] = [
 const gtin = (n: number) => `622${String(n).padStart(10, "0")}${n % 10}`;
 
 export async function seed(): Promise<{ tenantId: string }> {
-  if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed demo data in production");
+  assertDemoSeedAllowed("Kiorly Pharmacy base demo tenant");
   loadEnv();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ["error"] });
   try {

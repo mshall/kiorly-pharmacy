@@ -1,0 +1,14 @@
+.git
+.github
+**/node_modules
+**/dist
+**/dist-seed
+**/.env
+**/.env.*
+!**/.env.example
+**/.terraform
+apps/web/dist
+apps/web/test-results
+apps/web/playwright-report
+apps/mobile
+.e2e

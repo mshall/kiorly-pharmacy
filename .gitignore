@@ -21,3 +21,4 @@ infra/**/*.tfvars
 .data/
 test-results/
 playwright-report/
+dist-seed

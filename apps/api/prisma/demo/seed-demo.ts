@@ -12,6 +12,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { loadEnv } from "../../src/config/env";
+import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { CatalogueService, type DrugInput } from "../../src/modules/catalogue/catalogue.service";
@@ -27,6 +28,8 @@ import { DispensingService } from "../../src/modules/dispensing/dispensing.servi
 import { marketToday } from "../../src/common/dates";
 import type { AuthUser } from "../../src/auth/auth-user";
 
+/** AWS staging (Cognito generates the subs): DEMO_SUB_MAP_JSON = { "+201000001001": "<cognito sub>" } from scripts/seed-cognito-demo.mjs; locally the dev IdP subs below. */
+const SUB_MAP: Record<string, string> = (() => { try { return JSON.parse(process.env.DEMO_SUB_MAP_JSON || "{}"); } catch { return {}; } })();
 const RESET = process.argv.includes("--reset");
 const DAY = 86_400_000;
 let s = 20261120;
@@ -53,7 +56,7 @@ const STR = ["5 mg", "10 mg", "20 mg", "40 mg", "100 mg", "250 mg", "500 mg"];
 const BR = ["Zora", "Medix", "Nilo", "Cura", "Pharmo", "Vita"];
 
 async function main() {
-  if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed demo data in production");
+  assertDemoSeedAllowed("Kiorly Pharmacy (Kiorly Demo Pharmacy tenant)");
   loadEnv();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ["error"] });
   const started = new Date();
@@ -179,7 +182,7 @@ async function main() {
       const x = [items[(i - 1) % items.length], items[(i + 2) % items.length]]; if (!x[0]) continue;
       try {
         const lines = await Promise.all(x.map(async (it, k) => ({ sku: it.sku ?? it.drugId, quantity: 1 + ((i - 1) % 2), unitPrice: ((it.priceMinor ?? 0) / 100).toFixed(2) })));
-        const r = await market.ingest(org, { orderId: `kx_ph_demo_${i}`, branchId: b1.id, patientRef: `01HZKXD${String(1000 + i).padStart(19, "0")}`, customer: { name: `Kiorex patient ${1000 + i}`, phone: `+20100000${1000 + i}`, address: "12 Demo Street, Cairo" }, prepaid: true, delivery: { method: i % 2 ? "DELIVERY" : "PICKUP" }, prescription: { patientRef: `01HZKXD${String(1000 + i).padStart(19, "0")}`, prescriberName: "Dr Tamer Shawky (DEMO)", prescriberLicenceNo: "SYN-MD-100", issuedAt: new Date().toISOString(), scanRef: `demo-scan-${i}` }, lines } as any);
+        const r = await market.ingest(org, { orderId: `kx_ph_demo_${i}`, branchId: b1.id, patientRef: SUB_MAP[`+20100000${String(1000 + i)}`] ?? `01HZKXD${String(1000 + i).padStart(19, "0")}`, customer: { name: `Kiorex patient ${1000 + i}`, phone: `+20100000${1000 + i}`, address: "12 Demo Street, Cairo" }, prepaid: true, delivery: { method: i % 2 ? "DELIVERY" : "PICKUP" }, prescription: { patientRef: `01HZKXD${String(1000 + i).padStart(19, "0")}`, prescriberName: "Dr Tamer Shawky (DEMO)", prescriberLicenceNo: "SYN-MD-100", issuedAt: new Date().toISOString(), scanRef: `demo-scan-${i}` }, lines } as any);
         const cur = async () => (await prisma.kiorexOrder.findUniqueOrThrow({ where: { id: r.order.id } })).status as string;
         if (st === "RECEIVED" || (await cur()) === "DISPENSED" || (st === "REJECTED" && (await cur()) !== "RECEIVED")) continue;
         const rxId = (r.order as any).prescriptionId; if (rxId && st !== "REJECTED") await rxSvc.validate(pharmU, rxId).catch((e: any) => console.warn("order rx validate:", e.message));
