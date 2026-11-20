@@ -3,15 +3,15 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Card, ErrorNote, PageHeader, Spinner, cn } from "@/components/ui";
+import { Card, ErrorNote, PageHeader } from "@/components/ui";
+import { StatCard } from "@/brand/ui-kit";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import type { Dashboard as D } from "@/lib/types";
 
 function Tile({ to, label, value, tone }: { to: string; label: string; value: string | number; tone?: "bad" | "warn" | "good" }) {
   return (
-    <Link to={to} className="block rounded-lg bg-card p-4 shadow-sm ring-1 ring-border hover:bg-accent">
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-3xl font-bold", tone === "bad" && "text-danger", tone === "warn" && "text-[hsl(var(--warning))]", tone === "good" && "text-[hsl(var(--success))]")}>{value}</div>
+    <Link to={to} className="block rounded-xl transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2">
+      <StatCard label={label} value={value} tone={tone ?? "neutral"} className="h-full hover:border-primary/40" />
     </Link>
   );
 }
@@ -24,7 +24,7 @@ export function Dashboard() {
   return (
     <>
       <PageHeader title={t("dash.title")} subtitle={me?.tenant.name} />
-      {q.isLoading && <Spinner />}
+      {q.isLoading && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <div key={i} className="kx-skeleton h-24 rounded-xl" />)}</div>}
       <ErrorNote error={q.error} />
       {d && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

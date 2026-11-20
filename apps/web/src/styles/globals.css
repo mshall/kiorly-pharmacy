@@ -1,62 +1,30 @@
+@import "@fontsource-variable/jost/index.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
+@import "../brand/tokens.css";
+@import "../brand/brand-bridge.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Kiorly Clinical OS tokens (copied as values from clinics-management; light default, dark via media query). */
-:root {
-  --background: 216 45% 98%;
-  --foreground: 220 43% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 220 43% 11%;
-  --primary: 221 83% 53%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 215 39% 95%;
-  --secondary-foreground: 220 43% 11%;
-  --muted: 215 38% 95%;
-  --muted-foreground: 215 13% 43%;
-  --accent: 216 90% 96%;
-  --accent-foreground: 221 83% 43%;
-  --destructive: 0 65% 46%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 221 83% 53%;
-  --radius: 1rem;
-  --success: 152 60% 24%;
-  --warning: 28 95% 24%;
-  --danger-text: 0 70% 38%;
+@layer base {
+  html { font-family: var(--kx-font); }
+  body { @apply bg-background text-foreground antialiased; font-family: var(--kx-font); }
+  h1, h2, h3 { letter-spacing: var(--kx-tracking-xl); }
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 { letter-spacing: 0; line-height: 1.4; }
+  [dir="rtl"] body { line-height: 1.6; }
+  table { font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 218 45% 10%;
-    --foreground: 215 53% 97%;
-    --card: 216 38% 15%;
-    --card-foreground: 215 53% 97%;
-    --primary: 216 100% 75%;
-    --primary-foreground: 213 70% 17%;
-    --secondary: 214 36% 19%;
-    --secondary-foreground: 215 53% 97%;
-    --muted: 214 36% 19%;
-    --muted-foreground: 213 20% 74%;
-    --accent: 214 36% 21%;
-    --accent-foreground: 216 100% 75%;
-    --destructive: 356 100% 78%;
-    --destructive-foreground: 218 45% 10%;
-    --border: 215 27% 27%;
-    --input: 215 27% 27%;
-    --ring: 215 100% 88%;
-    --success: 152 55% 62%;
-    --warning: 38 92% 68%;
-    --danger-text: 356 100% 78%;
-  }
-}
-
-body {
-  @apply bg-background text-foreground antialiased;
-}
-
-:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
-.skip-link { position: absolute; inset-inline-start: -999px; top: 0; z-index: 100; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: .5rem 1rem; }
+dialog::backdrop { background: var(--kx-overlay); backdrop-filter: blur(2px); }
+.skip-link { position: absolute; inset-inline-start: -999px; top: 0; z-index: 100; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: .5rem 1rem; border-radius: 0 0 .5rem .5rem; }
 .skip-link:focus { inset-inline-start: 0; }
+.kx-sticky-head thead th { position: sticky; top: 0; z-index: 1; background: hsl(var(--card)); }
+@media (prefers-reduced-motion: no-preference) {
+  main > * { animation: kx-page-in var(--kx-dur-slow) var(--kx-ease-decelerate) both; }
+}
+@keyframes kx-page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media print { .no-print { display: none !important; } }

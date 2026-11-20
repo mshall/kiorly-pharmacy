@@ -1,6 +1,10 @@
 /** Same HSL-variable token scheme as clinics-management (Kiorly Clinical OS palette) + shared Kiorex "pulse" accent. */
 /** @type {import('tailwindcss').Config} */
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+
 export default {
+  presets: [require("./src/brand/tailwind-preset.cjs")],
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -17,11 +21,11 @@ export default {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-        pulse: "#E8735E",
+        pulse: "var(--kx-pulse)",
         danger: "hsl(var(--danger-text))",
       },
       borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" },
-      fontFamily: { sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Noto Sans Arabic", "Noto Sans", "sans-serif"] },
+      fontFamily: { sans: ["var(--kx-font)", "system-ui", "sans-serif"] },
     },
   },
   plugins: [],

@@ -558,5 +558,11 @@
     "channel": "Channel",
     "recipient": "Recipient",
     "outbox": "Events to Kiorex"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   }
 }

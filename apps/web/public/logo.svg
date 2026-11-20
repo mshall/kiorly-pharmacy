@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#2563eb"/><path d="M18 18l28 28M46 18L18 46" stroke="#fff" stroke-width="6" stroke-linecap="round"/><path d="M10 34h14l4-8 6 16 4-8h16" fill="none" stroke="#E8735E" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="206 206 688 468" role="img" aria-label="Kiorex">
+  <polyline points="373,237 505,440 373,643" fill="none" stroke="#3730A3" stroke-width="38"/>
+  <polyline points="720,237 588,440 720,643" fill="none" stroke="#0369A1" stroke-width="38"/>
+  <path d="M222 440 H510 L525 428 L540 466 L557 392 L574 460 L588 441 H877" fill="none" stroke="#E8735E" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

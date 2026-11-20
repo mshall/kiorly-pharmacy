@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { Button, Card, ErrorNote, Field, Input } from "@/components/ui";
+import { KiorlyBrand, ThemeToggle } from "@/brand/ui-kit";
 import { setLang, type Lang } from "@/lib/i18n";
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
@@ -12,8 +13,8 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div className="grid min-h-screen place-items-center p-4">
       <div className="w-full max-w-md space-y-4">
-        <div className="flex items-center justify-between"><div className="flex items-center gap-3"><img src="/logo.svg" alt="" className="h-10 w-10" /><span className="text-xl font-semibold">{t("app.product")}</span></div>
-          <Button variant="outline" size="sm" onClick={() => setLang(next)}>{t("app.lang")}</Button></div>
+        <div className="flex items-start justify-between gap-3"><div><KiorlyBrand height={48} /><div className="mt-2 text-lg font-semibold">{t("app.product")}</div></div>
+          <div className="flex items-center gap-2"><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} className="size-9" /><Button variant="outline" size="sm" onClick={() => setLang(next)}>{t("app.lang")}</Button></div></div>
         <Card title={title}>{children}</Card>
       </div>
     </div>
