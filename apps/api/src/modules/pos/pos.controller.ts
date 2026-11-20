@@ -13,7 +13,7 @@ import { resolveBranchId, branchFilter } from "../../common/branch-scope";
 import { PrismaService } from "../../prisma/prisma.service";
 import { pageArgs } from "../../common/pagination";
 
-const METHODS = ["CASH", "CARD", "INSTAPAY", "FAWRY", "WALLET", "CUSTOMER_CREDIT"] as const;
+const METHODS = ["CASH", "CARD", "INSTAPAY", "FAWRY", "WALLET", "CUSTOMER_CREDIT", "LOYALTY_POINTS"] as const;
 class CartLineDto {
   @IsString() drugId!: string;
   @IsInt() @Min(1) quantity!: number;
@@ -32,6 +32,7 @@ class CheckoutDto {
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => CartLineDto) lines!: CartLineDto[];
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => PaymentDto) payments!: PaymentDto[];
   @IsOptional() @IsString() customerAccountId?: string;
+  @IsOptional() @IsString() patientId?: string;
   @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto;
 }
 class QuoteDto {
@@ -57,7 +58,7 @@ class ReturnLineDto { @IsString() saleLineId!: string; @IsInt() @Min(1) quantity
 class ReturnDto {
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ReturnLineDto) lines!: ReturnLineDto[];
   @IsString() @MinLength(3) reason!: string;
-  @IsIn(METHODS) refundMethod!: (typeof METHODS)[number];
+  @IsIn(METHODS.filter((m) => m !== "LOYALTY_POINTS")) refundMethod!: Exclude<(typeof METHODS)[number], "LOYALTY_POINTS">;
   @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto;
 }
 class VoidDto { @IsString() @MinLength(3) reason!: string; @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto; }

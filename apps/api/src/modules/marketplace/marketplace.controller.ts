@@ -6,6 +6,7 @@ import { CurrentUser, Perm, Public } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";
 import { RequiresFlag, RequiresFlagGuard } from "../../feature-flags/requires-flag.guard";
 import { MarketplaceService } from "./marketplace.service";
+import { RequiresIntegrationGuard } from "../../tenancy/requires-integration.guard";
 import { MarketplaceHmacGuard } from "./marketplace-hmac.guard";
 import { resolveBranchId } from "../../common/branch-scope";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -27,7 +28,7 @@ class RejectDto { @IsString() @MinLength(3) reason!: string; @IsOptional() @IsSt
 /** Staff-facing order inbox (pharmacy.kiorex_orders: OFF => 403 FEATURE_DISABLED; data is never hidden or deleted). */
 @ApiTags("kiorex-orders")
 @ApiBearerAuth()
-@UseGuards(RequiresFlagGuard)
+@UseGuards(RequiresFlagGuard, RequiresIntegrationGuard)
 @RequiresFlag("pharmacy.kiorex_orders")
 @Controller("kiorex-orders")
 export class KiorexOrdersController {
@@ -101,7 +102,7 @@ class CancelDto { @IsOptional() @IsString() reason?: string; }
 /** Kiorex -> pharmacy machine API at /marketplace/v1 (outside the /api/v1 prefix, like Kiorly's marketplace API). HMAC-authenticated; the client key addresses the tenant. Contract: kiorex-contracts openapi/kiorly-pharmacy.v1.openapi.json. */
 @ApiTags("marketplace-v1")
 @Public()
-@UseGuards(MarketplaceHmacGuard, RequiresFlagGuard)
+@UseGuards(MarketplaceHmacGuard, RequiresFlagGuard, RequiresIntegrationGuard)
 @RequiresFlag("pharmacy.kiorex_orders")
 @Controller("marketplace/v1")
 export class MarketplaceMachineController {

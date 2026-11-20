@@ -11,6 +11,8 @@ import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import { ApprovalService, type ApprovalDto } from "../../auth/approval.service";
 import type { AuthUser } from "../../auth/auth-user";
 import { allocateFefo, assertSellable } from "../inventory/lot-guard/lot-guard";
+import { TenantModeService } from "../../tenancy/tenant-mode.service";
+import { earnForSale, loyaltyConfig, redeemPoints } from "../../common/loyalty";
 
 type Tx = Prisma.TransactionClient;
 
@@ -23,6 +25,8 @@ export interface CheckoutInput {
   lines: CartLine[];
   payments: PaymentInput[];
   customerAccountId?: string;
+  /** Customer registry id (loyalty accrues here; works without a credit account). */
+  patientId?: string;
   approval?: ApprovalDto;
   /** Already-verified approver (conflict resolution). */
   approvedByOverride?: string;
@@ -41,6 +45,7 @@ export class SalesService {
     @Inject(PspAdapter) private readonly psp: PspAdapter,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
     @Inject(ApprovalService) private readonly approvals: ApprovalService,
+    @Inject(TenantModeService) private readonly modes: TenantModeService,
   ) {}
 
   async vatRateFor(orgId: string, drug: { vatRate: Prisma.Decimal | null }): Promise<Prisma.Decimal> {
@@ -110,13 +115,14 @@ export class SalesService {
   /** Persists a sale + lines (+ SALE movements unless stock was already posted by a dispensing) + payments. Call inside a transaction. */
   async persist(tx: Tx, p: {
     user: AuthUser; branchId: string; shiftId: string | null; idempotencyKey: string; lines: PricedLine[]; payments: Array<{ method: PaymentMethod; amount: Prisma.Decimal; reference?: string; status?: string }>;
-    customerAccountId?: string; dispensingId?: string; stockAlreadyPosted?: boolean; approvedBy?: string; offline?: { clientCreatedAt: string }; channel?: "POS" | "KIOREX_ORDER";
+    customerAccountId?: string; patientId?: string; exchangeOfSaleId?: string; dispensingId?: string; stockAlreadyPosted?: boolean; approvedBy?: string; offline?: { clientCreatedAt: string }; channel?: "POS" | "KIOREX_ORDER";
   }) {
     const t = this.totals(p.lines);
     const receiptNo = await this.nextReceiptNo(tx, p.branchId);
+    const patientId = p.patientId ?? (p.customerAccountId ? (await tx.customerAccount.findUnique({ where: { id: p.customerAccountId }, select: { patientId: true } }))?.patientId : undefined);
     const sale = await tx.sale.create({
       data: {
-        orgId: p.user.orgId, branchId: p.branchId, shiftId: p.shiftId, channel: p.channel ?? "POS", status: "COMPLETED", idempotencyKey: p.idempotencyKey, receiptNo, customerAccountId: p.customerAccountId, dispensingId: p.dispensingId,
+        orgId: p.user.orgId, branchId: p.branchId, shiftId: p.shiftId, channel: p.channel ?? "POS", status: "COMPLETED", idempotencyKey: p.idempotencyKey, receiptNo, customerAccountId: p.customerAccountId, patientId, exchangeOfSaleId: p.exchangeOfSaleId, dispensingId: p.dispensingId,
         subtotal: t.subtotal, discountTotal: t.discountTotal, vatTotal: t.vatTotal, total: t.total, soldBy: p.user.userId, offline: !!p.offline, clientCreatedAt: p.offline ? new Date(p.offline.clientCreatedAt) : undefined,
         soldAt: p.offline ? new Date(p.offline.clientCreatedAt) : new Date(),
       },
@@ -128,12 +134,22 @@ export class SalesService {
       }
     }
     for (const pay of p.payments) await tx.salePayment.create({ data: { saleId: sale.id, method: pay.method, amount: pay.amount, reference: pay.reference, status: pay.status ?? "CAPTURED" } });
+    if (patientId && p.channel !== "KIOREX_ORDER") {
+      // loyalty: redeem first (LOYALTY_POINTS tender), then accrue on the money actually paid
+      const cfg = loyaltyConfig(await this.modes.settings(p.user.orgId));
+      const loyaltyPaid = sum(p.payments.filter((x) => x.method === "LOYALTY_POINTS").map((x) => x.amount));
+      if (loyaltyPaid.gt(0)) {
+        const pts = loyaltyPaid.div(cfg.redeemValue).ceil().toNumber();
+        if (!(await redeemPoints(tx, { orgId: p.user.orgId, patientId, points: pts, saleId: sale.id, by: p.user.userId }, cfg))) throw new DomainError("INSUFFICIENT_POINTS", "Not enough loyalty points", 409, { needed: pts });
+      }
+      await earnForSale(tx, { orgId: p.user.orgId, patientId, saleId: sale.id, total: t.total.minus(loyaltyPaid), by: p.user.userId }, cfg);
+    } else if (p.payments.some((x) => x.method === "LOYALTY_POINTS")) throw new DomainError("CUSTOMER_REQUIRED", "Loyalty points need a customer", 400);
     await tx.auditLog.create({ data: { orgId: p.user.orgId, actorId: p.user.userId, action: "sale.complete", entityType: "Sale", entityId: sale.id, meta: { total: money(t.total), lines: p.lines.length, offline: !!p.offline, dispensingId: p.dispensingId ?? null } } });
     return sale;
   }
 
   /** Charges non-cash tenders through the PSP adapter (mock by default) BEFORE the DB transaction; returns captured payments. */
-  async capturePayments(user: AuthUser, key: string, total: Prisma.Decimal, payments: PaymentInput[], customerAccountId?: string, offline?: boolean) {
+  async capturePayments(user: AuthUser, key: string, total: Prisma.Decimal, payments: PaymentInput[], customerAccountId?: string, offline?: boolean, patientId?: string) {
     const paid = sum(payments.map((p) => p.amount));
     if (paid.lt(total)) throw new DomainError("UNDERPAID", `Payments (${money(paid)}) do not cover the total (${money(total)})`, 402, { total: money(total), paid: money(paid) });
     const nonCash = sum(payments.filter((p) => p.method !== "CASH").map((p) => p.amount));
@@ -154,6 +170,12 @@ export class SalesService {
         continue;
       }
       if (p.method === "CASH") { out.push({ method: "CASH", amount, status: "CAPTURED" }); continue; }
+      if (p.method === "LOYALTY_POINTS") {
+        if (!patientId && !customerAccountId) throw new DomainError("CUSTOMER_REQUIRED", "Loyalty points need a customer", 400);
+        if (offline) throw new DomainError("OFFLINE_METHOD_NOT_SUPPORTED", "Loyalty points cannot be redeemed offline", 409);
+        out.push({ method: p.method, amount, status: "CAPTURED" });
+        continue;
+      }
       if (offline) throw new DomainError("OFFLINE_METHOD_NOT_SUPPORTED", `${p.method} cannot be taken offline`, 409);
       const r = await this.psp.charge({ orgId: user.orgId, method: p.method as PspMethod, amount: money(amount), idempotencyKey: `${key}:${i}`, walletRef: p.walletRef });
       if (r.status !== "CAPTURED") throw new DomainError("PAYMENT_DECLINED", `Payment declined (${r.declineReason ?? "declined"})`, 402, { method: p.method, reference: r.reference });
@@ -185,7 +207,8 @@ export class SalesService {
       const acct = await this.prisma.customerAccount.findFirst({ where: { id: input.customerAccountId, orgId: user.orgId } });
       if (!acct) throw notFound("Customer account", input.customerAccountId);
     }
-    const { payments, change } = await this.capturePayments(user, input.idempotencyKey, total, input.payments, input.customerAccountId, !!input.offline);
+    if (input.patientId && !(await this.prisma.patientRef.findFirst({ where: { id: input.patientId, orgId: user.orgId, active: true } }))) throw notFound("Customer", input.patientId);
+    const { payments, change } = await this.capturePayments(user, input.idempotencyKey, total, input.payments, input.customerAccountId, !!input.offline, input.patientId);
     const credit = sum(payments.filter((p) => p.method === "CUSTOMER_CREDIT").map((p) => p.amount));
 
     try {
@@ -194,7 +217,7 @@ export class SalesService {
           const [acct] = await tx.$queryRaw<Array<{ balance: Prisma.Decimal; creditLimit: Prisma.Decimal }>>`SELECT balance, "creditLimit" FROM "CustomerAccount" WHERE id = ${input.customerAccountId} AND "orgId" = ${user.orgId} FOR UPDATE`;
           if (!acct || D(acct.balance).plus(credit).gt(acct.creditLimit)) throw new DomainError("CREDIT_LIMIT_EXCEEDED", "Customer credit limit would be exceeded", 402, { balance: money(acct?.balance), limit: money(acct?.creditLimit) });
         }
-        const s = await this.persist(tx, { user, branchId: input.branchId, shiftId, idempotencyKey: input.idempotencyKey, lines: priced, payments, customerAccountId: input.customerAccountId, approvedBy, offline: input.offline });
+        const s = await this.persist(tx, { user, branchId: input.branchId, shiftId, idempotencyKey: input.idempotencyKey, lines: priced, payments, customerAccountId: input.customerAccountId, patientId: input.patientId, approvedBy, offline: input.offline });
         if (credit.gt(0)) {
           await tx.customerCreditEntry.create({ data: { orgId: user.orgId, accountId: input.customerAccountId!, kind: "CHARGE", amount: credit, saleId: s.id, createdBy: user.userId } });
           await tx.customerAccount.update({ where: { id: input.customerAccountId! }, data: { balance: { increment: credit } } });

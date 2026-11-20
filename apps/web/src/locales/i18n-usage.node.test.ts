@@ -20,7 +20,7 @@ describe("i18n usage", () => {
   it("dynamic key families cover every backend enum value", () => {
     const families: Record<string, string[]> = {
       lot: ["AVAILABLE", "RESERVED", "RECEIVED", "QUARANTINE", "RECALLED", "EXPIRED", "DISPENSED"],
-      roles: ["OWNER", "PHARMACIST", "CASHIER", "BRANCH_MANAGER", "CHAIN_OPS"],
+      roles: ["OWNER", "PHARMACIST", "CASHIER", "BRANCH_MANAGER", "CHAIN_OPS", "ASSISTANT"],
       rxStatus: ["RECEIVED", "VALIDATING", "VALIDATED", "PARTIALLY_DISPENSED", "DISPENSED", "REJECTED", "CANCELLED", "EXPIRED"],
       rxSource: ["PAPER_SCAN", "KIORLY_E_RX", "KIOREX_UPLOAD"],
       dispStatus: ["DRAFT", "VALIDATED", "RESERVED", "SIGNED_OFF", "DISPENSED", "CANCELLED"],

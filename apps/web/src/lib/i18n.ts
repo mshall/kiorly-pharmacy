@@ -18,7 +18,7 @@ function initialLang(): Lang {
   } catch {
     /* storage unavailable */
   }
-  return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
+  return "ar"; // Arabic (RTL) is the default; English is one tap away
 }
 
 export function setLang(lang: Lang): void {

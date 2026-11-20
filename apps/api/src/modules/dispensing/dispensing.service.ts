@@ -286,7 +286,7 @@ export class DispensingService {
     if (prepaid) payments = [{ method: "KIOREX_PREPAID", amount: totals.total, status: "CAPTURED" }];
     else {
       if (!input.payments?.length) throw new DomainError("PAYMENT_REQUIRED", "Payment is required to complete a dispensing", 402);
-      const cap = await this.sales.capturePayments(user, `${input.idempotencyKey}`, totals.total, input.payments, input.customerAccountId);
+      const cap = await this.sales.capturePayments(user, `${input.idempotencyKey}`, totals.total, input.payments, input.customerAccountId, false, d.patientId ?? undefined);
       payments = cap.payments; change = cap.change;
     }
     const shift = await this.prisma.shift.findFirst({ where: { orgId: user.orgId, branchId: d.branchId, status: "OPEN" } });
@@ -305,7 +305,7 @@ export class DispensingService {
           const [acct] = await tx.$queryRaw<Array<{ balance: Prisma.Decimal; creditLimit: Prisma.Decimal }>>`SELECT balance, "creditLimit" FROM "CustomerAccount" WHERE id = ${input.customerAccountId} AND "orgId" = ${user.orgId} FOR UPDATE`;
           if (!acct || D(acct.balance).plus(credit).gt(acct.creditLimit)) throw new DomainError("CREDIT_LIMIT_EXCEEDED", "Customer credit limit would be exceeded", 402);
         }
-        const sale = await this.sales.persist(tx, { user, branchId: d.branchId, shiftId: shift?.id ?? null, idempotencyKey: `rx:${id}`, lines: priced, payments, customerAccountId: input.customerAccountId, dispensingId: id, stockAlreadyPosted: true, channel: d.kiorexOrderRef ? "KIOREX_ORDER" : "POS" });
+        const sale = await this.sales.persist(tx, { user, branchId: d.branchId, shiftId: shift?.id ?? null, idempotencyKey: `rx:${id}`, lines: priced, payments, customerAccountId: input.customerAccountId, patientId: d.patientId ?? undefined, dispensingId: id, stockAlreadyPosted: true, channel: d.kiorexOrderRef ? "KIOREX_ORDER" : "POS" });
         if (credit.gt(0)) {
           await tx.customerCreditEntry.create({ data: { orgId: user.orgId, accountId: input.customerAccountId!, kind: "CHARGE", amount: credit, saleId: sale.id, createdBy: user.userId } });
           await tx.customerAccount.update({ where: { id: input.customerAccountId! }, data: { balance: { increment: credit } } });

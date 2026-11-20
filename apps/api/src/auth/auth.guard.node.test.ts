@@ -2,7 +2,7 @@ import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Reflector } from "@nestjs/core";
 import { AuthGuard } from "./auth.guard";
-import { PERMISSIONS, PRIVILEGED_ROLES, ROLE_PERMISSIONS, roleHas } from "./permissions";
+import { PERMISSIONS, PRIVILEGED_ROLES, ROLE_PERMISSIONS, effectivePermissions, roleHas } from "./permissions";
 
 const env = { ...process.env };
 afterEach(() => { process.env = { ...env }; });
@@ -12,7 +12,7 @@ function ctx(headers: Record<string, string>) {
   return { req, c: { getType: () => "http", getHandler: () => () => undefined, getClass: () => class {}, switchToHttp: () => ({ getRequest: () => req }) } as never };
 }
 const staff = (role: string) => ({ id: "s1", orgId: "o1", role, displayName: "S", active: true, branchId: null, pharmacistLicenceNo: null, tenant: { marketCode: "EG", edition: "PRO" } });
-const guard = (mfa: boolean, role: string) => new AuthGuard(new Reflector(), { staffUser: { findFirst: async () => staff(role) } } as never, { verify: async () => ({ sub: "s1", mfa, claims: {} }) } as never);
+const guard = (mfa: boolean, role: string) => new AuthGuard(new Reflector(), { staffUser: { findFirst: async () => staff(role) } } as never, { verify: async () => ({ sub: "s1", mfa, claims: {} }) } as never, { forRole: async (_o: string, r: string) => effectivePermissions(r as never) } as never);
 
 describe("auth guard: privileged MFA in production (KX-08 §09)", () => {
   it("OIDC + production: privileged roles without an MFA claim are refused; with MFA or non-privileged roles pass", async () => {

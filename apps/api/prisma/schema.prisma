@@ -42,6 +42,8 @@ enum StaffRole {
   CASHIER
   BRANCH_MANAGER
   CHAIN_OPS
+  /// Pharmacy assistant: counter + stock work under pharmacist supervision; cannot sign off dispensing.
+  ASSISTANT
 }
 
 enum ControlledSchedule {
@@ -171,6 +173,8 @@ enum PaymentMethod {
   FAWRY
   WALLET
   CUSTOMER_CREDIT
+  /// Redeemed loyalty points (value per point from tenant settings).
+  LOYALTY_POINTS
   /// Kiorex order already paid on Kiorex Pay (settled by the kernel, not at the till).
   KIOREX_PREPAID
 }
@@ -558,23 +562,98 @@ model StockCountLine {
 model PatientRef {
   id              String   @id @default(cuid())
   orgId           String
-  /// Kiorex/Kiorly patient pseudonymous id when known.
+  /// Kiorex/Kiorly patient pseudonymous id when known (integrated mode only; standalone customers have none).
   externalId      String?
+  /// Human-friendly customer number (CUS-000123), unique per tenant.
+  customerNo      String?
   displayName     String
   phone           String?
+  email           String?
+  gender          String?
+  dateOfBirth     DateTime? @db.Date
+  address         String?
   /// Egyptian national ID captured for controlled dispensing (KPRX05): store hash + last4 only.
   nationalIdHash  String?
   nationalIdLast4 String?
   /// Active ingredients the patient is allergic to (KPRX03). Captured at the counter or from consented Rx context.
   allergies       String[]
+  /// Chronic conditions (free text, lower-case keys like "diabetes", "hypertension").
+  chronicConditions String[]
+  medicalNotes    String?
+  /// Clinical flags used by the safety engine (pregnancy / lactation / renal / hepatic).
+  pregnant          Boolean  @default(false)
+  lactating         Boolean  @default(false)
+  renalImpairment   Boolean  @default(false)
+  hepaticImpairment Boolean  @default(false)
+  weightKg          Decimal? @db.Decimal(5, 1)
   birthYear       Int?
+  /// Consent records (data processing is required to store the profile; marketing is opt-in).
+  consentDataProcessing Boolean   @default(false)
+  consentMarketing      Boolean   @default(false)
+  consentRecordedAt     DateTime?
+  consentRecordedBy     String?
+  loyaltyPoints   Int      @default(0)
+  loyaltyTier     String   @default("BRONZE")
+  lifetimeSpend   Decimal  @default(0) @db.Decimal(14, 2)
+  active          Boolean  @default(true)
+  /// Set when this record was merged into another (kept for audit, hidden from search).
+  mergedIntoId    String?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
 
   prescriptions   Prescription[]
   customerAccount CustomerAccount?
 
+  @@unique([orgId, customerNo])
   @@index([orgId, phone])
   @@index([orgId, externalId])
+  @@index([orgId, displayName])
+}
+
+/// Free-text notes on a customer: general, counselling, complaint.
+model CustomerNote {
+  id        String   @id @default(cuid())
+  orgId     String
+  patientId String
+  kind      String   @default("NOTE")
+  body      String
+  refType   String?
+  refId     String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([orgId, patientId, createdAt])
+}
+
+/// Family / household link between two customers (parent-child, spouse, carer ...). Stored once; read both ways.
+model FamilyLink {
+  id               String   @id @default(cuid())
+  orgId            String
+  patientId        String
+  relatedPatientId String
+  relation         String
+  createdBy        String
+  createdAt        DateTime @default(now())
+
+  @@unique([patientId, relatedPatientId])
+  @@index([orgId, patientId])
+  @@index([orgId, relatedPatientId])
+}
+
+/// Loyalty points ledger (EARN +, REDEEM -, ADJUST +/-, MERGE +). PatientRef.loyaltyPoints is the projection.
+model LoyaltyEntry {
+  id           String   @id @default(cuid())
+  orgId        String
+  patientId    String
+  kind         String
+  points       Int
+  balanceAfter Int
+  saleId       String?
+  note         String?
+  createdBy    String?
+  createdAt    DateTime @default(now())
+
+  @@index([orgId, patientId, createdAt])
 }
 
 /// KPRX01: Rx intake from paper scan, Kiorly e-Rx (PrescriptionIssued v2 + consent token) or Kiorex upload.
@@ -770,6 +849,10 @@ model Sale {
   idempotencyKey    String
   receiptNo         String?
   customerAccountId String?
+  /// Customer registry link (works without a credit account); loyalty points accrue here.
+  patientId         String?
+  /// Set when this sale is the replacement side of an exchange.
+  exchangeOfSaleId  String?
   /// Dispensing that this Rx sale settles (links money to the sign-off).
   dispensingId      String?
   subtotal          Decimal     @default(0) @db.Decimal(14, 2)
@@ -793,6 +876,7 @@ model Sale {
 
   @@unique([orgId, idempotencyKey])
   @@index([orgId, branchId, soldAt])
+  @@index([orgId, patientId])
 }
 
 model SaleLine {
@@ -1243,4 +1327,21 @@ model SettlementEntry {
 
   @@unique([orgId, orderRef])
   @@index([orgId, createdAt])
+}
+
+// ======================================================= Standalone suite additions ==
+
+/// Per-tenant permission matrix overrides on top of the built-in role defaults (Settings > Roles).
+/// Safety-critical permissions (see auth/permissions.ts LOCKED_PERMISSIONS) and the OWNER role are never overridable.
+model RolePermissionOverride {
+  id         String    @id @default(cuid())
+  orgId      String
+  role       StaffRole
+  permission String
+  granted    Boolean
+  updatedBy  String?
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  @@unique([orgId, role, permission])
+  @@index([orgId])
 }

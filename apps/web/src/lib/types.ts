@@ -1,7 +1,7 @@
-export type Role = "OWNER" | "PHARMACIST" | "CASHIER" | "BRANCH_MANAGER" | "CHAIN_OPS";
+export type Role = "OWNER" | "PHARMACIST" | "CASHIER" | "BRANCH_MANAGER" | "CHAIN_OPS" | "ASSISTANT";
 export interface Me {
   user: { id: string; displayName: string; role: Role; branchId: string | null; isPharmacist: boolean };
-  tenant: { id: string; name: string; edition: string; market: string; onboarded: boolean };
+  tenant: { id: string; name: string; edition: string; market: string; onboarded: boolean; mode: "STANDALONE" | "INTEGRATED"; currency: string };
   branches: Array<{ id: string; name: string; code: string | null }>;
   permissions: string[];
   flags: Record<string, boolean>;
@@ -22,3 +22,5 @@ export interface Po { id: string; poNumber: string | null; status: string; suppl
 export interface Order { id: string; externalOrderId: string; status: string; hasRx: boolean; prescriptionId: string | null; customerName: string | null; orderValue: string; slaDueAt: string; slaRemainingSeconds: number | null; slaBreached: boolean; dispensingId: string | null; lines: Array<{ id: string; drugId: string; qtyRequested: number; qtyAccepted: number; unitPrice: string; drug?: { brandName: string; brandNameAr: string | null; rxOnly: boolean } }> }
 export interface Report { name: string; title: string; note?: string; columns: Array<{ key: string; label: string }>; rows: Array<Record<string, string | number | null>> }
 export interface Dashboard { today: { salesCount: number; salesTotal: string }; rxQueue: number; awaitingSignoff: number; blockedLots: number; expiring30: number; expiredInStock: number; lowStock: number; openShift: { id: string; openedAt: string } | null; kiorexOrdersPending: number | null; syncConflicts: number }
+export interface Customer { id: string; customerNo: string | null; displayName: string; phone: string | null; email: string | null; gender: string | null; dateOfBirth: string | null; birthYear: number | null; address: string | null; allergies: string[]; chronicConditions: string[]; medicalNotes: string | null; pregnant: boolean; lactating: boolean; renalImpairment: boolean; hepaticImpairment: boolean; weightKg: string | null; nationalIdLast4: string | null; consentDataProcessing: boolean; consentMarketing: boolean; consentRecordedAt: string | null; loyaltyPoints: number; loyaltyTier: string; lifetimeSpend: string; active: boolean; customerAccount?: { id: string; balance: string; creditLimit: string; available?: string } | null }
+export interface CustomerProfile extends Customer { family: Array<{ id: string; relation: string; person: { id: string; displayName: string; customerNo: string | null; phone: string | null } | null }>; stats: { prescriptions: number; purchases: number; totalSpend: string; lastVisit: string | null }; loyalty: { points: number; tier: string; value: string; redeemValue: string; enabled: boolean } }

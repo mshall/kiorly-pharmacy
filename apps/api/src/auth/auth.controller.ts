@@ -6,7 +6,8 @@ import { CurrentUser, Public } from "./decorators";
 import type { AuthUser } from "./auth-user";
 import { TokenVerifier, authMode } from "./token-verifier";
 import { verifyPassword } from "./password";
-import { ROLE_PERMISSIONS } from "./permissions";
+import { PermissionsService } from "./permissions.service";
+import { TenantModeService } from "../tenancy/tenant-mode.service";
 import { FeatureFlagsService } from "../feature-flags/feature-flags.service";
 import { FLAG_DEFINITIONS } from "../feature-flags/feature-flag-keys";
 import { AuditService } from "../audit/audit.service";
@@ -33,6 +34,8 @@ export class AuthController {
     @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
     @Inject(FeatureFlagsService) private readonly flags: FeatureFlagsService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(PermissionsService) private readonly perms: PermissionsService,
+    @Inject(TenantModeService) private readonly modes: TenantModeService,
   ) {}
 
   /** AUTH_MODE=local only (dev/demo/E2E). In AUTH_MODE=oidc sign-in happens at Kiorex Passport and this route is 404-equivalent. */
@@ -52,16 +55,17 @@ export class AuthController {
   @Get("me")
   @ApiBearerAuth()
   async me(@CurrentUser() u: AuthUser) {
+    const [mode, perms] = await Promise.all([this.modes.mode(u.orgId), this.perms.forRole(u.orgId, u.role)]);
     const [tenant, branches] = await Promise.all([
       this.prisma.tenant.findUniqueOrThrow({ where: { id: u.orgId } }),
       this.prisma.branch.findMany({ where: { orgId: u.orgId, active: true, ...(u.branchId ? { id: u.branchId } : {}) }, orderBy: { name: "asc" } }),
     ]);
     return {
       user: { id: u.userId, displayName: u.displayName, role: u.role, branchId: u.branchId, isPharmacist: !!u.pharmacistLicenceNo },
-      tenant: { id: tenant.id, name: tenant.name, edition: tenant.edition, market: tenant.marketCode, onboarded: !!tenant.onboardedAt },
+      tenant: { id: tenant.id, name: tenant.name, edition: tenant.edition, market: tenant.marketCode, onboarded: !!tenant.onboardedAt, mode, currency: ((tenant.settings ?? {}) as { currency?: string }).currency ?? "EGP" },
       branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })),
-      permissions: [...ROLE_PERMISSIONS[u.role]],
-      flags: Object.fromEntries(FLAG_DEFINITIONS.map((f) => [f.key, this.flags.isEnabled(f.key, { orgId: u.orgId, market: u.market })])),
+      permissions: [...perms],
+      flags: Object.fromEntries(FLAG_DEFINITIONS.map((f) => [f.key, this.flags.isEnabled(f.key, { orgId: u.orgId, market: u.market }) && !(mode === "STANDALONE" && f.key === "pharmacy.kiorex_orders")])),
     };
   }
 }

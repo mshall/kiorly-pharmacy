@@ -23,11 +23,12 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { WebhooksModule } from "./webhooks/kiorex-webhook.controller";
 import { JobsModule } from "./jobs/jobs.module";
+import { CustomersModule } from "./modules/customers/customers.module";
 
 @Module({
   imports: [
     PrismaModule, HooksModule, AuditModule, OutboxModule, KernelAdapterModule, PlatformModule, FeatureFlagsModule, AuthModule, ApprovalModule, HealthModule, TenancyModule,
-    CatalogueModule, InventoryModule, PrescriptionsModule, DispensingModule, PosModule, SuppliersModule, MarketplaceModule, ForecastingModule, ClaimsModule, ReportsModule, DashboardModule, WebhooksModule, JobsModule,
+    CatalogueModule, InventoryModule, PrescriptionsModule, DispensingModule, PosModule, SuppliersModule, MarketplaceModule, ForecastingModule, ClaimsModule, ReportsModule, DashboardModule, WebhooksModule, JobsModule, CustomersModule,
   ],
 })
 export class AppModule {}

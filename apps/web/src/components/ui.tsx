@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { clsx, type ClassValue } from "clsx";
-import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TdHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@/lib/api";
@@ -106,7 +106,7 @@ export function ExpiryChip({ days, label }: { days: number; label: (k: "expired"
   const tn: Tone = k === "expired" ? "bad" : k === "soon" ? "warn" : k === "watch" ? "info" : "good";
   return <Badge tone={tn}>{label(k, days)}</Badge>;
 }
-export const Td = ({ children, className }: { children?: ReactNode; className?: string }) => <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;
+export const Td = ({ children, className, ...p }: { children?: ReactNode; className?: string } & Omit<TdHTMLAttributes<HTMLTableCellElement>, "children" | "className">) => <td className={cn("px-3 py-2.5 align-middle", className)} {...p}>{children}</td>;
 
 export const Spinner = () => <PulseLine size={14} loop label="loading" />;
 export function Empty({ children, hint, action }: { children: ReactNode; hint?: ReactNode; action?: ReactNode }) { return <EmptyState compact title={children} description={hint} action={action} />; }

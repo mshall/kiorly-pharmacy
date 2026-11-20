@@ -3,7 +3,8 @@ import { Reflector } from "@nestjs/core";
 import { PrismaService } from "../prisma/prisma.service";
 import { IS_PUBLIC, REQUIRES_PERM } from "./decorators";
 import { authMode, TokenVerifier } from "./token-verifier";
-import { PRIVILEGED_ROLES, roleHas, type Permission } from "./permissions";
+import { PRIVILEGED_ROLES, type Permission } from "./permissions";
+import { PermissionsService } from "./permissions.service";
 import type { AuthUser } from "./auth-user";
 import { DomainError, forbidden } from "../common/errors";
 
@@ -18,6 +19,7 @@ export class AuthGuard implements CanActivate {
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
+    @Inject(PermissionsService) private readonly perms: PermissionsService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -47,7 +49,8 @@ export class AuthGuard implements CanActivate {
     req.user = user;
     const need = this.reflector.getAllAndOverride<Permission[] | undefined>(REQUIRES_PERM, [ctx.getHandler(), ctx.getClass()]);
     if (need?.length) {
-      const missing = need.filter((p) => !roleHas(user.role, p));
+      const have = await this.perms.forRole(user.orgId, user.role);
+      const missing = need.filter((p) => !have.has(p));
       if (missing.length) throw new DomainError("PERMISSION_DENIED", `Missing permission: ${missing.join(", ")}`, 403, { missing });
     }
     return true;

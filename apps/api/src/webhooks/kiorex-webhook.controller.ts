@@ -8,6 +8,7 @@ import { PrescriptionsService } from "../modules/prescriptions/prescriptions.ser
 import { PrescriptionsModule } from "../modules/prescriptions/prescriptions.module";
 import { RequiresFlag, RequiresFlagGuard } from "../feature-flags/requires-flag.guard";
 import { DomainError } from "../common/errors";
+import { TenantModeService } from "../tenancy/tenant-mode.service";
 
 /**
  * Inbound Kiorex events (Kiorex -> pharmacy), signed with the webhook scheme (X-Kiorly-Timestamp seconds + X-Kiorly-Signature sha256=HMAC(ts.body)).
@@ -19,7 +20,7 @@ import { DomainError } from "../common/errors";
 @Public()
 @Controller("webhooks")
 export class KiorexWebhookController {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PrescriptionsService) private readonly rx: PrescriptionsService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PrescriptionsService) private readonly rx: PrescriptionsService, @Inject(TenantModeService) private readonly mode: TenantModeService) {}
 
   @Post("kiorex")
   @HttpCode(200)
@@ -29,6 +30,7 @@ export class KiorexWebhookController {
     const key = h[WEBHOOK_HEADERS.clientKey.toLowerCase()];
     const client = key ? await this.prisma.integrationClient.findUnique({ where: { key } }) : null;
     if (!client || !client.active || !client.webhookSecretEnc) throw new UnauthorizedException({ statusCode: 401, code: "INVALID_CLIENT", message: "unknown client key" });
+    if (await this.mode.isStandalone(client.orgId)) throw new DomainError("STANDALONE_MODE", "This pharmacy runs in standalone mode; Kiorex integration is off", 403);
     const secret = open(client.webhookSecretEnc);
     const raw = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
     const v = verifyWebhook({ secret, body: raw, timestamp: h["x-kiorly-timestamp"], signature: h["x-kiorly-signature"] });

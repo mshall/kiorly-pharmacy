@@ -2,7 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import { IsEmail, IsString } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AuthUser } from "./auth-user";
-import { roleHas, type Permission } from "./permissions";
+import type { Permission } from "./permissions";
+import { PermissionsService } from "./permissions.service";
 import { verifyPassword } from "./password";
 import { DomainError } from "../common/errors";
 
@@ -18,17 +19,29 @@ export class ApprovalDto {
  */
 @Injectable()
 export class ApprovalService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PermissionsService) private readonly perms: PermissionsService) {}
 
   async approver(actor: AuthUser, perm: Permission, approval?: ApprovalDto | null): Promise<string> {
     if (!approval) {
-      if (roleHas(actor.role, perm)) return actor.userId;
+      if (await this.perms.has(actor.orgId, actor.role, perm)) return actor.userId;
       throw new DomainError("APPROVAL_REQUIRED", `Manager approval required (${perm})`, 403, { permission: perm });
     }
     const staff = await this.prisma.staffUser.findFirst({ where: { orgId: actor.orgId, email: approval.email.toLowerCase(), active: true } });
-    if (!staff || !(await verifyPassword(approval.password, staff.passwordHash)) || !roleHas(staff.role, perm)) {
+    if (!staff || !(await verifyPassword(approval.password, staff.passwordHash)) || !(await this.perms.has(actor.orgId, staff.role, perm))) {
       throw new DomainError("APPROVAL_DENIED", "Approver credentials invalid or lacking permission", 403, { permission: perm });
     }
     return staff.id;
+  }
+
+  /**
+   * Witness for controlled-substance stock events (adjustment, destruction, count variance, transfer): a SECOND, different active staff member of the
+   * same tenant authenticates. Returns the witness staff id + display name (recorded in the controlled register).
+   */
+  async witness(actor: AuthUser, w?: ApprovalDto | null): Promise<{ id: string; name: string }> {
+    if (!w) throw new DomainError("WITNESS_REQUIRED", "A witness (second staff member) must countersign controlled-substance stock changes", 409);
+    const staff = await this.prisma.staffUser.findFirst({ where: { orgId: actor.orgId, email: w.email.toLowerCase(), active: true } });
+    if (!staff || !(await verifyPassword(w.password, staff.passwordHash))) throw new DomainError("WITNESS_DENIED", "Witness credentials invalid", 403);
+    if (staff.id === actor.userId) throw new DomainError("WITNESS_SAME_PERSON", "The witness must be a different person", 409);
+    return { id: staff.id, name: staff.displayName };
   }
 }

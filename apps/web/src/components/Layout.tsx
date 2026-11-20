@@ -7,9 +7,9 @@ import { setLang, type Lang } from "@/lib/i18n";
 import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
 import { KiorlyBrand, ThemeToggle } from "@/brand/ui-kit";
-import { BarChart3, BookOpen, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
-interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon }
+interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon; group: "" | "counter" | "clinical" | "stock" | "money" | "admin" }
 
 export function useOnline(): boolean {
   const [on, setOn] = useState(navigator.onLine);
@@ -26,18 +26,21 @@ export function Layout() {
   const { me, can, flag, logout, branchId, setBranchId } = useAuth();
   const online = useOnline();
   const queued = useQuery({ queryKey: ["offline-queue"], queryFn: () => listQueue().then((q) => q.length), refetchInterval: 5000 });
-  const items: NavItem[] = [
-    { to: "/", label: t("nav.dashboard"), icon: LayoutDashboard },
-    { to: "/pos", label: t("nav.pos"), perm: "pos.sell", icon: ShoppingCart },
-    { to: "/rx", label: t("nav.rx"), perm: "rx.read", icon: Pill },
-    { to: "/orders", label: t("nav.orders"), perm: "orders.read", flag: "pharmacy.kiorex_orders", icon: Inbox },
-    { to: "/catalogue", label: t("nav.catalogue"), perm: "catalogue.read", icon: BookOpen },
-    { to: "/inventory", label: t("nav.inventory"), perm: "inventory.read", icon: Boxes },
-    { to: "/receiving", label: t("nav.receiving"), perm: "inventory.receive", icon: PackagePlus },
-    { to: "/purchasing", label: t("nav.purchasing"), perm: "supplier.read", icon: Truck },
-    { to: "/reports", label: t("nav.reports"), perm: "reports.read", icon: BarChart3 },
-    { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings },
-  ].filter((i) => (!i.perm || can(i.perm)) && (!i.flag || flag(i.flag)));
+  const all: NavItem[] = [
+    { to: "/", label: t("nav.dashboard"), icon: LayoutDashboard, group: "" },
+    { to: "/pos", label: t("nav.pos"), perm: "pos.sell", icon: ShoppingCart, group: "counter" },
+    { to: "/customers", label: t("nav.customers"), perm: "customer.read", icon: Users, group: "counter" },
+    { to: "/orders", label: t("nav.orders"), perm: "orders.read", flag: "pharmacy.kiorex_orders", icon: Inbox, group: "counter" },
+    { to: "/rx", label: t("nav.rx"), perm: "rx.read", icon: Pill, group: "clinical" },
+    { to: "/catalogue", label: t("nav.catalogue"), perm: "catalogue.read", icon: BookOpen, group: "stock" },
+    { to: "/inventory", label: t("nav.inventory"), perm: "inventory.read", icon: Boxes, group: "stock" },
+    { to: "/receiving", label: t("nav.receiving"), perm: "inventory.receive", icon: PackagePlus, group: "stock" },
+    { to: "/purchasing", label: t("nav.purchasing"), perm: "supplier.read", icon: Truck, group: "stock" },
+    { to: "/reports", label: t("nav.reports"), perm: "reports.read", icon: BarChart3, group: "money" },
+    { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings, group: "admin" },
+  ];
+  const items = all.filter((i) => (!i.perm || can(i.perm)) && (!i.flag || flag(i.flag)));
+  const groups = ["", "counter", "clinical", "stock", "money", "admin"].map((g) => ({ g, items: items.filter((i) => i.group === g) })).filter((x) => x.items.length);
   const next: Lang = i18n.language === "ar" ? "en" : "ar";
 
   return (
@@ -45,15 +48,20 @@ export function Layout() {
       <a href="#main" className="skip-link">{t("common.skip")}</a>
       <nav aria-label={t("nav.main")} className="no-print border-b border-border bg-card md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-e">
         <div className="px-4 py-3 md:py-4"><KiorlyBrand height={36} /><div className="mt-1.5 hidden text-sm font-semibold md:block">{t("app.product")}</div></div>
-        <ul className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
-          {items.map((i) => (
-            <li key={i.to}>
-              <NavLink to={i.to} end={i.to === "/"} className={({ isActive }) => cn("relative flex min-h-11 items-center gap-3 whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground", isActive && "bg-accent font-semibold text-accent-foreground before:absolute before:inset-y-2 before:start-0 before:w-[3px] before:rounded-full before:bg-primary")}>
-                <i.icon aria-hidden="true" className="size-[18px] shrink-0" />{i.label}
-              </NavLink>
-            </li>
+        <div className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0 md:overflow-visible">
+          {groups.map(({ g, items: gi }) => (
+            <ul key={g || "root"} className="flex gap-1 md:mb-2 md:flex-col">
+              {g && <li aria-hidden className="hidden px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 md:block rtl:normal-case rtl:tracking-normal">{t(`nav.group${g[0]!.toUpperCase()}${g.slice(1)}`)}</li>}
+              {gi.map((i) => (
+                <li key={i.to}>
+                  <NavLink to={i.to} end={i.to === "/"} className={({ isActive }) => cn("relative flex min-h-10 items-center gap-3 whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground", isActive && "bg-accent font-semibold text-accent-foreground before:absolute before:inset-y-2 before:start-0 before:w-[3px] before:rounded-full before:bg-primary")}>
+                    <i.icon aria-hidden="true" className="size-[18px] shrink-0" />{i.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
           ))}
-        </ul>
+        </div>
       </nav>
       <div className="min-w-0 flex-1">
         <header className="no-print z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-2 backdrop-blur md:sticky md:top-0">
