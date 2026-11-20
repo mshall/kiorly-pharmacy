@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { setLang, type Lang } from "@/lib/i18n";
 import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
+import { api } from "@/lib/api";
 import { KiorlyBrand, ThemeToggle } from "@/brand/ui-kit";
-import { BarChart3, BookLock, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
 interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon; group: "" | "counter" | "clinical" | "stock" | "money" | "admin" }
 
@@ -25,6 +26,7 @@ export function Layout() {
   const { t, i18n } = useTranslation();
   const { me, can, flag, logout, branchId, setBranchId } = useAuth();
   const online = useOnline();
+  const unreadQ = useQuery({ queryKey: ["alerts-count"], queryFn: () => api<{ unread: number; critical: number }>("/notifications/unread-count"), enabled: can("notifications.read"), refetchInterval: 60_000 });
   const queued = useQuery({ queryKey: ["offline-queue"], queryFn: () => listQueue().then((q) => q.length), refetchInterval: 5000 });
   const all: NavItem[] = [
     { to: "/", label: t("nav.dashboard"), icon: LayoutDashboard, group: "" },
@@ -41,6 +43,8 @@ export function Layout() {
     { to: "/finance", label: t("nav.finance"), perm: "finance.read", icon: Landmark, group: "money" },
     { to: "/promotions", label: t("nav.promotions"), perm: "promo.manage", icon: Ticket, group: "money" },
     { to: "/reports", label: t("nav.reports"), perm: "reports.read", icon: BarChart3, group: "money" },
+    { to: "/notifications", label: t("nav.notifications"), perm: "notifications.read", icon: Bell, group: "admin" },
+    { to: "/audit", label: t("nav.audit"), perm: "audit.read", icon: ScrollText, group: "admin" },
     { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings, group: "admin" },
   ];
   const items = all.filter((i) => (!i.perm || can(i.perm)) && (!i.flag || flag(i.flag)));
@@ -79,6 +83,7 @@ export function Layout() {
             {!!queued.data && <span className="rounded-full bg-[hsl(var(--warning)/0.18)] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--warning))]">{t("pos.queued", { count: queued.data })}</span>}
           </div>
           <div className="flex items-center gap-2">
+            {can("notifications.read") && <Link to="/notifications" aria-label={`${t("nav.notifications")}${unreadQ.data?.unread ? ` (${unreadQ.data.unread})` : ""}`} className="relative inline-flex size-8 items-center justify-center rounded-lg border border-input text-muted-foreground hover:bg-muted hover:text-foreground"><Bell aria-hidden className="size-4" />{!!unreadQ.data?.unread && <span className={cn("absolute -end-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold text-white", unreadQ.data.critical ? "bg-[hsl(var(--danger-text))]" : "bg-primary")}>{unreadQ.data.unread > 99 ? "99+" : unreadQ.data.unread}</span>}</Link>}
             <span className="hidden text-sm sm:inline">{me?.user.displayName} · {me ? t(`roles.${me.user.role}`) : ""}</span>
             <ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} className="size-8 text-sm" />
             <Button variant="outline" size="sm" onClick={() => setLang(next)}>{t("app.lang")}</Button>

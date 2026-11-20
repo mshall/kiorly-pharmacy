@@ -1,21 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Building2, Check, Cog, Inbox, Minus, ShieldCheck, Store, Users } from "lucide-react";
+import { Building2, Cog, Database, Globe, Inbox, Printer, ShieldCheck, Store, Users } from "lucide-react";
 import { Avatar, Button, Card, Empty, ErrorNote, Field, Input, Modal, PageHeader, Select, Switch, Table, Tabs, Td } from "@/components/ui";
 import { StatusChip, TableSkeleton } from "@/brand/ui-kit";
-import { PERMISSION_GROUPS, ROLE_PERMS } from "@/lib/rbac";
 import { fmtDateTime } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 import type { Role } from "@/lib/types";
+import { DataTab, ModeCard, ReceiptTab, RegionalTab, RolesMatrixTab } from "@/pages/settings/SettingsMore";
 
 const Badge = ({ tone = "neutral", children }: { tone?: "neutral" | "good" | "bad" | "warn" | "info"; children: React.ReactNode }) => <StatusChip tone={tone}>{children}</StatusChip>;
 
 interface Staff { id: string; displayName: string; email: string | null; role: Role; branchId: string | null; pharmacistLicenceNo: string | null; active: boolean }
 interface Branch { id: string; name: string; code: string | null; licenceNo: string | null; active: boolean }
-const ROLES: Role[] = ["OWNER", "PHARMACIST", "BRANCH_MANAGER", "CASHIER", "CHAIN_OPS"];
+const ROLES: Role[] = ["OWNER", "PHARMACIST", "BRANCH_MANAGER", "CASHIER", "ASSISTANT", "CHAIN_OPS"];
 
 function StaffTab() {
   const { t } = useTranslation();
@@ -55,35 +55,6 @@ function StaffTab() {
   );
 }
 
-function RolesTab() {
-  const { t } = useTranslation();
-  const roles = Object.keys(ROLE_PERMS) as Role[];
-  return (
-    <Card title={t("set.rolesTitle")} className="p-0 [&>header]:px-4 [&>header]:pt-4">
-      <p className="mb-3 px-4 text-sm text-muted-foreground">{t("set.rolesNote")}</p>
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard-scrollable region */}
-      <div className="kx-table-wrap overflow-auto" tabIndex={0} role="region" aria-label={t("set.rolesTitle")}>
-        <table className="kx-table w-full text-sm">
-          <thead><tr className="border-b border-border"><th scope="col" className="sticky start-0 z-[2] bg-card px-4 py-2.5 text-start text-[11px] font-semibold text-muted-foreground">{t("set.permission")}</th>{roles.map((r) => <th key={r} scope="col" className="px-3 py-2.5 text-center text-[11px] font-semibold">{t(`roles.${r}`)}</th>)}</tr></thead>
-          <tbody>
-            {PERMISSION_GROUPS.map((g) => (
-              <Fragment key={g.id}>
-                <tr><th scope="colgroup" colSpan={roles.length + 1} className="bg-muted/50 px-4 py-1.5 text-start text-xs font-semibold text-muted-foreground">{t(`set.grp.${g.id}`)}</th></tr>
-                {g.perms.map((p) => (
-                  <tr key={p} className="border-b border-border/60">
-                    <th scope="row" className="sticky start-0 bg-card px-4 py-2 text-start text-sm font-normal"><span>{t(`set.perm.${p}`, { defaultValue: p })}</span><code className="ms-2 text-[11px] text-muted-foreground" dir="ltr">{p}</code></th>
-                    {roles.map((r) => { const ok = ROLE_PERMS[r].includes(p); return <td key={r} className="px-3 py-2 text-center">{ok ? <Check aria-label={t("set.allowed")} className="mx-auto size-4 text-[hsl(var(--success))]" /> : <Minus aria-label={t("set.denied")} className="mx-auto size-4 text-muted-foreground/50" />}</td>; })}
-                  </tr>
-                ))}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
 function BranchesTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -106,10 +77,11 @@ function PharmacyTab() {
   const [f, setF] = useState<Record<string, string>>({});
   const save = useMutation({ mutationFn: () => api("/settings", { method: "PATCH", body: f }), onSuccess: () => { toast(t("common.saved")); setF({}); void qc.invalidateQueries({ queryKey: ["settings"] }); } });
   if (!q.data) return <Card><TableSkeleton rows={4} cols={2} /></Card>;
+  const mode = <ModeCard />;
   const v = (k: string, d = "") => f[k] ?? q.data.settings[k] ?? d;
   const set = (k: string) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   return (
-    <Card title={q.data.name} actions={<Badge tone="info">{q.data.edition}</Badge>}>
+    <div className="space-y-4">{mode}<Card title={q.data.name} actions={<Badge tone="info">{q.data.edition}</Badge>}>
       <form className="grid gap-x-4 gap-y-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
         <Field label={t("set.vatRate")} hint={t("set.vatHint", { default: q.data.pack.vat.defaultRate })}>{(id) => <Input id={id} inputMode="decimal" value={v("vatRate", q.data.pack.vat.defaultRate)} onChange={set("vatRate")} />}</Field>
         <Field label={t("set.varianceThreshold")}>{(id) => <Input id={id} inputMode="decimal" value={v("shiftVarianceThreshold", q.data.pack.shiftVarianceThreshold)} onChange={set("shiftVarianceThreshold")} />}</Field>
@@ -118,7 +90,7 @@ function PharmacyTab() {
         <div className="flex flex-wrap items-center gap-3 border-t border-border/70 pt-4 sm:col-span-2"><Button type="submit" disabled={save.isPending || !Object.keys(f).length}>{t("common.save")}</Button>{Object.keys(f).length > 0 && <><span className="text-sm text-muted-foreground">{t("set.unsaved")}</span><Button type="button" variant="ghost" onClick={() => setF({})}>{t("set.discard")}</Button></>}<div className="w-full"><ErrorNote error={save.error} /></div></div>
       </form>
       <p className="mt-4 text-xs text-muted-foreground">{t("set.noTaxNote")}</p>
-    </Card>
+    </Card></div>
   );
 }
 
@@ -167,15 +139,15 @@ function SystemTab() {
 
 export function Settings() {
   const { t } = useTranslation();
-  const { can } = useAuth();
+  const { can, me } = useAuth();
   const [tab, setTab] = useState("pharmacy");
-  const tabs = [{ id: "pharmacy", label: t("set.pharmacy"), icon: <Store /> }, ...(can("staff.manage") ? [{ id: "staff", label: t("set.staff"), icon: <Users /> }] : []), { id: "roles", label: t("set.rolesTitle"), icon: <ShieldCheck /> }, { id: "branches", label: t("set.branches"), icon: <Building2 /> }, { id: "marketplace", label: t("set.marketplace"), icon: <Inbox /> }, { id: "system", label: t("set.system"), icon: <Cog /> }];
+  const tabs = [{ id: "pharmacy", label: t("set.pharmacy"), icon: <Store /> }, ...(can("staff.manage") ? [{ id: "staff", label: t("set.staff"), icon: <Users /> }] : []), { id: "roles", label: t("set.rolesTitle"), icon: <ShieldCheck /> }, { id: "branches", label: t("set.branches"), icon: <Building2 /> }, ...(can("settings.write") ? [{ id: "receipt", label: t("set.tabReceipt"), icon: <Printer /> }, { id: "regional", label: t("set.tabRegional"), icon: <Globe /> }] : []), ...(can("data.import") || can("data.export") ? [{ id: "data", label: t("set.tabData"), icon: <Database /> }] : []), ...(me?.tenant.mode === "INTEGRATED" ? [{ id: "marketplace", label: t("set.marketplace"), icon: <Inbox /> }] : []), { id: "system", label: t("set.system"), icon: <Cog /> }];
   return (
     <>
       <PageHeader title={t("set.title")} subtitle={t("set.subtitle")} />
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "pharmacy" && <PharmacyTab />}{tab === "staff" && <StaffTab />}{tab === "roles" && <RolesTab />}{tab === "branches" && <BranchesTab />}{tab === "marketplace" && <MarketplaceTab />}{tab === "system" && <SystemTab />}
+        {tab === "pharmacy" && <PharmacyTab />}{tab === "staff" && <StaffTab />}{tab === "roles" && <RolesMatrixTab />}{tab === "receipt" && <ReceiptTab />}{tab === "regional" && <RegionalTab />}{tab === "data" && <DataTab />}{tab === "branches" && <BranchesTab />}{tab === "marketplace" && <MarketplaceTab />}{tab === "system" && <SystemTab />}
       </div>
     </>
   );

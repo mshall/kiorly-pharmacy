@@ -102,7 +102,7 @@ export class TenancyController {
     if (await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } })) throw conflict("EMAIL_TAKEN", "Email already registered");
     const passwordHash = await hashPassword(dto.password);
     const r = await this.prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({ data: { name: dto.pharmacyName, marketCode: dto.marketCode ?? "EG", edition: "LITE" } });
+      const tenant = await tx.tenant.create({ data: { name: dto.pharmacyName, marketCode: dto.marketCode ?? "EG", edition: "LITE", settings: { mode: "STANDALONE" } } });
       const branch = await tx.branch.create({ data: { orgId: tenant.id, name: dto.branchName ?? dto.pharmacyName, code: "B1" } });
       const owner = await tx.staffUser.create({
         data: { orgId: tenant.id, displayName: dto.ownerName, email: dto.email.toLowerCase(), passwordHash, role: "OWNER", pharmacistLicenceNo: dto.pharmacistLicenceNo },

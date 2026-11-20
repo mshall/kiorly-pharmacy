@@ -14,6 +14,6 @@ import { InventoryAnalyticsService } from "./inventory-analytics.service";
 @Module({
   controllers: [InventoryController, InventorySuiteController],
   providers: [StockLedger, InventoryService, ReceivingService, CountsService, TransfersService, LocationsService, UomService, InventoryAnalyticsService],
-  exports: [StockLedger, InventoryService, UomService, LocationsService, InventoryAnalyticsService],
+  exports: [StockLedger, InventoryService, ReceivingService, UomService, LocationsService, InventoryAnalyticsService],
 })
 export class InventoryModule {}

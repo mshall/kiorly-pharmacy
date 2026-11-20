@@ -7,12 +7,12 @@ import { drugName } from "@/lib/format";
 import type { Customer, Drug, Page } from "@/lib/types";
 
 /** Debounce-free typeahead list: shows up to `limit` results for the typed query (>= 2 chars) and calls onPick. */
-function Typeahead<T extends { id: string }>({ label, placeholder, queryKey, fetcher, render, onPick, autoFocus }: { label: string; placeholder?: string; queryKey: string; fetcher: (q: string) => Promise<T[]>; render: (x: T) => ReactNode; onPick: (x: T) => void; autoFocus?: boolean }) {
+function Typeahead<T extends { id: string }>({ label, placeholder, queryKey, fetcher, render, onPick }: { label: string; placeholder?: string; queryKey: string; fetcher: (q: string) => Promise<T[]>; render: (x: T) => ReactNode; onPick: (x: T) => void }) {
   const [q, setQ] = useState("");
   const res = useQuery({ queryKey: [queryKey, q], queryFn: () => fetcher(q), enabled: q.trim().length >= 2 });
   return (
     <div className="relative">
-      <Input aria-label={label} type="search" autoFocus={autoFocus} placeholder={placeholder ?? label} value={q} onChange={(e) => setQ(e.target.value)} />
+      <Input aria-label={label} type="search" placeholder={placeholder ?? label} value={q} onChange={(e) => setQ(e.target.value)} />
       {!!res.data?.length && q.trim().length >= 2 && (
         <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-auto rounded-xl border border-border bg-card shadow-[var(--kx-shadow-3)]">
           {res.data.map((x) => <li key={x.id}><button type="button" className="min-h-10 w-full px-3 py-1.5 text-start text-sm hover:bg-accent" onClick={() => { onPick(x); setQ(""); }}>{render(x)}</button></li>)}
