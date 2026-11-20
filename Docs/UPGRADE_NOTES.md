@@ -6,7 +6,7 @@ Everything was moved to the latest stable release one logical group at a time (t
 
 | Area | Before | After |
 |---|---|---|
-| Node.js | `>=22` (CI 22, Lambda `nodejs22.x`) | **26 LTS** (`.nvmrc`, `engines >=26`, CI `node-version-file`, `Dockerfile.seed` on `lambda/nodejs:26`, Lambda `nodejs26.x`) |
+| Node.js | `>=22` (CI 22, Lambda `nodejs22.x`) | **26 LTS** (`.nvmrc`, `engines >=26`, CI `node-version-file`, `Dockerfile.seed` on `lambda/nodejs:26`, Lambda `nodejs24.x`) |
 | npm | 11.x | `engines npm >=11` (npm 12 also installs the lockfile cleanly) |
 | TypeScript | 5.7.3 | 6.0.3 |
 | NestJS (common/core/platform-express/testing) | 10.4.22 | 12.5.1 |
@@ -24,7 +24,7 @@ Everything was moved to the latest stable release one logical group at a time (t
 | `@types/node` / `@types/express` | 22 / 4 | 26 / 5 |
 | Playwright / axe | 1.65 / 4.14 | unchanged (already latest) |
 | GitHub Actions | checkout v4/v6, setup-node v4, github-script v7, trivy 0.28.0, setup-tflint v4, setup-opentofu v1 | checkout v7, setup-node v7, github-script v9, trivy v0.36.0, setup-tflint v6, setup-opentofu v2 |
-| OpenTofu / providers | 1.13.9, aws 6.73, random 3.9, archive 2.8 | already latest (constraints unchanged; `tofu validate` + `fmt -check` pass with `nodejs26.x`) |
+| OpenTofu / providers | 1.13.9, aws 6.73, random 3.9, archive 2.8 | already latest (constraints unchanged; `tofu validate` + `fmt -check` pass with `nodejs24.x`) |
 
 Tests after the upgrade: 78 unit + 160 e2e, 24 web unit, 8 Playwright; `npm audit` reports 0 vulnerabilities; OpenAPI regeneration shows no semantic drift; `npm ci` from a clean clone works (vendored tarballs intact).
 
@@ -52,5 +52,5 @@ Tests after the upgrade: 78 unit + 160 e2e, 24 web unit, 8 Playwright; `npm audi
 
 - `Dockerfile.seed` was edited but the image could not be built in this session (Docker daemon was not running); build it once before the next seed deploy.
 - Prisma 7 + `pg` verifies TLS certificates; the seed Lambda URL uses `sslmode=no-verify`, the API in AWS needs either the same or the RDS CA bundle via `NODE_EXTRA_CA_CERTS`.
-- The new `nodejs26.x` Lambda runtime passes `tofu validate` with provider 6.73; confirm it is available in `eu-central-1` before the next apply.
+- The new `nodejs24.x` Lambda runtime passes `tofu validate` with provider 6.73; confirm it is available in `eu-central-1` before the next apply.
 - Standalone Prisma Accelerate URLs are not supported by the driver adapter (not used here).
