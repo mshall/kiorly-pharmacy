@@ -7,11 +7,13 @@
 **A complete pharmacy management system for Egypt and the region.**
 Lot-accurate inventory, pharmacist-gated dispensing, a fast offline-tolerant POS, supplier automation and 32 reports. It runs fully on its own; connecting it to Kiorex is one optional setting.
 
-![NestJS](https://img.shields.io/badge/NestJS-10-16A34A?logo=nestjs&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-6-3730A3?logo=prisma&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-12-16A34A?logo=nestjs&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-3730A3?logo=prisma&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2B-0369A1?logo=postgresql&logoColor=white)
-![React](https://img.shields.io/badge/React-18%20%2B%20Vite-16A34A?logo=react&logoColor=white)
-![Node](https://img.shields.io/badge/node-%3E%3D22-3730A3?logo=node.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19%20%2B%20Vite%208-16A34A?logo=react&logoColor=white)
+![Node](https://img.shields.io/badge/node-26%20LTS-3730A3?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3730A3?logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-4-0369A1?logo=tailwindcss&logoColor=white)
 ![Languages](https://img.shields.io/badge/AR%20%7C%20EN-RTL-0369A1)
 ![Unit tests](https://img.shields.io/badge/unit%20tests-78%20passing-16A34A)
 ![Mode](https://img.shields.io/badge/mode-standalone%20or%20integrated-3730A3)
@@ -38,8 +40,8 @@ Kiorly Pharmacy is operating software for independent pharmacies and small chain
 | | |
 |---|---|
 | **Product** | Kiorly Pharmacy by Kiorex (accent Pharmacy Green `#16A34A`); part of the Kiorly provider suite next to Kiorly Clinic and Kiorly Lab |
-| **API** | NestJS 10 + Prisma 6 + PostgreSQL 16, `:3100`, prefix `/api/v1`, Swagger at `/docs`, 78 Prisma models, 25 enums, 15 migrations |
-| **Web** | React 18 + Vite + Tailwind + TanStack Query + i18next (Arabic and English, RTL), Vite `:5190`, installable POS PWA |
+| **API** | NestJS 12 + Prisma 7 + PostgreSQL 16, `:3100`, prefix `/api/v1`, Swagger at `/docs`, 78 Prisma models, 25 enums, 15 migrations |
+| **Web** | React 19 + Vite 8 + Tailwind 4 + TanStack Query + i18next (Arabic and English, RTL), Vite `:5190`, installable POS PWA |
 | **Roles** | `OWNER`, `PHARMACIST`, `CASHIER`, `ASSISTANT`, `BRANCH_MANAGER`, `CHAIN_OPS` with per-tenant overrides |
 | **Editions** | Lite, Pro, Chain, Enterprise (see [Plans](#plans-and-entitlements)) |
 | **Mode** | `STANDALONE` (default for new pharmacies) or `INTEGRATED` with Kiorex |
@@ -232,13 +234,27 @@ Flags are evaluated locally from the Kiorex snapshot with `@kiorex/contracts` (`
 **Safety controls are never flags** (ADR-025): lot expiry, recall and quarantine blocks; Rx safety checks; pharmacist sign-off; controlled-substance log; consent enforcement; audit; tenant isolation; privileged MFA. A CI test fails if safety-path code references a flag. Table: [Docs/ADR_REFERENCE.md](Docs/ADR_REFERENCE.md).
 </details>
 
+### Stack versions (upgraded 20 Nov 2026)
+
+| Layer | Version |
+|---|---|
+| Runtime | Node.js 26 LTS (`.nvmrc`), npm 11+, Lambda `nodejs26.x` |
+| Language | TypeScript 6.0 |
+| API | NestJS 12, `@nestjs/swagger` 12, Express 5, class-validator 0.15, jose 6, pdfkit 0.21 |
+| Data | Prisma 7 (`prisma-client` generator, `@prisma/adapter-pg`), PostgreSQL 16 |
+| Web | React 19, Vite 8, Tailwind CSS 4, TanStack Query 5, i18next 27, react-i18next 18 |
+| Tooling | ESLint 9.39, typescript-eslint 8, Playwright 1.65, tsx, swc (test runner) |
+
+Upgrade log, pinned items and what unblocks them: [Docs/UPGRADE_NOTES.md](Docs/UPGRADE_NOTES.md).
+
 ## Quick start
 
-Prerequisites: Node 22+, the workspace Postgres on `:5433` (see the workspace [README](https://github.com/mshall/kiorex-workspace)), and the sibling `../kiorex-contracts/dist-pack/kiorex-contracts-1.2.0.tgz`.
+Prerequisites: Node 26 LTS (`nvm use`, see `.nvmrc`) and npm 11+, the workspace Postgres on `:5433` (see the workspace [README](https://github.com/mshall/kiorex-workspace)), and the sibling `../kiorex-contracts/dist-pack/kiorex-contracts-1.2.0.tgz`.
 
 ```bash
 npm install
 cp .env.example apps/api/.env        # DATABASE_URL points to kiorly_pharmacy on :5433; never commit .env
+npm run prisma:generate -w api      # Prisma 7 client -> apps/api/src/generated (gitignored)
 npm run db:setup                     # creates kiorly_pharmacy + kiorly_pharmacy_test, applies migrations
 npm run seed -w api                  # synthetic catalogue + demo tenant (idempotent)
 npm run dev                          # API :3100 + web :5190

@@ -29,3 +29,5 @@ Kiorly Pharmacy is a **complete pharmacy management system on its own** (custome
 | Everything else (all ten areas, e-Rx optional intake, loyalty, claims, reports) | Works | Works |
 
 Switch the mode in Settings > General (owner only) or `PATCH /api/v1/settings {mode}`; read it at `GET /api/v1/admin/mode`. Safety controls (ADR-025) are identical in both modes. Third-party providers (PSP, messaging, AI, storage) stay mock unless their `*_MODE=real` adapter is configured.
+
+- [UPGRADE_NOTES.md](UPGRADE_NOTES.md): dependency and toolchain upgrade log (Nov 2026), pins and what unblocks them
