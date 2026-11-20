@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Badge, Button, Card, Empty, ErrorNote, ExpiryChip, Field, Input, LOT_TONE, Modal, PageHeader, Select, Spinner, Table, Tabs, Td } from "@/components/ui";
@@ -52,7 +53,7 @@ function ReasonModal({ title, open, onClose, onSubmit, busy, error, controlled }
   );
 }
 
-const expLabel = (t: (k: string, o?: Record<string, unknown>) => string) => (k: "expired" | "soon" | "watch" | "ok", n: number) => (k === "expired" ? t("inv.expiredAgo", { count: Math.abs(n) }) : t("inv.inDays", { count: n }));
+const expLabel = (t: TFunction) => (k: "expired" | "soon" | "watch" | "ok", n: number) => (k === "expired" ? t("inv.expiredAgo", { count: Math.abs(n) }) : t("inv.inDays", { count: n }));
 /** First-expiry-first-out: per product, order sellable lots by expiry and flag the one to pick first. */
 function fefo(lots: Lot[]): Array<{ l: Lot; first: boolean }> {
   const sorted = [...lots].sort((a, b) => drugName(a.drug).localeCompare(drugName(b.drug)) || a.expiryDate.localeCompare(b.expiryDate));
