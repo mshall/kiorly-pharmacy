@@ -28,5 +28,10 @@
   },
   "devDependencies": {
     "concurrently": "^10.0.7"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "effect": "3.22.5"
+    }
   }
 }
