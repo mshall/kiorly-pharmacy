@@ -115,7 +115,7 @@ export function Stepper({ steps, current, className }: { steps: string[]; curren
       {steps.map((s, i) => (
         <li key={s} aria-current={i === current ? "step" : undefined} className="flex items-center gap-2">
           <span className={kcn("flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums", i < current ? "bg-primary text-primary-foreground" : i === current ? "bg-accent text-accent-foreground ring-2 ring-primary" : "bg-muted text-muted-foreground")}>{i + 1}</span>
-          <span className={kcn("hidden sm:inline", i === current ? "font-semibold" : "text-muted-foreground")}>{s}</span>
+          <span className={kcn(i === current ? "font-semibold" : "hidden text-muted-foreground sm:inline")}>{s}</span>
           {i < steps.length - 1 && <span aria-hidden className="h-px w-6 bg-border" />}
         </li>
       ))}

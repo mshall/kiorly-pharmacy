@@ -39,16 +39,19 @@ test.describe("golden flow", () => {
 
     await login(page, demo.pharmacist);
     await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Kiorex orders" }).click();
-    const card = page.locator("section", { hasText: `#${orderId}` });
+    const card = page.getByRole("article", { name: `#${orderId}` });
     await expect(card).toBeVisible();
     await expect(card.getByRole("timer")).toBeVisible();
     await card.getByRole("button", { name: "Accept" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Accept", exact: true }).click(); // full acceptance (the dialog allows partial quantities)
+    await page.locator("label", { hasText: /^In progress/ }).click();
+    await expect(card).toBeVisible();
     await card.getByRole("link", { name: "Open dispensing" }).click();
     await page.getByRole("button", { name: "Sign off as pharmacist" }).click();
     await expect(page.getByText("Signed off", { exact: true }).first()).toBeVisible();
     await page.goBack();
-    await page.getByRole("button", { name: "Mark ready" }).click();
-    await page.goto("/orders");
+    await card.getByRole("button", { name: "Mark ready" }).click();
+    await page.goto("/orders?view=progress");
     await card.getByRole("link", { name: "Open dispensing" }).click();
     await page.getByRole("button", { name: "Dispense", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Dispensed", exact: true })).toBeVisible();

@@ -57,7 +57,7 @@ function SafetyPanel({ d, canOverride }: { d: Dispensing; canOverride: boolean }
   return (
     <Card title={t("disp.safety")} actions={<span className="flex gap-1.5">{(["BLOCK", "WARN", "PASS"] as const).map((o) => { const n = d.safetyChecks.filter((c) => c.outcome === o || (o === "PASS" && c.outcome === "OVERRIDDEN_BY_PHARMACIST")).length; return n ? <Badge key={o} tone={OUTCOME_TONE[o]}>{n} {t(`outcome.${o}`)}</Badge> : null; })}</span>}>
       {d.safetyChecks.some((c) => c.outcome === "BLOCK") && <p role="alert" className="mb-3 flex items-center gap-2 rounded-lg border-2 border-[hsl(var(--danger-text))] bg-[hsl(var(--danger-text)/0.1)] px-3 py-2 text-sm font-semibold text-[hsl(var(--danger-text))]"><ShieldAlert aria-hidden="true" className="size-5 shrink-0" />{t("disp.resolveBlocks")}</p>}
-      <ul className="space-y-2">
+      <ul className="grid gap-2 2xl:grid-cols-2">
         {[...d.safetyChecks].sort((x, y) => rank(x.outcome) - rank(y.outcome)).map((c) => {
           const Icon = c.outcome === "BLOCK" ? ShieldAlert : c.outcome === "WARN" ? AlertTriangle : CheckCircle2;
           const accent = c.outcome === "BLOCK" ? "border-[hsl(var(--danger-text)/0.5)] bg-[hsl(var(--danger-text)/0.07)]" : c.outcome === "WARN" ? "border-[hsl(var(--warning)/0.5)] bg-[hsl(var(--warning)/0.08)]" : "border-border";
@@ -106,10 +106,10 @@ export function Workflow({ d, rx }: { d: Dispensing; rx?: Rx }) {
     <div className="space-y-4">
       <Stepper steps={[t("disp.stReserved"), t("disp.stSignedOff"), t("disp.stDispensed")]} current={d.status === "DISPENSED" || done ? 2 : d.status === "SIGNED_OFF" ? 1 : 0} />
       <Card title={`${t("disp.title")} · ${t(`dispStatus.${d.status}`)}`} actions={["RESERVED", "SIGNED_OFF", "VALIDATED"].includes(d.status) && <Button size="sm" variant="outline" onClick={() => cancel.mutate()}>{t("common.cancel")}</Button>}>
-        <Table head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), t("cat.price")]}>
-          {d.lines.map((l) => <tr key={l.id}><Td className="font-medium">{drugName(l.drug)} {l.substitutedFromDrugId && <Badge tone="info">{t("rx.substituted")}</Badge>}</Td><Td className="font-mono text-xs">{l.lot.lotNumber}</Td><Td>{fmtDate(l.lot.expiryDate)}</Td><Td>{l.quantity}</Td><Td>{fmtMoney(l.unitPrice)}</Td></tr>)}
+        <Table numeric={[3, 4]} head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), t("cat.price")]}>
+          {d.lines.map((l) => <tr key={l.id}><Td className="font-medium">{drugName(l.drug)} {l.substitutedFromDrugId && <Badge tone="info">{t("rx.substituted")}</Badge>}</Td><Td className="font-mono text-xs">{l.lot.lotNumber}</Td><Td className="whitespace-nowrap">{fmtDate(l.lot.expiryDate)}</Td><Td className="kx-num text-end">{l.quantity}</Td><Td className="kx-num text-end">{fmtMoney(l.unitPrice)}</Td></tr>)}
         </Table>
-        <p className="mt-2 text-end text-lg font-semibold">{t("pos.total")}: {fmtMoney(total)}</p>
+        <p className="mt-3 flex items-baseline justify-end gap-3 border-t border-border/70 pt-3"><span className="text-sm text-muted-foreground">{t("pos.total")}</span><span className="kx-num text-2xl font-semibold tracking-tight">{fmtMoney(total)}</span></p>
         <ErrorNote error={cancel.error || repick.error} />
         {d.status === "RESERVED" && d.lines.some((l) => l.lot.status !== "AVAILABLE" && l.lot.status !== "RESERVED") && <div className="mt-2 rounded-md bg-destructive/10 p-3 text-sm text-danger">{t("disp.lotBlocked")} <Button size="sm" variant="danger" onClick={() => repick.mutate()}>{t("disp.repick")}</Button></div>}
       </Card>
@@ -195,7 +195,7 @@ export function RxDetail() {
           <Card title={t("rx.items")}>
             <dl className="mb-3 grid grid-cols-2 gap-2 text-sm"><dt className="text-muted-foreground">{t("rx.source")}</dt><dd>{t(`rxSource.${rx.source}`)}</dd><dt className="text-muted-foreground">{t("rx.prescriber")}</dt><dd>{rx.prescriberName} {rx.prescriberVerifiedBadge && "✔"}</dd><dt className="text-muted-foreground">{t("rx.validUntil")}</dt><dd>{fmtDate(rx.validUntil)}</dd>
               {!!rx.patient?.allergies?.length && <><dt className="text-muted-foreground">{t("rx.allergies")}</dt><dd className="text-danger">{rx.patient.allergies.join(", ")}</dd></>}</dl>
-            <Table head={[t("common.product"), t("inv.qty"), t("rx.directions")]}>
+            <Table numeric={[1]} head={[t("common.product"), t("inv.qty"), t("rx.directions")]}>
               {rx.lines.map((l) => <tr key={l.id}><Td className="font-medium">{l.drugName ?? l.activeIngredient} <span className="text-xs text-muted-foreground">{l.strength}</span></Td><Td>{l.qtyDispensed}/{l.quantity}</Td><Td>{l.directions ?? "—"}</Td></tr>)}
             </Table>
             {issues && <ul className="mt-3 space-y-1" aria-label={t("rx.issues")}>{issues.map((i, k) => <li key={k} className="flex items-center gap-2 text-sm"><Badge tone={i.severity === "ERROR" ? "bad" : "warn"}>{i.severity === "ERROR" ? t("rx.error") : t("rx.warning")}</Badge>{i.message}</li>)}</ul>}

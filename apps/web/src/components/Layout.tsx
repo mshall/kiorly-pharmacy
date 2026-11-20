@@ -44,7 +44,7 @@ export function Layout() {
     <div className="min-h-screen md:flex">
       <a href="#main" className="skip-link">{t("common.skip")}</a>
       <nav aria-label={t("nav.main")} className="no-print border-b border-border bg-card md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-e">
-        <div className="px-4 py-4"><KiorlyBrand height={40} /><div className="mt-1.5 text-sm font-semibold">{t("app.product")}</div></div>
+        <div className="px-4 py-3 md:py-4"><KiorlyBrand height={36} /><div className="mt-1.5 hidden text-sm font-semibold md:block">{t("app.product")}</div></div>
         <ul className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
           {items.map((i) => (
             <li key={i.to}>
@@ -56,7 +56,7 @@ export function Layout() {
         </ul>
       </nav>
       <div className="min-w-0 flex-1">
-        <header className="no-print sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
+        <header className="no-print z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-2 backdrop-blur md:sticky md:top-0">
           <div className="flex items-center gap-3">
             {me && me.branches.length > 1 && !me.user.branchId ? (
               <label className="flex items-center gap-2 text-sm">{t("common.branch")}

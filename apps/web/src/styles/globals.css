@@ -34,7 +34,31 @@ dialog::backdrop { background: var(--kx-overlay); backdrop-filter: blur(2px); }
 [dir="rtl"] .kx-table tr.kx-row-warn > td:first-child { box-shadow: inset -3px 0 0 hsl(var(--warning)); }
 .kx-sticky-head thead th { position: sticky; top: 0; z-index: 1; background: hsl(var(--card)); }
 @media (prefers-reduced-motion: no-preference) {
-  main > * { animation: kx-page-in var(--kx-dur-slow) var(--kx-ease-decelerate) both; }
+  #main > * { animation: kx-page-in var(--kx-dur-slow) var(--kx-ease-decelerate) both; }
 }
 @keyframes kx-page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media print { .no-print { display: none !important; } }
+.kx-dense td { padding-block: .375rem; }
+.kx-table tbody tr.kx-row-click { cursor: pointer; }
+.kx-table tbody tr:focus-within { background: hsl(var(--muted) / .55); }
+.kx-dialog[open] { animation: kx-dialog-in var(--kx-dur-base, 200ms) var(--kx-ease-decelerate, ease-out) both; }
+@keyframes kx-dialog-in { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (max-width: 639px) { @keyframes kx-dialog-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } } }
+@media (prefers-reduced-motion: reduce) { .kx-dialog[open] { animation: none; } }
+.kx-bar { transform-origin: bottom; }
+@media (prefers-reduced-motion: no-preference) { .kx-bar { animation: kx-grow var(--kx-dur-slow, 300ms) var(--kx-ease-decelerate, ease-out) both; } .kx-hbar { transform-origin: left; animation: kx-growx var(--kx-dur-slow, 300ms) var(--kx-ease-decelerate, ease-out) both; } [dir="rtl"] .kx-hbar { transform-origin: right; } }
+@keyframes kx-grow { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes kx-growx { from { transform: scaleX(0); } to { transform: none; } }
+.kx-num { font-variant-numeric: tabular-nums; unicode-bidi: plaintext; white-space: nowrap; }
+
+@media (max-width: 639px) {
+  .kx-hp-1 th:nth-child(1), .kx-hp-1 td:nth-child(1) { display: none; }
+  .kx-hp-2 th:nth-child(2), .kx-hp-2 td:nth-child(2) { display: none; }
+  .kx-hp-3 th:nth-child(3), .kx-hp-3 td:nth-child(3) { display: none; }
+  .kx-hp-4 th:nth-child(4), .kx-hp-4 td:nth-child(4) { display: none; }
+  .kx-hp-5 th:nth-child(5), .kx-hp-5 td:nth-child(5) { display: none; }
+  .kx-hp-6 th:nth-child(6), .kx-hp-6 td:nth-child(6) { display: none; }
+  .kx-hp-7 th:nth-child(7), .kx-hp-7 td:nth-child(7) { display: none; }
+  .kx-hp-8 th:nth-child(8), .kx-hp-8 td:nth-child(8) { display: none; }
+  .kx-hp-9 th:nth-child(9), .kx-hp-9 td:nth-child(9) { display: none; }
+}

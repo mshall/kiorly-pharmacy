@@ -184,14 +184,16 @@ export function Pos() {
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-muted p-4"><div className="text-xs font-medium text-muted-foreground">{t("pos.total")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(total)}</div></div>
-            <div className={cn("rounded-xl p-4", due > 0 ? "bg-[hsl(var(--warning)/0.14)]" : "bg-[hsl(var(--success)/0.14)]")} aria-live="polite"><div className="text-xs font-medium text-muted-foreground">{due > 0 ? t("pos.due") : t("pos.change")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(due > 0 ? due : paid - total)}</div></div>
+            <div className={cn("rounded-xl p-4", due > 0 ? "bg-[var(--kx-coral-50)] ring-1 ring-inset ring-[var(--kx-coral-200)] dark:bg-[hsl(var(--warning)/0.14)] dark:ring-0" : "bg-[hsl(var(--success)/0.14)]")} aria-live="polite"><div className="text-xs font-medium text-muted-foreground">{due > 0 ? t("pos.due") : t("pos.change")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(due > 0 ? due : paid - total)}</div></div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={t("pos.method")}>{METHODS.map((m) => <Button key={m} size="lg" className="min-h-14" variant={method === m ? "primary" : "outline"} aria-pressed={method === m} disabled={!online && !["CASH", "CUSTOMER_CREDIT"].includes(m)} onClick={() => setMethod(m)}>{t(`method.${m}`)}</Button>)}</div>
           {method === "CUSTOMER_CREDIT" && <Field label={t("pos.customer")}>{(id) => <Select id={id} value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">—</option>{customers.data?.map((c) => <option key={c.id} value={c.id}>{c.displayName} ({t("pos.creditAvailable")}: {fmtMoney(c.available)})</option>)}</Select>}</Field>}
-          <div className="flex flex-wrap items-end gap-2">
-            <Field label={t("pos.amount")}>{(id) => <Input id={id} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPay(); } }} placeholder={due.toFixed(2)} className="min-h-14 w-44 text-xl tabular-nums" />}</Field>
-            <Button size="lg" onClick={addPay}>{t("pos.addPayment")}</Button>
-            {method === "CASH" && <><Button size="lg" variant="secondary" onClick={() => setAmount(due.toFixed(2))}>{t("pos.exact")}</Button>{[50, 100, 200].map((n) => <Button key={n} size="lg" variant="outline" className="tabular-nums" onClick={() => setAmount(String(n))}>{n}</Button>)}</>}
+          <div className="space-y-2">
+            <div className="flex items-end gap-2">
+              <Field label={t("pos.amount")} className="min-w-0 flex-1">{(id) => <Input id={id} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPay(); } }} placeholder={due.toFixed(2)} className="min-h-14 text-xl tabular-nums" />}</Field>
+              <Button size="lg" className="min-h-14 shrink-0" onClick={addPay}>{t("pos.addPayment")}</Button>
+            </div>
+            {method === "CASH" && <div className="grid grid-cols-4 gap-2"><Button size="lg" variant="secondary" className="px-2" onClick={() => setAmount(due.toFixed(2))}>{t("pos.exact")}</Button>{[50, 100, 200].map((n) => <Button key={n} size="lg" variant="outline" className="tabular-nums" onClick={() => setAmount(String(n))}>{n}</Button>)}</div>}
           </div>
           {pays.length > 0 && <ul className="space-y-1">{pays.map((p, i) => <li key={i} className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2 text-sm"><span>{t(`method.${p.method}`)}</span><span className="flex items-center gap-2 font-semibold tabular-nums">{fmtMoney(p.amount)}<Button size="sm" variant="ghost" aria-label={t("common.remove")} onClick={() => setPays(pays.filter((_, k) => k !== i))}><X aria-hidden="true" className="size-4" /></Button></span></li>)}</ul>}
           {checkout.error && !approval && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-danger">{errorMessage(checkout.error, t as never)}</p>}

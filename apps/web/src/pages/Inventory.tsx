@@ -21,11 +21,11 @@ function StockTab() {
       </div>
       <ErrorNote error={res.error} />
       {res.isLoading ? <Spinner /> : (
-        <Table head={[t("common.product"), t("inv.onHand"), t("inv.reserved"), t("inv.sellable"), t("inv.blocked"), t("inv.nextExpiry"), t("inv.minMax")]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
+        <Table numeric={[1, 2, 3, 4]} head={[t("common.product"), t("inv.onHand"), t("inv.reserved"), t("inv.sellable"), t("inv.blocked"), t("inv.nextExpiry"), t("inv.minMax")]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
           {res.data?.items.map((r) => (
             <tr key={r.drugId} className={r.blocked > 0 ? "kx-row-bad" : r.low ? "kx-row-warn" : undefined}>
               <Td className="font-medium">{drugName(r)} <span className="text-xs text-muted-foreground">{r.strength}</span> {r.low && <Badge tone="warn">{t("inv.low")}</Badge>}</Td>
-              <Td>{fmtNum(r.onHand)}</Td><Td>{fmtNum(r.reserved)}</Td><Td className="font-semibold">{fmtNum(r.sellable)}</Td><Td>{r.blocked > 0 ? <Badge tone="bad">{fmtNum(r.blocked)}</Badge> : 0}</Td>
+              <Td className="kx-num text-end">{fmtNum(r.onHand)}</Td><Td className="kx-num text-end">{fmtNum(r.reserved)}</Td><Td className="kx-num text-end font-semibold">{fmtNum(r.sellable)}</Td><Td className="text-end">{r.blocked > 0 ? <Badge tone="bad">{fmtNum(r.blocked)}</Badge> : 0}</Td>
               <Td>{fmtDate(r.nextExpiry)}</Td><Td>{r.minQty !== null ? `${r.minQty} / ${r.maxQty}` : "—"}</Td>
             </tr>
           ))}
@@ -80,12 +80,12 @@ function LotsTab() {
       </div>
       <ErrorNote error={res.error} />
       {res.isLoading ? <Spinner /> : (
-        <Table head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), t("common.status"), ""]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
+        <Table numeric={[3]} head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), t("common.status"), ""]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
           {fefo(res.data?.items ?? []).map(({ l, first }) => (
             <tr key={l.id} className={l.status === "RECALLED" || l.status === "EXPIRED" || l.blockReason === "EXPIRED" ? "kx-row-bad" : l.status === "QUARANTINE" ? "kx-row-warn" : undefined}>
               <Td className="font-medium">{drugName(l.drug)}</Td><Td className="font-mono text-xs">{l.lotNumber}</Td>
               <Td><div className="flex flex-wrap items-center gap-1.5"><span className="whitespace-nowrap">{fmtDate(l.expiryDate)}</span><ExpiryChip days={l.daysToExpiry} label={expLabel(t)} />{first && <Badge tone="brand">{t("inv.fefoFirst")}</Badge>}</div></Td>
-              <Td>{fmtNum(l.qtyOnHand)}{l.qtyReserved ? ` (${t("inv.reservedN", { count: l.qtyReserved })})` : ""}</Td>
+              <Td className="kx-num text-end">{fmtNum(l.qtyOnHand)}{l.qtyReserved ? ` (${t("inv.reservedN", { count: l.qtyReserved })})` : ""}</Td>
               <Td><Badge tone={LOT_TONE[l.blockReason ?? l.status] ?? "neutral"}>{t(`lot.${l.blockReason ?? l.status}`, { defaultValue: l.status })}</Badge>{l.blockedReason && <div className="text-xs text-muted-foreground">{l.blockedReason}</div>}</Td>
               <Td><div className="flex flex-wrap gap-1">
                 {can("inventory.quarantine") && l.status === "AVAILABLE" && <Button size="sm" variant="outline" onClick={() => setAct({ lot: l, kind: "quarantine" })}>{t("inv.quarantine")}</Button>}
@@ -126,8 +126,8 @@ function ExpiryTab() {
       {res.isLoading ? <Spinner /> : groups.map(([k, label]) => (
         <Card key={k} title={`${label} (${res.data?.[k].length ?? 0})`}>
           {res.data?.[k].length ? (
-            <Table head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), ""]}>
-              {res.data[k].map((b) => <tr key={b.lotId}><Td className="font-medium">{drugName(b)}</Td><Td className="font-mono text-xs">{b.lotNumber}</Td><Td><div className="flex flex-wrap items-center gap-1.5"><span className="whitespace-nowrap">{fmtDate(b.expiryDate)}</span><ExpiryChip days={b.daysToExpiry} label={expLabel(t)} /></div></Td><Td>{fmtNum(b.qtyOnHand)}</Td>
+            <Table numeric={[3]} head={[t("common.product"), t("inv.lot"), t("inv.expiry"), t("inv.qty"), ""]}>
+              {res.data[k].map((b) => <tr key={b.lotId}><Td className="font-medium">{drugName(b)}</Td><Td className="font-mono text-xs">{b.lotNumber}</Td><Td><div className="flex flex-wrap items-center gap-1.5"><span className="whitespace-nowrap">{fmtDate(b.expiryDate)}</span><ExpiryChip days={b.daysToExpiry} label={expLabel(t)} /></div></Td><Td className="kx-num text-end">{fmtNum(b.qtyOnHand)}</Td>
                 <Td>{can("inventory.adjust") && b.supplierId && b.qtyOnHand > 0 && <Button size="sm" variant="outline" onClick={() => setRet(b)}>{t("inv.returnToSupplier")}</Button>}</Td></tr>)}
             </Table>
           ) : <Empty>{t("common.none")}</Empty>}
@@ -164,7 +164,7 @@ function CountsTab() {
       <Modal open={!!openId} onClose={() => setOpenId(null)} title={t("inv.counts")} wide>
         {d && (
           <div className="space-y-3">
-            <Table head={[t("common.product"), t("inv.lot"), t("inv.expected"), t("inv.counted"), t("inv.variance")]}>
+            <Table numeric={[2, 3, 4]} head={[t("common.product"), t("inv.lot"), t("inv.expected"), t("inv.counted"), t("inv.variance")]}>
               {d.lines?.map((l) => <tr key={l.id}><Td>{l.brandName}</Td><Td className="font-mono text-xs">{l.lotNumber}</Td><Td>{l.qtyExpected}</Td>
                 <Td>{d.status === "OPEN" ? <Input aria-label={t("inv.counted")} type="number" min={0} className="w-24" defaultValue={l.qtyCounted ?? ""} onChange={(e) => setVals({ ...vals, [l.lotId]: e.target.value })} /> : l.qtyCounted}</Td>
                 <Td className={l.variance ? "font-semibold text-danger" : ""}>{l.variance ?? "—"}</Td></tr>)}
