@@ -13,7 +13,7 @@ const by = (r: CheckResult[], k: string) => r.find((x) => x.kind === k)!;
 describe("Rx safety engine (KPRX03, safety.pharmacy.rx_safety_checks)", () => {
   it("always returns one result per check kind (so 'the checks ran' is provable) and PASS when clean", () => {
     const r = runSafetyChecks([item("paracetamol")], patient, rx, opts);
-    assert.deepEqual(r.map((x) => x.kind).sort(), ["ALLERGY", "CONTROLLED_LIMIT", "DOSE_QUANTITY", "DUPLICATE_THERAPY", "INTERACTION", "PRESCRIBER"]);
+    assert.deepEqual(r.map((x) => x.kind).sort(), ["ALLERGY", "CONTROLLED_LIMIT", "DOSE_QUANTITY", "DOSE_RANGE", "DUPLICATE_THERAPY", "INTERACTION", "PREGNANCY_LACTATION", "PRESCRIBER", "RENAL_HEPATIC"]);
     assert.ok(r.every((x) => x.outcome === "PASS"));
     assert.equal(hasUnresolvedBlock(r), false);
   });
@@ -75,5 +75,28 @@ describe("Rx safety engine (KPRX03, safety.pharmacy.rx_safety_checks)", () => {
     const c = by(runSafetyChecks([item("morphine", { controlledSchedule: "SCHEDULE_2", quantity: 4 })], patient, rx, opts), "CONTROLLED_LIMIT");
     assert.equal(c.outcome, "BLOCK"); assert.equal(c.overridable, false);
     assert.equal(by(runSafetyChecks([item("morphine", { controlledSchedule: "SCHEDULE_2", quantity: 3 })], patient, rx, opts), "CONTROLLED_LIMIT").outcome, "PASS");
+  });
+
+  it("KB checks (dose range, pregnancy/lactation, renal/hepatic) are pure and use the supplied snapshot", () => {
+    const kb = {
+      dose: new Map([["drugx", { ingredient: "drugx", maxDailyMg: 100, maxSingleMg: 60, pediatricMaxMgPerKg: 5 }]]),
+      pregnancy: new Map([["drugx", { ingredient: "drugx", category: "X" as const, note: "no" }]]), lactation: new Map([["drugx", { ingredient: "drugx", severity: "MAJOR" as const, note: "avoid" }]]),
+      renal: new Map([["drugx", { ingredient: "drugx", severity: "MODERATE" as const, note: "adjust" }]]), hepatic: new Map([["drugx", { ingredient: "drugx", severity: "MAJOR" as const, note: "hepatotoxic" }]]),
+    };
+    const run = (over: Partial<EngineItem>, pat: object = {}) => runSafetyChecks([item("drugx", { strength: "50 mg", directions: "1 tablet twice daily", ...over })], { ...patient, ...pat }, rx, { ...opts, kb });
+    assert.equal(by(run({}), "DOSE_RANGE").outcome, "PASS");
+    assert.equal(by(run({ directions: "2 tablets twice daily" }), "DOSE_RANGE").outcome, "BLOCK");
+    assert.equal(by(run({ directions: "2 tablets twice daily" }), "DOSE_RANGE").overridable, true);
+    assert.equal(by(run({ directions: "5 tablets four times daily" }), "DOSE_RANGE").overridable, false, "more than 2x the maximum is a hard stop");
+    assert.equal(by(run({ directions: "1 tablet once daily", strength: "70 mg" }), "DOSE_RANGE").outcome, "WARN", "single dose above maxSingle but daily within range");
+    assert.equal(by(run({}, { ageYears: 4, weightKg: 10 }), "DOSE_RANGE").outcome, "BLOCK", "100 mg/day / 10 kg = 10 mg/kg > 5");
+    assert.equal(by(run({}, { ageYears: 4 }), "DOSE_RANGE").outcome, "WARN");
+    assert.equal(by(run({}, { pregnant: true }), "PREGNANCY_LACTATION").overridable, false);
+    assert.equal(by(run({}, { lactating: true }), "PREGNANCY_LACTATION").outcome, "BLOCK");
+    assert.equal(by(run({}, { lactating: true }), "PREGNANCY_LACTATION").overridable, true);
+    assert.equal(by(run({}, { renalImpairment: true }), "RENAL_HEPATIC").outcome, "WARN");
+    assert.equal(by(run({}, { hepaticImpairment: true }), "RENAL_HEPATIC").outcome, "BLOCK");
+    assert.equal(by(run({}), "PREGNANCY_LACTATION").outcome, "PASS");
+    assert.equal(by(runSafetyChecks([item("drugx", { strength: "50 mg", directions: "2 tablets twice daily" })], { ...patient, pregnant: true }, rx, opts), "PREGNANCY_LACTATION").outcome, "PASS", "no kb supplied: no verdict, never a guess");
   });
 });

@@ -140,7 +140,7 @@ describe("safety controls are never flags (PH-SS04 / ADR-025)", () => {
     const d = await t.http.post("/api/v1/dispensings").set(auth(f.users.pharmacist.token)).send({ prescriptionId: rx.body.id, items: [{ drugId: drug.id, quantity: 1 }] });
     assert.equal(d.status, 201, JSON.stringify(d.body));
     assert.equal(d.body.lines[0].lotId, fresh.id, "expired lot skipped by FEFO");
-    assert.equal(d.body.safetyChecks.length, 6, "safety checks still run");
+    assert.equal(d.body.safetyChecks.length, 9, "safety checks still run");
     const early = await t.http.post(`/api/v1/dispensings/${d.body.id}/complete`).set(auth(f.users.pharmacist.token)).send({ idempotencyKey: key(), payments: [{ method: "CASH", amount: "100.00" }] });
     assert.equal(early.body.code, "SIGNOFF_REQUIRED", "sign-off cannot be skipped");
   });

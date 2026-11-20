@@ -70,7 +70,7 @@ describe("e-Rx intake (KPRX01) and golden flow Rx -> dispense -> stock -> event"
     assert.equal(d.status, 201, JSON.stringify(d.body));
     assert.deepEqual(d.body.lines.map((l: { lotId: string; quantity: number }) => [l.lotId, l.quantity]), [[early.id, 5], [later.id, 2]], "FEFO reservation across lots");
     assert.equal((await t.prisma.stockLot.findUniqueOrThrow({ where: { id: early.id } })).qtyReserved, 5);
-    assert.equal(d.body.safetyChecks.length, 6);
+    assert.equal(d.body.safetyChecks.length, 9);
     assert.ok(d.body.safetyChecks.every((c: { outcome: string }) => c.outcome === "PASS" || c.outcome === "WARN"));
     const so = await t.http.post(`/api/v1/dispensings/${d.body.id}/signoff`).set(auth(f.users.pharmacist.token)).send({ counsellingNotes: "Finish the course" });
     assert.equal(so.status, 201, JSON.stringify(so.body));
@@ -165,7 +165,7 @@ describe("safety checks at dispensing (KPRX03/04)", () => {
       return d.body;
     };
     const first = await mk();
-    assert.equal(first.safetyChecks.length, 6);
+    assert.equal(first.safetyChecks.length, 9);
     const second = await t.http.post("/api/v1/dispensings").set(pharm()).send({ patientId: patient.id, items: [{ drugId: o.id, quantity: 1 }] });
     assert.equal(second.body.safetyChecks.find((c: { kind: string }) => c.kind === "DUPLICATE_THERAPY").outcome, "WARN");
   });

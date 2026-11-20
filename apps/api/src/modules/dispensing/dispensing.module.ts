@@ -4,7 +4,8 @@ import { DispensingService } from "./dispensing.service";
 import { InventoryModule } from "../inventory/inventory.module";
 import { CatalogueModule } from "../catalogue/catalogue.module";
 import { PosModule } from "../pos/pos.module";
+import { ClinicalModule } from "../clinical/clinical.module";
 
 /** SAFETY PATH (ADR-025): pharmacist sign-off, Rx safety checks, controlled-substance log. No feature-flag references allowed here. */
-@Module({ imports: [InventoryModule, CatalogueModule, PosModule], controllers: [DispensingController], providers: [DispensingService], exports: [DispensingService] })
+@Module({ imports: [InventoryModule, CatalogueModule, PosModule, ClinicalModule], controllers: [DispensingController], providers: [DispensingService], exports: [DispensingService] })
 export class DispensingModule {}

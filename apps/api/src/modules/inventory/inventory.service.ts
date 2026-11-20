@@ -107,23 +107,23 @@ export class InventoryService {
     });
   }
 
-  async adjust(user: AuthUser, lotId: string, quantity: number, reason: string, approvedBy?: string) {
+  async adjust(user: AuthUser, lotId: string, quantity: number, reason: string, approvedBy?: string, witness?: { id: string; name: string }) {
     return this.prisma.$transaction(async (tx) => {
       const lot = await this.ledger.lockLot(tx, lotId, user.orgId);
-      const m = await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId, type: "ADJUSTMENT", quantity, performedBy: user.userId, reason, approvedBy, refType: "Adjustment" });
+      const m = await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId, type: "ADJUSTMENT", quantity, performedBy: user.userId, reason, approvedBy, refType: "Adjustment", witness });
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "stock.adjust", entityType: "StockLot", entityId: lotId, meta: { quantity, reason, approvedBy: approvedBy ?? null } } });
       return m;
     });
   }
 
   /** Writes off the remaining quantity of an expired / recalled lot (EXPIRY_WRITE_OFF / RECALL_WRITE_OFF). */
-  async writeOff(user: AuthUser, lotId: string, reason: string) {
+  async writeOff(user: AuthUser, lotId: string, reason: string, witness?: { id: string; name: string }) {
     return this.prisma.$transaction(async (tx) => {
       const lot = await this.ledger.lockLot(tx, lotId, user.orgId);
       const block = lotBlockReason(lot);
       if (block !== "EXPIRED" && block !== "RECALLED") throw new DomainError("WRITE_OFF_NOT_ALLOWED", "Only expired or recalled lots can be written off; quarantine/adjust otherwise", 409, { reason: block });
       if (lot.qtyOnHand <= 0) throw new DomainError("NOTHING_TO_WRITE_OFF", "Lot has no stock", 409);
-      const m = await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId, type: block === "RECALLED" ? "RECALL_WRITE_OFF" : "EXPIRY_WRITE_OFF", quantity: lot.qtyOnHand, performedBy: user.userId, reason, refType: "WriteOff" });
+      const m = await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId, type: block === "RECALLED" ? "RECALL_WRITE_OFF" : "EXPIRY_WRITE_OFF", quantity: lot.qtyOnHand, performedBy: user.userId, reason, refType: "WriteOff", witness });
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "stock.write_off", entityType: "StockLot", entityId: lotId, meta: { quantity: lot.qtyOnHand, block, reason } } });
       return m;
     });
@@ -177,13 +177,13 @@ export class InventoryService {
   }
 
   /** KPINV04 return-to-supplier: RETURN_TO_SUPPLIER movement + supplier credit (balance goes down). */
-  async returnToSupplier(user: AuthUser, input: { lotId: string; quantity: number; reason: string; creditAmount?: string }) {
+  async returnToSupplier(user: AuthUser, input: { lotId: string; quantity: number; reason: string; creditAmount?: string; witness?: { id: string; name: string } }) {
     return this.prisma.$transaction(async (tx) => {
       const lot = await this.ledger.lockLot(tx, input.lotId, user.orgId);
       if (!lot.supplierId) throw new DomainError("NO_SUPPLIER", "Lot has no supplier to return to", 409);
       const credit = round2(input.creditAmount != null ? D(input.creditAmount) : D(lot.unitCost).mul(input.quantity));
       const ret = await tx.supplierReturn.create({ data: { orgId: user.orgId, branchId: lot.branchId, supplierId: lot.supplierId, lotId: lot.id, quantity: input.quantity, creditAmount: credit, reason: input.reason, createdBy: user.userId } });
-      await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId: lot.id, type: "RETURN_TO_SUPPLIER", quantity: input.quantity, performedBy: user.userId, reason: input.reason, refType: "SupplierReturn", refId: ret.id });
+      await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId: lot.id, type: "RETURN_TO_SUPPLIER", quantity: input.quantity, performedBy: user.userId, reason: input.reason, refType: "SupplierReturn", refId: ret.id, witness: input.witness });
       await tx.supplierLedgerEntry.create({ data: { orgId: user.orgId, supplierId: lot.supplierId, type: "RETURN_CREDIT", amount: credit.neg(), refType: "SupplierReturn", refId: ret.id, createdBy: user.userId } });
       await tx.supplier.update({ where: { id: lot.supplierId }, data: { balance: { decrement: credit } } });
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "inventory.return_to_supplier", entityType: "SupplierReturn", entityId: ret.id, meta: { lotId: lot.id, quantity: input.quantity, credit: money(credit) } } });

@@ -138,7 +138,7 @@ describe("Kiorex orders (KPMKT01-05, KPINV07)", () => {
     assert.equal(v.body.validated, true, JSON.stringify(v.body));
     const ok = await t.http.post(`/api/v1/kiorex-orders/${order.id}/accept`).set(pharm()).send({});
     assert.equal(ok.status, 201, JSON.stringify(ok.body));
-    assert.equal(ok.body.dispensing.safetyChecks.length, 6, "Rx safety checks run on marketplace orders too");
+    assert.equal(ok.body.dispensing.safetyChecks.length, 9, "Rx safety checks run on marketplace orders too");
   });
 
   it("partial accept reduces quantities; reject releases reservations and emits OrderRejected", async () => {

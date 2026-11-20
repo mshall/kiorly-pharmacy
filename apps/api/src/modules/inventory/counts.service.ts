@@ -56,7 +56,7 @@ export class CountsService {
   }
 
   /** Approval posts COUNT_VARIANCE movements. The approver must differ from the counter unless they are the owner. */
-  async approve(user: AuthUser, id: string) {
+  async approve(user: AuthUser, id: string, witness?: { id: string; name: string }) {
     const c = await this.get(user.orgId, id);
     if (c.status !== "PENDING_APPROVAL") throw new DomainError("COUNT_NOT_PENDING", "Count is not awaiting approval", 409);
     if (c.startedBy === user.userId && user.role !== "OWNER") throw new DomainError("SELF_APPROVAL", "Variance must be approved by someone other than the counter", 403);
@@ -67,7 +67,7 @@ export class CountsService {
         const variance = l.qtyCounted - l.qtyExpected;
         if (variance === 0) continue;
         const lot = await this.ledger.lockLot(tx, l.lotId, user.orgId);
-        await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId: l.lotId, type: "COUNT_VARIANCE", quantity: variance, performedBy: user.userId, approvedBy: user.userId, reason: `Count ${c.type} variance`, refType: "StockCount", refId: id });
+        await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId: l.lotId, type: "COUNT_VARIANCE", quantity: variance, performedBy: user.userId, approvedBy: user.userId, reason: `Count ${c.type} variance`, witness, refType: "StockCount", refId: id });
         posted++;
       }
       await tx.stockCount.update({ where: { id }, data: { status: "APPROVED", approvedBy: user.userId, closedAt: new Date() } });

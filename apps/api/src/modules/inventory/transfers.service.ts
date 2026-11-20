@@ -26,13 +26,13 @@ export class TransfersService {
 
   list(orgId: string) { return this.prisma.stockTransfer.findMany({ where: { orgId }, include: { lines: true }, orderBy: { createdAt: "desc" }, take: 100 }); }
 
-  async dispatch(user: AuthUser, id: string) {
+  async dispatch(user: AuthUser, id: string, witness?: { id: string; name: string }) {
     return this.prisma.$transaction(async (tx) => {
       const t = await tx.stockTransfer.findFirst({ where: { id, orgId: user.orgId }, include: { lines: true } });
       if (!t) throw notFound("Transfer", id);
       if (t.status !== "REQUESTED") throw new DomainError("BAD_STATE", `Transfer is ${t.status}`, 409);
       for (const l of t.lines) {
-        await this.ledger.post(tx, { orgId: user.orgId, branchId: t.fromBranchId, lotId: l.lotId, type: "TRANSFER_OUT", quantity: l.quantity, performedBy: user.userId, refType: "StockTransfer", refId: t.id });
+        await this.ledger.post(tx, { orgId: user.orgId, branchId: t.fromBranchId, lotId: l.lotId, type: "TRANSFER_OUT", quantity: l.quantity, performedBy: user.userId, refType: "StockTransfer", refId: t.id, witness });
       }
       const r = await tx.stockTransfer.update({ where: { id }, data: { status: "IN_TRANSIT", dispatchedBy: user.userId, dispatchedAt: new Date() }, include: { lines: true } });
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "transfer.dispatch", entityType: "StockTransfer", entityId: id } });

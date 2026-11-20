@@ -122,7 +122,7 @@ describe("stop-ship: pharmacist sign-off + Rx-only + controlled log (PH-SS02)", 
     const d = await t.http.post("/api/v1/dispensings").set(auth(f.users.pharmacist.token)).send({ prescriptionId: rxId, items: [{ drugId: drug.id, quantity: 1 }] });
     assert.equal(d.status, 201, JSON.stringify(d.body));
     assert.equal(d.body.status, "RESERVED");
-    assert.equal(d.body.safetyChecks.length, 6, "all six safety checks ran");
+    assert.equal(d.body.safetyChecks.length, 9, "all nine safety checks ran");
     // complete before sign-off => refused by the service ...
     const early = await t.http.post(`/api/v1/dispensings/${d.body.id}/complete`).set(auth(f.users.pharmacist.token)).send({ idempotencyKey: key(), payments: [{ method: "CASH", amount: "100.00" }] });
     assert.equal(early.body.code, "SIGNOFF_REQUIRED");

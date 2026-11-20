@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNumber, IsNumberString, IsOptional, IsString, Min, MinLength, ValidateNested } from "class-validator";
 import { ApprovalDto } from "../../auth/approval.service";
 
+export const ADJUST_REASONS = ["DAMAGE", "THEFT", "LOSS", "FOUND", "COUNT_CORRECTION", "SAMPLE", "OTHER"] as const;
 export class ReceiptLineDto {
   @IsOptional() @IsString() drugId?: string;
   @IsOptional() @IsString() scan?: string;
@@ -21,18 +22,23 @@ export class ReceiptDto {
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => ReceiptLineDto) lines!: ReceiptLineDto[];
 }
 export class ScanDto { @IsString() @MinLength(6) code!: string; }
-export class ReasonDto { @IsString() @MinLength(3) reason!: string; }
+export class ReasonDto { @IsString() @MinLength(3) reason!: string; @IsOptional() @ValidateNested() @Type(() => ApprovalDto) witness?: ApprovalDto; }
+export class WitnessDto { @IsOptional() @ValidateNested() @Type(() => ApprovalDto) witness?: ApprovalDto; }
 export class AdjustDto {
   @IsString() lotId!: string;
   @IsInt() quantity!: number;
   @IsString() @MinLength(3) reason!: string;
+  /** Adjustment reason code for reporting: DAMAGE | THEFT | LOSS | FOUND | COUNT_CORRECTION | SAMPLE | OTHER. */
+  @IsOptional() @IsIn(ADJUST_REASONS) reasonCode?: string;
   @IsOptional() @ValidateNested() @Type(() => ApprovalDto) approval?: ApprovalDto;
+  @IsOptional() @ValidateNested() @Type(() => ApprovalDto) witness?: ApprovalDto;
 }
 export class ReturnSupplierDto {
   @IsString() lotId!: string;
   @IsInt() @Min(1) quantity!: number;
   @IsString() @MinLength(3) reason!: string;
   @IsOptional() @IsNumberString() creditAmount?: string;
+  @IsOptional() @ValidateNested() @Type(() => ApprovalDto) witness?: ApprovalDto;
 }
 export class TempDto { @IsNumber() temperatureC!: number; }
 export class PolicyDto {

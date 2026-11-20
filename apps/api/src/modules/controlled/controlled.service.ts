@@ -1,0 +1,79 @@
+import { Inject, Injectable } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
+import { DomainError, notFound } from "../../common/errors";
+import { StockLedger } from "../inventory/stock-ledger.service";
+import type { AuthUser } from "../../auth/auth-user";
+
+/** Controlled-substance register (running balance), physical audits, discrepancy reports. The register rows are written by the stock ledger itself. */
+@Injectable()
+export class ControlledService {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(StockLedger) private readonly ledger: StockLedger) {}
+
+  /** The register book for one drug (or all controlled drugs) with the running balance after each movement. */
+  async register(orgId: string, q: { branchId?: string; drugId?: string; from?: Date; to?: Date; skip: number; take: number }) {
+    const where: Prisma.ControlledRegisterEntryWhereInput = { orgId, ...(q.branchId ? { branchId: q.branchId } : {}), ...(q.drugId ? { drugId: q.drugId } : {}), ...(q.from || q.to ? { occurredAt: { ...(q.from ? { gte: q.from } : {}), ...(q.to ? { lte: q.to } : {}) } } : {}) };
+    const [rows, total] = await Promise.all([this.prisma.controlledRegisterEntry.findMany({ where, orderBy: [{ occurredAt: "desc" }, { id: "desc" }], skip: q.skip, take: q.take }), this.prisma.controlledRegisterEntry.count({ where })]);
+    const [drugs, lots, staff] = await Promise.all([
+      this.prisma.drug.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.drugId))] } }, select: { id: true, brandName: true, brandNameAr: true, strength: true, controlledSchedule: true } }),
+      this.prisma.stockLot.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.lotId))] } }, select: { id: true, lotNumber: true } }),
+      this.prisma.staffUser.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.performedBy))] } }, select: { id: true, displayName: true } }),
+    ]);
+    const dm = new Map(drugs.map((d) => [d.id, d])), lm = new Map(lots.map((l) => [l.id, l.lotNumber])), sm = new Map(staff.map((s) => [s.id, s.displayName]));
+    return { total, items: rows.map((r) => ({ ...r, drug: dm.get(r.drugId) ?? null, lotNumber: lm.get(r.lotId) ?? null, performedByName: sm.get(r.performedBy) ?? null })) };
+  }
+
+  /** Balance per controlled drug: register running balance vs the stock projection (they must agree) and the last movement. */
+  async balances(orgId: string, branchId?: string) {
+    const lots = await this.prisma.stockLot.groupBy({ by: ["branchId", "drugId"], where: { orgId, ...(branchId ? { branchId } : {}), drug: { controlledSchedule: { not: "NONE" } } }, _sum: { qtyOnHand: true } });
+    const drugs = await this.prisma.drug.findMany({ where: { id: { in: lots.map((l) => l.drugId) } }, select: { id: true, brandName: true, brandNameAr: true, strength: true, controlledSchedule: true } });
+    const dm = new Map(drugs.map((d) => [d.id, d]));
+    const out = [];
+    for (const l of lots) {
+      const last = await this.prisma.controlledRegisterEntry.findFirst({ where: { orgId, branchId: l.branchId, drugId: l.drugId }, orderBy: [{ occurredAt: "desc" }, { id: "desc" }] });
+      const onHand = l._sum.qtyOnHand ?? 0, register = last?.balanceAfter ?? 0;
+      out.push({ branchId: l.branchId, drug: dm.get(l.drugId) ?? null, drugId: l.drugId, onHand, registerBalance: register, inSync: onHand === register, lastMovementAt: last?.occurredAt ?? null });
+    }
+    return out.sort((a, b) => (a.drug?.brandName ?? "").localeCompare(b.drug?.brandName ?? ""));
+  }
+
+  /** Physical count of one controlled drug at a branch against the register balance. A difference opens a discrepancy report. */
+  async audit(user: AuthUser, d: { branchId: string; drugId: string; countedQty: number; notes?: string; witness: { id: string; name: string } }) {
+    const drug = await this.prisma.drug.findFirst({ where: { id: d.drugId, active: true, OR: [{ orgId: null }, { orgId: user.orgId }] } });
+    if (!drug) throw notFound("Drug", d.drugId);
+    if (drug.controlledSchedule === "NONE") throw new DomainError("NOT_CONTROLLED", "This drug is not a controlled medicine", 409);
+    const last = await this.prisma.controlledRegisterEntry.findFirst({ where: { orgId: user.orgId, branchId: d.branchId, drugId: d.drugId }, orderBy: [{ occurredAt: "desc" }, { id: "desc" }] });
+    const expected = last?.balanceAfter ?? 0;
+    const diff = d.countedQty - expected;
+    const r = await this.prisma.$transaction(async (tx) => {
+      const disc = diff === 0 ? null : await tx.controlledDiscrepancy.create({ data: { orgId: user.orgId, branchId: d.branchId, drugId: d.drugId, expectedQty: expected, countedQty: d.countedQty, difference: diff, notes: d.notes, reportedBy: user.userId, witnessId: d.witness.id } });
+      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: diff === 0 ? "controlled.audit_ok" : "controlled.discrepancy", entityType: "Drug", entityId: d.drugId, meta: { branchId: d.branchId, expected, counted: d.countedQty, difference: diff, witnessId: d.witness.id } } });
+      return disc;
+    });
+    return { match: diff === 0, expected, counted: d.countedQty, difference: diff, discrepancy: r };
+  }
+
+  async discrepancies(orgId: string, q: { status?: string; branchId?: string }) {
+    const rows = await this.prisma.controlledDiscrepancy.findMany({ where: { orgId, ...(q.status ? { status: q.status } : {}), ...(q.branchId ? { branchId: q.branchId } : {}) }, orderBy: { createdAt: "desc" }, take: 200 });
+    const drugs = await this.prisma.drug.findMany({ where: { id: { in: rows.map((r) => r.drugId) } }, select: { id: true, brandName: true, brandNameAr: true, strength: true } });
+    const dm = new Map(drugs.map((x) => [x.id, x]));
+    return rows.map((r) => ({ ...r, drug: dm.get(r.drugId) ?? null }));
+  }
+
+  /** Resolve a discrepancy: a written resolution, and optionally the stock correction (COUNT_VARIANCE on a chosen lot, witnessed) so the register matches the shelf. */
+  async resolve(user: AuthUser, id: string, d: { resolution: string; adjustLotId?: string; witness?: { id: string; name: string } }) {
+    const disc = await this.prisma.controlledDiscrepancy.findFirst({ where: { id, orgId: user.orgId } });
+    if (!disc) throw notFound("Discrepancy", id);
+    if (disc.status !== "OPEN") throw new DomainError("ALREADY_RESOLVED", "This discrepancy is already resolved", 409);
+    return this.prisma.$transaction(async (tx) => {
+      if (d.adjustLotId) {
+        const lot = await this.ledger.lockLot(tx, d.adjustLotId, user.orgId);
+        if (lot.branchId !== disc.branchId || lot.drugId !== disc.drugId) throw new DomainError("LOT_MISMATCH", "The lot must belong to the same branch and drug", 409);
+        await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId: lot.id, type: "COUNT_VARIANCE", quantity: disc.difference, performedBy: user.userId, approvedBy: user.userId, reason: `Controlled discrepancy ${id}: ${d.resolution}`, refType: "ControlledDiscrepancy", refId: id, witness: d.witness });
+      }
+      const r = await tx.controlledDiscrepancy.update({ where: { id }, data: { status: "RESOLVED", resolution: d.resolution, resolvedBy: user.userId, resolvedAt: new Date() } });
+      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "controlled.discrepancy_resolved", entityType: "ControlledDiscrepancy", entityId: id, meta: { adjusted: !!d.adjustLotId } } });
+      return r;
+    });
+  }
+}

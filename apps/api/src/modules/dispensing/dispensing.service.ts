@@ -16,6 +16,7 @@ import { DispenseHooks } from "../../common/dispense-hooks";
 import { hasUnresolvedBlock, runSafetyChecks, type EngineItem } from "../prescriptions/safety/rx-safety-engine";
 import { roleHas } from "../../auth/permissions";
 import { renderRxLabelsHtml } from "./rx-label-template";
+import { ClinicalKnowledge } from "../clinical/knowledge";
 
 /**
  * SAFETY PATH (KPRX03-06, ADR-025: NEVER behind a feature flag and not switchable).
@@ -54,6 +55,7 @@ export class DispensingService {
     @Inject(PspAdapter) private readonly psp: PspAdapter,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
     @Inject(DispenseHooks) private readonly hooks: DispenseHooks,
+    @Inject(ClinicalKnowledge) private readonly kb: ClinicalKnowledge,
   ) {}
 
   // ----------------------------------------------------------------------------------------------- create (validate, check, reserve)
@@ -120,18 +122,20 @@ export class DispensingService {
       : [];
     const recentDrugs = recentRows.length ? await this.prisma.drug.findMany({ where: { id: { in: recentRows.map((r) => r.drugId) } }, select: { id: true, activeIngredient: true } }) : [];
     const rd = new Map(recentDrugs.map((d) => [d.id, d.activeIngredient]));
-    const engineItems: EngineItem[] = bound.map((b) => ({ drugId: b.drug.id, activeIngredient: b.drug.activeIngredient, quantity: b.it.quantity, controlledSchedule: b.drug.controlledSchedule, label: b.drug.brandName }));
+    const engineItems: EngineItem[] = bound.map((b) => ({ drugId: b.drug.id, activeIngredient: b.drug.activeIngredient, quantity: b.it.quantity, controlledSchedule: b.drug.controlledSchedule, label: b.drug.brandName, strength: b.drug.strength, directions: b.line?.directions ?? null }));
+    const snapshot = await this.kb.snapshot(orgId);
+    const ageYears = patient?.dateOfBirth ? Math.floor((Date.now() - patient.dateOfBirth.getTime()) / 31_557_600_000) : patient?.birthYear ? new Date().getUTCFullYear() - patient.birthYear : null;
     const results = runSafetyChecks(
       engineItems,
-      { allergies: patient?.allergies ?? [], recent: recentRows.map((r) => ({ ingredient: rd.get(r.drugId) ?? "", dispensedAt: r.dispensing.dispensedAt ?? new Date() })).filter((r) => r.ingredient) },
+      { allergies: patient?.allergies ?? [], pregnant: patient?.pregnant, lactating: patient?.lactating, renalImpairment: patient?.renalImpairment, hepaticImpairment: patient?.hepaticImpairment, ageYears, weightKg: patient?.weightKg ? Number(patient.weightKg) : null, recent: recentRows.map((r) => ({ ingredient: rd.get(r.drugId) ?? "", dispensedAt: r.dispensing.dispensedAt ?? new Date() })).filter((r) => r.ingredient) },
       { hasRx: !!rx, prescriberName: rx?.prescriberName, prescriberLicenceNo: rx?.prescriberLicenceNo, prescriberVerifiedBadge: rx?.prescriberVerifiedBadge, validUntil: rx?.validUntil },
-      { controlledQuantityLimit: pack.controlledQuantityLimit },
+      { controlledQuantityLimit: pack.controlledQuantityLimit, kb: snapshot },
     );
 
     const at = new Date();
     return this.prisma.$transaction(async (tx) => {
       const disp = await tx.dispensing.create({ data: { orgId, branchId: input.branchId, prescriptionId: rx?.id, patientId: patient?.id, status: "VALIDATED", createdBy: user.userId, kiorexOrderRef: input.kiorexOrderId, safetyChecksRunAt: at, partialReason: input.partialReason } });
-      await tx.safetyCheckResult.createMany({ data: results.map((r) => ({ dispensingId: disp.id, kind: r.kind, outcome: r.outcome, detail: r.detail })) });
+      await tx.safetyCheckResult.createMany({ data: results.map((r) => ({ dispensingId: disp.id, kind: r.kind, outcome: r.outcome, detail: r.detail, overridable: r.overridable })) });
       // KPINV02 FEFO reservation across lots (all-or-nothing)
       const takenByLot = new Map<string, number>();
       for (const b of bound) {
@@ -179,9 +183,9 @@ export class DispensingService {
     const c = d.safetyChecks.find((x) => x.id === checkId);
     if (!c) throw notFound("Safety check", checkId);
     if (c.outcome !== "BLOCK") throw new DomainError("NOT_BLOCKED", "Only BLOCK results are overridden", 409);
-    if (c.kind === "CONTROLLED_LIMIT" || c.kind === "PRESCRIBER" || c.kind === "DOSE_QUANTITY") throw new DomainError("NOT_OVERRIDABLE", `${c.kind} blocks are regulatory hard stops and cannot be overridden`, 403);
+    if (c.kind === "CONTROLLED_LIMIT" || c.kind === "PRESCRIBER" || c.kind === "DOSE_QUANTITY" || !c.overridable) throw new DomainError("NOT_OVERRIDABLE", `${c.kind} blocks are regulatory hard stops and cannot be overridden`, 403);
     await this.prisma.safetyCheckResult.update({ where: { id: checkId }, data: { outcome: "OVERRIDDEN_BY_PHARMACIST", overriddenBy: user.userId, overrideReason: reason } });
-    await this.prisma.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "dispense.safety_override", entityType: "Dispensing", entityId: id, meta: { kind: c.kind, reason } } });
+    await this.prisma.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "dispense.safety_override", entityType: "Dispensing", entityId: id, meta: { kind: c.kind, reason, detail: c.detail ?? null } } });
     return this.get(user.orgId, id);
   }
 
@@ -207,7 +211,7 @@ export class DispensingService {
     if (d.status !== "RESERVED") throw new DomainError("BAD_STATE", `Dispensing must be RESERVED to sign off (is ${d.status})`, 409);
     if (!d.safetyChecksRunAt) throw new DomainError("SAFETY_CHECKS_NOT_RUN", "Safety checks have not run", 409);
     const kinds = new Set(d.safetyChecks.map((c) => c.kind));
-    for (const k of ["INTERACTION", "ALLERGY", "DUPLICATE_THERAPY", "DOSE_QUANTITY", "PRESCRIBER", "CONTROLLED_LIMIT"] as const) if (!kinds.has(k)) throw new DomainError("SAFETY_CHECKS_INCOMPLETE", `Safety check ${k} is missing`, 409);
+    for (const k of ["INTERACTION", "ALLERGY", "DUPLICATE_THERAPY", "DOSE_QUANTITY", "PRESCRIBER", "CONTROLLED_LIMIT", "DOSE_RANGE", "PREGNANCY_LACTATION", "RENAL_HEPATIC"] as const) if (!kinds.has(k)) throw new DomainError("SAFETY_CHECKS_INCOMPLETE", `Safety check ${k} is missing`, 409);
     if (hasUnresolvedBlock(d.safetyChecks)) throw new DomainError("SAFETY_BLOCK_UNRESOLVED", "Resolve or override every BLOCK before sign-off", 409, { blocks: d.safetyChecks.filter((c) => c.outcome === "BLOCK").map((c) => ({ id: c.id, kind: c.kind, detail: c.detail })) });
     const controlled = d.lines.some((l) => l.drug && l.drug.controlledSchedule !== "NONE");
     if (controlled && !d.controlledIdCaptured) throw new DomainError("CONTROLLED_ID_REQUIRED", "Capture the patient ID before signing off a controlled medicine", 409);
@@ -318,6 +322,7 @@ export class DispensingService {
           const patient = await tx.patientRef.findUniqueOrThrow({ where: { id: d.patientId! } });
           if (!patient.nationalIdLast4) throw new DomainError("CONTROLLED_ID_REQUIRED", "Patient ID not on file", 409);
           for (const l of controlledLines) {
+            await tx.controlledRegisterEntry.updateMany({ where: { refType: "Dispensing", refId: id, lotId: l.lotId, kind: "DISPENSE" }, data: { patientName: patient.displayName, patientIdLast4: patient.nationalIdLast4, prescriptionId: d.prescriptionId, prescriberLicenceNo: d.prescription?.prescriberLicenceNo } });
             await tx.controlledSubstanceLogEntry.create({
               data: { orgId: user.orgId, branchId: d.branchId, dispensingId: id, drugId: l.drugId, lotId: l.lotId, quantity: l.quantity, patientNationalIdLast4: patient.nationalIdLast4, patientNationalIdHash: patient.nationalIdHash, patientName: patient.displayName, prescriptionId: d.prescriptionId, prescriberLicenceNo: d.prescription?.prescriberLicenceNo, pharmacistId: d.pharmacistId! },
             });

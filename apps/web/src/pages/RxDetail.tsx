@@ -69,8 +69,8 @@ function SafetyPanel({ d, canOverride }: { d: Dispensing; canOverride: boolean }
               <div className="flex min-w-0 gap-3"><Icon aria-hidden="true" className={`mt-0.5 size-5 shrink-0 ${ic}`} />
                 <div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{t(`check.${c.kind}`)}</span><Badge tone={OUTCOME_TONE[c.outcome] ?? "neutral"}>{t(`outcome.${c.outcome}`)}</Badge></div>
                   {c.detail && <p className="mt-1 text-sm text-muted-foreground">{c.detail}</p>}{c.overrideReason && <p className="mt-1 text-xs">{t("disp.overrideReason")}: {c.overrideReason}</p>}</div></div>
-              {c.outcome === "BLOCK" && canOverride && !["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <Button size="sm" variant="outline" onClick={() => setOv({ id: c.id, kind: c.kind })}>{t("disp.override")}</Button>}
-              {c.outcome === "BLOCK" && ["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <span className="text-xs font-semibold text-[hsl(var(--danger-text))]">{t("disp.hardStop")}</span>}
+              {c.outcome === "BLOCK" && canOverride && c.overridable !== false && !["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind) && <Button size="sm" variant="outline" onClick={() => setOv({ id: c.id, kind: c.kind })}>{t("disp.override")}</Button>}
+              {c.outcome === "BLOCK" && (c.overridable === false || ["CONTROLLED_LIMIT", "PRESCRIBER", "DOSE_QUANTITY"].includes(c.kind)) && <span className="text-xs font-semibold text-[hsl(var(--danger-text))]">{t("disp.hardStop")}</span>}
             </li>
           );
         })}

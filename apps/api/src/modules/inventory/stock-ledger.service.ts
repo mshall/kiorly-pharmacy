@@ -26,7 +26,13 @@ export interface PostMovement {
   approvedBy?: string;
   /** SALE/DISPENSE that consumes its own earlier reservation: skip the free-quantity check. */
   fromReservation?: boolean;
+  /** Controlled medicines: second staff member who countersigned the adjustment / write-off / return / transfer (required for those types). */
+  witness?: { id: string; name: string };
 }
+
+/** Controlled-medicine movements that must be countersigned (decreases and corrections; receipts and dispensing have their own controls). */
+const WITNESS_REQUIRED: ReadonlySet<StockMovementType> = new Set(["ADJUSTMENT", "COUNT_VARIANCE", "EXPIRY_WRITE_OFF", "RECALL_WRITE_OFF", "RETURN_TO_SUPPLIER", "TRANSFER_OUT"]);
+const NOT_STOCK: ReadonlySet<StockMovementType> = new Set(["RESERVE", "RELEASE_RESERVATION"]);
 
 /**
  * The stock ledger (KPINV). StockMovement is append-only and is the ONLY way stock changes; qtyOnHand/qtyReserved are a projection
@@ -73,12 +79,21 @@ export class StockLedger {
       needsApproval(lot.qtyOnHand + qtyDelta < 0, new DomainError("NEGATIVE_STOCK_REQUIRES_APPROVAL", "Stock would go negative; manager approval required", 409, { lotId: lot.id }));
     }
 
+    const drug = NOT_STOCK.has(m.type) ? null : await tx.drug.findUnique({ where: { id: lot.drugId }, select: { controlledSchedule: true } });
+    const controlled = !!drug && drug.controlledSchedule !== "NONE";
+    if (controlled && WITNESS_REQUIRED.has(m.type) && !m.witness) throw new DomainError("WITNESS_REQUIRED", "Controlled medicine: a witness (second staff member) must countersign this stock change", 409, { lotId: lot.id, type: m.type });
+
     const row = await tx.stockMovement.create({
       data: {
         orgId: m.orgId, branchId: m.branchId, lotId: m.lotId, type: m.type, qtyDelta, reason: m.reason, refType: m.refType, refId: m.refId,
         managerApprovalBy: m.approvedBy, performedBy: m.performedBy,
       },
     });
+    if (controlled) {
+      // controlled-substance register: running balance per branch + drug, written in the same transaction as the movement
+      const bal = await tx.stockLot.aggregate({ where: { orgId: m.orgId, branchId: m.branchId, drugId: lot.drugId }, _sum: { qtyOnHand: true } });
+      await tx.controlledRegisterEntry.create({ data: { orgId: m.orgId, branchId: m.branchId, drugId: lot.drugId, lotId: m.lotId, movementId: row.id, kind: m.type, qtyDelta, balanceAfter: bal._sum.qtyOnHand ?? 0, refType: m.refType, refId: m.refId, performedBy: m.performedBy, witnessId: m.witness?.id, witnessName: m.witness?.name, reason: m.reason, occurredAt: row.occurredAt } });
+    }
     if (usedApproval) {
       await tx.auditLog.create({ data: { orgId: m.orgId, actorId: m.performedBy, action: "stock.negative_approved", entityType: "StockLot", entityId: m.lotId, meta: { approvedBy: m.approvedBy ?? null, movementId: row.id, qty: qtyDelta } } });
     }

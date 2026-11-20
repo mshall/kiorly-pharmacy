@@ -46,7 +46,9 @@
     "groupClinical": "Clinical",
     "groupStock": "Stock",
     "groupMoney": "Money",
-    "groupAdmin": "Admin"
+    "groupAdmin": "Admin",
+    "controlled": "Controlled register",
+    "safety": "Clinical safety"
   },
   "auth": {
     "email": "Email",
@@ -103,7 +105,7 @@
       "DB_INVARIANT": "A safety rule blocked this action.",
       "VALIDATION_FAILED": "Please check the form fields.",
       "UNAUTHENTICATED": "Please sign in.",
-      "NOT_OVERRIDABLE": "This is a regulatory hard stop and cannot be overridden.",
+      "NOT_OVERRIDABLE": "This safety block cannot be overridden.",
       "SUBSTITUTION_CONSENT_REQUIRED": "The patient must consent to the substitution.",
       "SUBSTITUTION_REQUIRES_PHARMACIST": "Only a pharmacist can decide a substitution.",
       "CONSENT_INVALID": "The patient consent is missing or expired.",
@@ -122,7 +124,10 @@
       "PRESCRIBER_EXISTS": "A prescriber with this licence already exists.",
       "LABELS_NOT_READY": "Labels print after the pharmacist signs off.",
       "ISSUED_IN_FUTURE": "The issue date cannot be in the future.",
-      "PATIENT_REQUIRED": "Choose or enter a patient."
+      "PATIENT_REQUIRED": "Choose or enter a patient.",
+      "NOT_CONTROLLED": "This medicine is not a controlled substance.",
+      "ALREADY_RESOLVED": "Already resolved.",
+      "RULE_EXISTS": "This pharmacy already has a rule for that entry."
     }
   },
   "dash": {
@@ -489,7 +494,10 @@
     "DUPLICATE_THERAPY": "Duplicate therapy",
     "DOSE_QUANTITY": "Dose / quantity",
     "PRESCRIBER": "Prescriber and validity",
-    "CONTROLLED_LIMIT": "Controlled-medicine limit"
+    "CONTROLLED_LIMIT": "Controlled-medicine limit",
+    "DOSE_RANGE": "Dose range",
+    "PREGNANCY_LACTATION": "Pregnancy / breastfeeding",
+    "RENAL_HEPATIC": "Kidney / liver"
   },
   "outcome": {
     "PASS": "Pass",
@@ -954,5 +962,105 @@
     "empty": "No customers yet",
     "emptyHint": "Add your first customer or attach one at the till.",
     "available": "Available"
+  },
+  "ctl": {
+    "title": "Controlled-substance register",
+    "subtitle": "Running balance for every movement, witness signatures, physical audits and discrepancy reports.",
+    "tabBalances": "Balances",
+    "tabRegister": "Register book",
+    "tabAudits": "Audits & discrepancies",
+    "drug": "Controlled medicine",
+    "schedule": "Schedule",
+    "onHand": "On hand",
+    "registerBalance": "Register balance",
+    "inSync": "In sync",
+    "outOfSync": "Mismatch",
+    "lastMovement": "Last movement",
+    "noControlled": "No controlled medicines in stock",
+    "pickDrug": "Choose a medicine to see its register book",
+    "allDrugs": "All controlled medicines",
+    "movement": "Movement",
+    "change": "Change",
+    "balance": "Balance",
+    "patient": "Patient",
+    "idLast4": "ID (last 4)",
+    "prescriber": "Prescriber",
+    "by": "By",
+    "witness": "Witness",
+    "kind": {
+      "RECEIPT": "Receipt",
+      "DISPENSE": "Dispensed",
+      "ADJUSTMENT": "Adjustment",
+      "COUNT_VARIANCE": "Count variance",
+      "EXPIRY_WRITE_OFF": "Expiry write-off",
+      "RECALL_WRITE_OFF": "Recall write-off",
+      "RETURN_TO_SUPPLIER": "Return to supplier",
+      "RETURN_FROM_CUSTOMER": "Customer return",
+      "TRANSFER_OUT": "Transfer out",
+      "TRANSFER_IN": "Transfer in",
+      "SALE": "Sale"
+    },
+    "newAudit": "New physical audit",
+    "countedQty": "Counted quantity",
+    "auditNotes": "Notes",
+    "auditMatch": "Count matches the register (expected {{expected}})",
+    "auditDiff": "Difference of {{diff}} against the register ({{expected}} expected) — a discrepancy report was opened",
+    "witnessHint": "A second staff member must sign with their own credentials.",
+    "witnessEmail": "Witness email",
+    "witnessPassword": "Witness password",
+    "discrepancies": "Discrepancy reports",
+    "expected": "Expected",
+    "counted": "Counted",
+    "difference": "Difference",
+    "open": "Open",
+    "resolved": "Resolved",
+    "resolve": "Resolve",
+    "resolution": "Resolution (what happened)",
+    "adjustLot": "Correct the stock on this lot",
+    "noDiscrepancies": "No discrepancies",
+    "exportCsv": "Export register"
+  },
+  "saf": {
+    "title": "Clinical safety",
+    "subtitle": "The knowledge base behind the safety checks, and every pharmacist override.",
+    "tabKb": "Knowledge base",
+    "tabOverrides": "Overrides",
+    "mode": "Knowledge source: {{mode}} (pluggable)",
+    "disclaimer": "Starter dataset: a clinical pharmacist must review it before use with patients.",
+    "kindLabel": "Kind",
+    "kind": {
+      "INTERACTION": "Interaction",
+      "DOSE_RANGE": "Dose range",
+      "PREGNANCY": "Pregnancy",
+      "LACTATION": "Breastfeeding",
+      "RENAL": "Kidney",
+      "HEPATIC": "Liver"
+    },
+    "ingredient": "Ingredient",
+    "ingredientB": "Second ingredient",
+    "severity": "Severity",
+    "sev": {
+      "MINOR": "Minor",
+      "MODERATE": "Moderate",
+      "MAJOR": "Major",
+      "CONTRAINDICATED": "Contraindicated"
+    },
+    "category": "Pregnancy category",
+    "maxDaily": "Max daily mg",
+    "maxSingle": "Max single dose mg",
+    "maxPediatric": "Max mg/kg/day (child)",
+    "note": "Note",
+    "scopeLabel": "Source",
+    "scope": {
+      "BUILT_IN": "Built-in",
+      "GLOBAL": "Seeded",
+      "TENANT": "This pharmacy"
+    },
+    "addRule": "Add rule",
+    "search": "Search ingredient",
+    "overridesEmpty": "No overrides recorded",
+    "overriddenBy": "Pharmacist",
+    "reason": "Reason given",
+    "when": "When"
   }
 }

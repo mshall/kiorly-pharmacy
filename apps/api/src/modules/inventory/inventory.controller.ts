@@ -74,7 +74,7 @@ export class InventoryController {
 
   @Post("lots/:id/write-off")
   @Perm("inventory.adjust")
-  writeOff(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: dto.ReasonDto) { return this.inv.writeOff(u, id, d.reason); }
+  async writeOff(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: dto.ReasonDto) { return this.inv.writeOff(u, id, d.reason, d.witness ? await this.approvals.witness(u, d.witness) : undefined); }
 
   @Post("adjustments")
   @Perm("inventory.adjust")
@@ -83,7 +83,7 @@ export class InventoryController {
     if (!lot) throw new DomainError("LOT_NOT_FOUND", "Lot not found", 404);
     const goesNegative = d.quantity < 0 && lot.qtyOnHand + d.quantity < 0;
     const approver = goesNegative ? await this.approvals.approver(u, "inventory.negative_stock", d.approval) : undefined;
-    return this.inv.adjust(u, d.lotId, d.quantity, d.reason, approver);
+    return this.inv.adjust(u, d.lotId, d.quantity, d.reasonCode ? `[${d.reasonCode}] ${d.reason}` : d.reason, approver, d.witness ? await this.approvals.witness(u, d.witness) : undefined);
   }
 
   @Get("expiry")
@@ -96,7 +96,7 @@ export class InventoryController {
 
   @Post("returns-to-supplier")
   @Perm("inventory.adjust", "supplier.read")
-  returnToSupplier(@CurrentUser() u: AuthUser, @Body() d: dto.ReturnSupplierDto) { return this.inv.returnToSupplier(u, d); }
+  async returnToSupplier(@CurrentUser() u: AuthUser, @Body() d: dto.ReturnSupplierDto) { const { witness, ...rest } = d; return this.inv.returnToSupplier(u, { ...rest, witness: witness ? await this.approvals.witness(u, witness) : undefined }); }
 
   @Post("cold-chain/:lotId/readings")
   @Perm("inventory.receive")
@@ -132,7 +132,7 @@ export class InventoryController {
   countSubmit(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.counts.submit(u, id); }
   @Post("counts/:id/approve")
   @Perm("inventory.count.approve")
-  countApprove(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.counts.approve(u, id); }
+  async countApprove(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: dto.WitnessDto) { return this.counts.approve(u, id, d.witness ? await this.approvals.witness(u, d.witness) : undefined); }
   @Post("counts/:id/reject")
   @Perm("inventory.count.approve")
   countReject(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.counts.reject(u, id); }
@@ -152,7 +152,7 @@ export class InventoryController {
   @UseGuards(RequiresEntitlementGuard)
   @RequiresEntitlement("transfers")
   @Perm("inventory.transfer")
-  transferDispatch(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.transfers.dispatch(u, id); }
+  async transferDispatch(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: dto.WitnessDto) { return this.transfers.dispatch(u, id, d.witness ? await this.approvals.witness(u, d.witness) : undefined); }
   @Post("transfers/:id/receive")
   @UseGuards(RequiresEntitlementGuard)
   @RequiresEntitlement("transfers")

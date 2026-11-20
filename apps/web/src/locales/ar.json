@@ -46,7 +46,9 @@
     "groupClinical": "الصيدلة الإكلينيكية",
     "groupStock": "المخزون",
     "groupMoney": "المال",
-    "groupAdmin": "الإدارة"
+    "groupAdmin": "الإدارة",
+    "controlled": "سجل المراقبة",
+    "safety": "الأمان الدوائي"
   },
   "auth": {
     "email": "البريد الإلكتروني",
@@ -103,7 +105,7 @@
       "DB_INVARIANT": "قاعدة سلامة منعت هذا الإجراء.",
       "VALIDATION_FAILED": "يرجى مراجعة حقول النموذج.",
       "UNAUTHENTICATED": "يرجى تسجيل الدخول.",
-      "NOT_OVERRIDABLE": "هذا إيقاف تنظيمي ولا يمكن تجاوزه.",
+      "NOT_OVERRIDABLE": "لا يمكن تجاوز هذا المنع.",
       "SUBSTITUTION_CONSENT_REQUIRED": "يجب موافقة المريض على البديل.",
       "SUBSTITUTION_REQUIRES_PHARMACIST": "البديل من اختصاص الصيدلي فقط.",
       "CONSENT_INVALID": "موافقة المريض مفقودة أو منتهية.",
@@ -122,7 +124,10 @@
       "PRESCRIBER_EXISTS": "يوجد طبيب بنفس رقم الترخيص.",
       "LABELS_NOT_READY": "تُطبع الملصقات بعد توقيع الصيدلي.",
       "ISSUED_IN_FUTURE": "تاريخ الإصدار لا يمكن أن يكون في المستقبل.",
-      "PATIENT_REQUIRED": "اختر المريض أو أدخل بياناته."
+      "PATIENT_REQUIRED": "اختر المريض أو أدخل بياناته.",
+      "NOT_CONTROLLED": "هذا الدواء ليس من المواد المراقبة.",
+      "ALREADY_RESOLVED": "تم الحل بالفعل.",
+      "RULE_EXISTS": "لدى الصيدلية قاعدة لهذا البند بالفعل."
     }
   },
   "dash": {
@@ -489,7 +494,10 @@
     "DUPLICATE_THERAPY": "تكرار العلاج",
     "DOSE_QUANTITY": "الجرعة / الكمية",
     "PRESCRIBER": "الطبيب وصلاحية الوصفة",
-    "CONTROLLED_LIMIT": "حد الأدوية المراقبة"
+    "CONTROLLED_LIMIT": "حد الأدوية المراقبة",
+    "DOSE_RANGE": "نطاق الجرعة",
+    "PREGNANCY_LACTATION": "الحمل / الرضاعة",
+    "RENAL_HEPATIC": "الكلى / الكبد"
   },
   "outcome": {
     "PASS": "سليم",
@@ -954,5 +962,105 @@
     "empty": "لا يوجد عملاء بعد",
     "emptyHint": "أضف أول عميل أو اربط عميلاً من شاشة البيع.",
     "available": "المتاح"
+  },
+  "ctl": {
+    "title": "سجل المواد المراقبة",
+    "subtitle": "رصيد متجدد لكل حركة وتوقيع الشاهد والجرد الفعلي وتقارير الفروقات.",
+    "tabBalances": "الأرصدة",
+    "tabRegister": "دفتر السجل",
+    "tabAudits": "الجرد والفروقات",
+    "drug": "الدواء المراقب",
+    "schedule": "الجدول",
+    "onHand": "المتاح بالمخزون",
+    "registerBalance": "رصيد السجل",
+    "inSync": "متطابق",
+    "outOfSync": "غير متطابق",
+    "lastMovement": "آخر حركة",
+    "noControlled": "لا توجد أدوية مراقبة بالمخزون",
+    "pickDrug": "اختر دواءً لعرض دفتر السجل",
+    "allDrugs": "كل الأدوية المراقبة",
+    "movement": "الحركة",
+    "change": "التغيير",
+    "balance": "الرصيد",
+    "patient": "المريض",
+    "idLast4": "الهوية (آخر 4)",
+    "prescriber": "الطبيب",
+    "by": "بواسطة",
+    "witness": "الشاهد",
+    "kind": {
+      "RECEIPT": "استلام",
+      "DISPENSE": "صرف",
+      "ADJUSTMENT": "تسوية",
+      "COUNT_VARIANCE": "فرق جرد",
+      "EXPIRY_WRITE_OFF": "إعدام انتهاء صلاحية",
+      "RECALL_WRITE_OFF": "إعدام سحب",
+      "RETURN_TO_SUPPLIER": "مرتجع للمورد",
+      "RETURN_FROM_CUSTOMER": "مرتجع عميل",
+      "TRANSFER_OUT": "تحويل صادر",
+      "TRANSFER_IN": "تحويل وارد",
+      "SALE": "بيع"
+    },
+    "newAudit": "جرد فعلي جديد",
+    "countedQty": "الكمية المعدودة",
+    "auditNotes": "ملاحظات",
+    "auditMatch": "الجرد مطابق للسجل (المتوقع {{expected}})",
+    "auditDiff": "فرق {{diff}} عن السجل (المتوقع {{expected}}) — تم فتح تقرير فروقات",
+    "witnessHint": "يجب أن يوقّع موظف آخر ببياناته.",
+    "witnessEmail": "بريد الشاهد",
+    "witnessPassword": "كلمة مرور الشاهد",
+    "discrepancies": "تقارير الفروقات",
+    "expected": "المتوقع",
+    "counted": "المعدود",
+    "difference": "الفرق",
+    "open": "مفتوح",
+    "resolved": "تم الحل",
+    "resolve": "حل",
+    "resolution": "الحل (ما حدث)",
+    "adjustLot": "تصحيح المخزون على هذه التشغيلة",
+    "noDiscrepancies": "لا توجد فروقات",
+    "exportCsv": "تصدير السجل"
+  },
+  "saf": {
+    "title": "الأمان الدوائي",
+    "subtitle": "قاعدة المعرفة خلف فحوص الأمان وكل تجاوز من الصيدلي.",
+    "tabKb": "قاعدة المعرفة",
+    "tabOverrides": "التجاوزات",
+    "mode": "مصدر المعرفة: {{mode}} (قابل للاستبدال)",
+    "disclaimer": "بيانات مبدئية: يجب أن يراجعها صيدلي إكلينيكي قبل استخدامها مع المرضى.",
+    "kindLabel": "النوع",
+    "kind": {
+      "INTERACTION": "تداخل",
+      "DOSE_RANGE": "نطاق الجرعة",
+      "PREGNANCY": "الحمل",
+      "LACTATION": "الرضاعة",
+      "RENAL": "الكلى",
+      "HEPATIC": "الكبد"
+    },
+    "ingredient": "المادة الفعالة",
+    "ingredientB": "المادة الثانية",
+    "severity": "الخطورة",
+    "sev": {
+      "MINOR": "بسيط",
+      "MODERATE": "متوسط",
+      "MAJOR": "كبير",
+      "CONTRAINDICATED": "ممنوع"
+    },
+    "category": "فئة الحمل",
+    "maxDaily": "أقصى جرعة يومية (مجم)",
+    "maxSingle": "أقصى جرعة مفردة (مجم)",
+    "maxPediatric": "أقصى مجم/كجم/يوم (أطفال)",
+    "note": "ملاحظة",
+    "scopeLabel": "المصدر",
+    "scope": {
+      "BUILT_IN": "مدمج",
+      "GLOBAL": "مُحمّل",
+      "TENANT": "هذه الصيدلية"
+    },
+    "addRule": "إضافة قاعدة",
+    "search": "ابحث عن مادة فعالة",
+    "overridesEmpty": "لا توجد تجاوزات مسجلة",
+    "overriddenBy": "الصيدلي",
+    "reason": "السبب المذكور",
+    "when": "الوقت"
   }
 }

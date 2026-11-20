@@ -1,14 +1,16 @@
 import type { SafetyCheckKind, SafetyCheckOutcome } from "@prisma/client";
 import { CROSS_CLASS, INGREDIENT_CLASSES, INTERACTION_RULES, type InteractionRule, type Severity } from "./interaction-dataset";
+import type { ClinicalSnapshot } from "../../clinical/knowledge";
+import { dailyDoseMg } from "../../clinical/dose";
 
 /**
  * SAFETY PATH (KPRX03, safety.pharmacy.rx_safety_checks; ADR-025: runs on EVERY Rx dispensing, never behind a feature flag).
  * Pure functions: interaction / allergy / duplicate-therapy / dose-quantity / prescriber / controlled-limit checks by ACTIVE INGREDIENT.
  * Always returns one result per check kind (PASS when clean) so "checks ran" is provable.
  */
-export interface EngineItem { drugId: string; activeIngredient: string; quantity: number; controlledSchedule: string; label: string }
+export interface EngineItem { drugId: string; activeIngredient: string; quantity: number; controlledSchedule: string; label: string; /** e.g. "500 mg" */ strength?: string | null; /** the sig as written on the Rx line */ directions?: string | null }
 export interface RecentIngredient { ingredient: string; dispensedAt: Date }
-export interface EnginePatient { allergies: string[]; recent: RecentIngredient[] }
+export interface EnginePatient { allergies: string[]; recent: RecentIngredient[]; pregnant?: boolean; lactating?: boolean; renalImpairment?: boolean; hepaticImpairment?: boolean; ageYears?: number | null; weightKg?: number | null }
 export interface EngineRx { prescriberName?: string | null; prescriberLicenceNo?: string | null; prescriberVerifiedBadge?: boolean; validUntil?: Date | null; hasRx: boolean }
 export interface EngineOptions {
   now?: Date;
@@ -18,6 +20,8 @@ export interface EngineOptions {
   /** Recent ingredients within this many days are considered still active for interaction checks. */
   activeCourseDays?: number;
   rules?: readonly InteractionRule[];
+  /** Knowledge base lookups (dose ranges, pregnancy / lactation, renal / hepatic). Without it those checks pass with "no data". */
+  kb?: Pick<ClinicalSnapshot, "dose" | "pregnancy" | "lactation" | "renal" | "hepatic"> & { interactions?: InteractionRule[] };
 }
 export interface CheckResult { kind: SafetyCheckKind; outcome: SafetyCheckOutcome; detail: string | null; /** Overridable by a pharmacist with a reason. */ overridable: boolean }
 
@@ -37,7 +41,7 @@ function classesOf(ingredient: string): string[] {
 
 export function runSafetyChecks(items: EngineItem[], patient: EnginePatient, rx: EngineRx, opt: EngineOptions): CheckResult[] {
   const now = opt.now ?? new Date();
-  const rules = opt.rules ?? INTERACTION_RULES;
+  const rules = opt.rules ?? opt.kb?.interactions ?? INTERACTION_RULES;
   const dupDays = opt.duplicateWindowDays ?? 7;
   const activeDays = opt.activeCourseDays ?? 30;
   const out: CheckResult[] = [];
@@ -115,6 +119,54 @@ export function runSafetyChecks(items: EngineItem[], patient: EnginePatient, rx:
   // CONTROLLED quantity limit — a regulatory hard stop, NOT overridable
   const c = lines.filter((l) => l.controlledSchedule !== "NONE" && l.quantity > opt.controlledQuantityLimit).map((l) => `${l.label}: ${l.quantity} exceeds the controlled-medicine limit of ${opt.controlledQuantityLimit}`);
   out.push(c.length ? { kind: "CONTROLLED_LIMIT", outcome: "BLOCK", detail: c.join("; "), overridable: false } : { kind: "CONTROLLED_LIMIT", outcome: "PASS", detail: null, overridable: false });
+
+  // ---- DOSE RANGE (adult max daily / single dose; paediatric mg/kg when age < 12). Overridable by a pharmacist with a reason.
+  const dose: string[] = []; let doseBlock = false; let doseHard = false;
+  for (const l of lines) {
+    const ings = l.ings;
+    const rule = ings.length === 1 ? opt.kb?.dose.get(ings[0]!) : undefined;
+    const dd = dailyDoseMg(l.directions, l.strength);
+    if (!rule || !dd) continue;
+    const child = patient.ageYears != null && patient.ageYears < 12;
+    if (child && rule.pediatricMaxMgPerKg) {
+      if (!patient.weightKg) { dose.push(`${l.label}: child under 12 — record the weight to check the paediatric dose (max ${rule.pediatricMaxMgPerKg} mg/kg/day)`); continue; }
+      const perKg = dd.dailyMg / patient.weightKg;
+      if (perKg > rule.pediatricMaxMgPerKg) { dose.push(`${l.label}: ${perKg.toFixed(1)} mg/kg/day exceeds the paediatric maximum of ${rule.pediatricMaxMgPerKg} mg/kg/day`); doseBlock = true; }
+      continue;
+    }
+    if (dd.dailyMg > rule.maxDailyMg) { dose.push(`${l.label}: ${dd.dailyMg} mg/day exceeds the maximum of ${rule.maxDailyMg} mg/day`); doseBlock = true; if (dd.dailyMg > rule.maxDailyMg * 2) doseHard = true; }
+    else if (rule.maxSingleMg && dd.perDoseMg > rule.maxSingleMg) dose.push(`${l.label}: single dose ${dd.perDoseMg} mg exceeds ${rule.maxSingleMg} mg`);
+  }
+  out.push(dose.length ? { kind: "DOSE_RANGE", outcome: doseBlock ? "BLOCK" : "WARN", detail: dose.join("; "), overridable: !doseHard } : { kind: "DOSE_RANGE", outcome: "PASS", detail: null, overridable: false });
+
+  // ---- PREGNANCY / LACTATION (flags come from the customer profile)
+  const preg: string[] = []; let pregOutcome = "PASS" as SafetyCheckOutcome; let pregOverridable = true;
+  const bump = (o: SafetyCheckOutcome) => { if (o === "BLOCK" || (o === "WARN" && pregOutcome === "PASS")) pregOutcome = o; };
+  for (const l of lines) for (const ing of l.ings) {
+    if (patient.pregnant) {
+      const r = opt.kb?.pregnancy.get(ing);
+      if (r?.category === "X") { preg.push(`${l.label}: pregnancy category X — contraindicated (${r.note})`); bump("BLOCK"); pregOverridable = false; }
+      else if (r?.category === "D") { preg.push(`${l.label}: pregnancy category D — ${r.note}`); bump("BLOCK"); }
+      else if (r?.category === "C") { preg.push(`${l.label}: pregnancy category C — ${r.note}`); bump("WARN"); }
+    }
+    if (patient.lactating) {
+      const r = opt.kb?.lactation.get(ing);
+      if (r) { preg.push(`${l.label}: breastfeeding — ${r.note}`); if (r.severity === "CONTRAINDICATED") { bump("BLOCK"); pregOverridable = false; } else if (r.severity === "MAJOR") bump("BLOCK"); else bump("WARN"); }
+    }
+  }
+  out.push(preg.length ? { kind: "PREGNANCY_LACTATION", outcome: pregOutcome, detail: preg.join("; "), overridable: pregOutcome === "BLOCK" ? pregOverridable : false } : { kind: "PREGNANCY_LACTATION", outcome: "PASS", detail: null, overridable: false });
+
+  // ---- RENAL / HEPATIC IMPAIRMENT
+  const org: string[] = []; let orgOutcome = "PASS" as SafetyCheckOutcome;
+  for (const l of lines) for (const ing of l.ings) {
+    for (const [flag, map, label] of [[patient.renalImpairment, opt.kb?.renal, "kidney impairment"], [patient.hepaticImpairment, opt.kb?.hepatic, "liver impairment"]] as const) {
+      const r = flag ? map?.get(ing) : undefined;
+      if (!r) continue;
+      org.push(`${l.label}: ${label} — ${r.note}`);
+      if (r.severity === "MAJOR" || r.severity === "CONTRAINDICATED") orgOutcome = "BLOCK"; else if (orgOutcome === "PASS") orgOutcome = "WARN";
+    }
+  }
+  out.push(org.length ? { kind: "RENAL_HEPATIC", outcome: orgOutcome, detail: org.join("; "), overridable: orgOutcome === "BLOCK" } : { kind: "RENAL_HEPATIC", outcome: "PASS", detail: null, overridable: false });
   return out;
 }
 

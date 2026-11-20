@@ -145,6 +145,12 @@ enum SafetyCheckKind {
   DOSE_QUANTITY
   PRESCRIBER
   CONTROLLED_LIMIT
+  /// Prescribed daily dose vs the knowledge-base range (adult / paediatric).
+  DOSE_RANGE
+  /// Pregnancy category / lactation guidance from the knowledge base.
+  PREGNANCY_LACTATION
+  /// Renal / hepatic impairment flags on the customer vs the knowledge base.
+  RENAL_HEPATIC
 }
 
 enum SafetyCheckOutcome {
@@ -804,6 +810,8 @@ model SafetyCheckResult {
   kind           SafetyCheckKind
   outcome        SafetyCheckOutcome
   detail         String?
+  /// false = regulatory / contraindication hard stop that no pharmacist override can clear.
+  overridable    Boolean            @default(true)
   /// Pharmacist override must be explicit and attributed.
   overriddenBy   String?
   overrideReason String?
@@ -1439,4 +1447,82 @@ model RxTransfer {
 
   @@index([orgId, direction, createdAt])
   @@index([prescriptionId])
+}
+
+/// Clinical knowledge base rows (seeded globally with orgId null; a tenant may add or override rules for itself).
+/// kind: INTERACTION | DOSE_RANGE | PREGNANCY | LACTATION | RENAL | HEPATIC. SYNTHETIC starter data: a clinical pharmacist must review before pilot (NEEDS_HUMAN NH-PH-009).
+model ClinicalRule {
+  id                  String   @id @default(cuid())
+  orgId               String?
+  /// Natural key, e.g. "interaction:warfarin|aspirin" or "dose:paracetamol" (+ ":org:<id>" for tenant rules) — makes seeding idempotent.
+  key                 String   @unique
+  kind                String
+  ingredient          String
+  ingredientB         String?
+  /// MINOR | MODERATE | MAJOR | CONTRAINDICATED
+  severity            String   @default("MODERATE")
+  note                String
+  maxDailyMg          Decimal? @db.Decimal(10, 2)
+  maxSingleMg         Decimal? @db.Decimal(10, 2)
+  pediatricMaxMgPerKg Decimal? @db.Decimal(8, 2)
+  /// Pregnancy category A | B | C | D | X.
+  category            String?
+  source              String   @default("seed")
+  active              Boolean  @default(true)
+  createdBy           String?
+  createdAt           DateTime @default(now())
+
+  @@index([kind, ingredient])
+  @@index([orgId])
+}
+
+/// The controlled-substance register book: every stock-changing movement of a controlled medicine with the running balance
+/// after it (per branch + drug), the people involved and the witness. Written by the stock ledger itself, never by hand.
+model ControlledRegisterEntry {
+  id                  String   @id @default(cuid())
+  orgId               String
+  branchId            String
+  drugId              String
+  lotId               String
+  movementId          String   @unique
+  /// StockMovementType as text.
+  kind                String
+  qtyDelta            Int
+  balanceAfter        Int
+  refType             String?
+  refId               String?
+  patientName         String?
+  patientIdLast4      String?
+  prescriptionId      String?
+  prescriberLicenceNo String?
+  performedBy         String
+  witnessId           String?
+  witnessName         String?
+  reason              String?
+  occurredAt          DateTime @default(now())
+
+  @@index([orgId, branchId, drugId, occurredAt])
+  @@index([orgId, occurredAt])
+}
+
+/// A difference between the physical count of a controlled medicine and the register balance.
+model ControlledDiscrepancy {
+  id          String    @id @default(cuid())
+  orgId       String
+  branchId    String
+  drugId      String
+  expectedQty Int
+  countedQty  Int
+  difference  Int
+  /// OPEN | RESOLVED
+  status      String    @default("OPEN")
+  notes       String?
+  reportedBy  String
+  witnessId   String?
+  resolvedBy  String?
+  resolution  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([orgId, status])
 }

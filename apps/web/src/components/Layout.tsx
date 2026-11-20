@@ -7,7 +7,7 @@ import { setLang, type Lang } from "@/lib/i18n";
 import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
 import { KiorlyBrand, ThemeToggle } from "@/brand/ui-kit";
-import { BarChart3, BookOpen, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, BookLock, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
 interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon; group: "" | "counter" | "clinical" | "stock" | "money" | "admin" }
 
@@ -32,6 +32,8 @@ export function Layout() {
     { to: "/customers", label: t("nav.customers"), perm: "customer.read", icon: Users, group: "counter" },
     { to: "/orders", label: t("nav.orders"), perm: "orders.read", flag: "pharmacy.kiorex_orders", icon: Inbox, group: "counter" },
     { to: "/rx", label: t("nav.rx"), perm: "rx.read", icon: Pill, group: "clinical" },
+    { to: "/controlled", label: t("nav.controlled"), perm: "controlled.read", icon: BookLock, group: "clinical" },
+    { to: "/safety", label: t("nav.safety"), perm: "rx.read", icon: ShieldCheck, group: "clinical" },
     { to: "/catalogue", label: t("nav.catalogue"), perm: "catalogue.read", icon: BookOpen, group: "stock" },
     { to: "/inventory", label: t("nav.inventory"), perm: "inventory.read", icon: Boxes, group: "stock" },
     { to: "/receiving", label: t("nav.receiving"), perm: "inventory.receive", icon: PackagePlus, group: "stock" },
