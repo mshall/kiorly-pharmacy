@@ -5,7 +5,7 @@ import { PARTNER_DEV_DEFAULTS, signKiorlyRequest, signWebhook, WEBHOOK_HEADERS }
 /** The seeded dev registration of Kiorex as a machine client of the demo tenant (`prisma/seed.ts`). The client key addresses the tenant; there is no org header. */
 const KX = PARTNER_DEV_DEFAULTS.pharmacy;
 
-export const API = "http://127.0.0.1:3100";
+export const API = process.env.PHARMACY_API_ORIGIN ?? "http://127.0.0.1:3100";
 export const DEMO_PASSWORD = "Demo@12345";
 export const demo = { owner: "owner@demo.kiorly.local", pharmacist: "pharmacist@demo.kiorly.local", cashier: "cashier@demo.kiorly.local", manager: "manager@demo.kiorly.local" };
 

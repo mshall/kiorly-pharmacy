@@ -7,7 +7,7 @@ export const RAMP = ["var(--kx-indigo-800)", "var(--kx-ocean-700)", "var(--kx-in
 
 export function ChartCard({ title, subtitle, legend, children, className }: { title: ReactNode; subtitle?: ReactNode; legend?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <figure className={cn("rounded-xl border border-border/80 bg-card p-5 shadow-[var(--kx-shadow-1)]", className)}>
+    <figure className={cn("rounded-xl border border-border/80 bg-card p-5 shadow-kx-1", className)}>
       <figcaption className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div><div className="text-sm font-semibold">{title}</div>{subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}</div>
         {legend && <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">{legend}</div>}
@@ -30,7 +30,7 @@ export function Columns({ data, format, ariaLabel, height = 180 }: { data: Array
       <div className="flex items-end gap-1 ps-14" style={{ height }} dir="ltr">
         {data.map((d, i) => (
           <div key={i} className="group relative flex h-full flex-1 items-end" title={`${d.label}: ${format(d.value)}`}>
-            <div className="kx-bar w-full rounded-t-md bg-gradient-to-t from-[var(--kx-indigo-800)] to-[var(--kx-ocean-600)] opacity-90 transition-opacity group-hover:opacity-100" style={{ height: `${Math.max(2, (d.value / max) * 100)}%`, animationDelay: `${Math.min(i * 12, 240)}ms` }} />
+            <div className="kx-bar w-full rounded-t-md bg-linear-to-t from-(--kx-indigo-800) to-(--kx-ocean-600) opacity-90 transition-opacity group-hover:opacity-100" style={{ height: `${Math.max(2, (d.value / max) * 100)}%`, animationDelay: `${Math.min(i * 12, 240)}ms` }} />
           </div>
         ))}
       </div>
@@ -43,18 +43,18 @@ export function Columns({ data, format, ariaLabel, height = 180 }: { data: Array
 export function HBars({ rows, format, ariaLabel, marker }: { rows: Array<{ label: string; value: number; sub?: string; tone?: "bad" | "warn"; marker?: number }>; format: (n: number) => string; ariaLabel: string; marker?: string }) {
   const max = Math.max(1, ...rows.map((r) => Math.max(r.value, r.marker ?? 0)));
   return (
-    <ul role="img" aria-label={ariaLabel} className="space-y-2.5">
+    <div role="img" aria-label={ariaLabel} className="space-y-2.5">
       {rows.map((r, i) => (
-        <li key={i} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm max-sm:grid-cols-[minmax(0,7rem)_1fr_auto]">
+        <div key={i} className="grid grid-cols-[minmax(0,10rem)_1fr_auto] items-center gap-3 text-sm max-sm:grid-cols-[minmax(0,7rem)_1fr_auto]">
           <span className="truncate" title={r.label}>{r.label}{r.sub && <span className="ms-1 text-xs text-muted-foreground">{r.sub}</span>}</span>
           <span className="relative h-3 rounded-full bg-muted/70" dir="ltr">
-            <span className="kx-hbar absolute inset-y-0 start-0 rounded-full" style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%`, background: r.tone === "bad" ? "hsl(var(--danger-text))" : r.tone === "warn" ? "hsl(var(--warning))" : `linear-gradient(90deg, var(--kx-indigo-800), var(--kx-ocean-600))`, animationDelay: `${i * 30}ms` }} />
+            <span className="kx-hbar absolute inset-y-0 inset-s-0 rounded-full" style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%`, background: r.tone === "bad" ? "hsl(var(--danger-text))" : r.tone === "warn" ? "hsl(var(--warning))" : `linear-gradient(90deg, var(--kx-indigo-800), var(--kx-ocean-600))`, animationDelay: `${i * 30}ms` }} />
             {r.marker !== undefined && <span aria-hidden className="absolute -inset-y-1 w-0.5 rounded bg-foreground/70" style={{ left: `${(r.marker / max) * 100}%` }} title={marker} />}
           </span>
           <span className="kx-num min-w-16 text-end font-medium">{format(r.value)}</span>
-        </li>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

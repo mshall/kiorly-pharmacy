@@ -13,7 +13,7 @@ import type { Page, Drug } from "@/lib/types";
 function Step({ n, title, done, children }: { n: number; title: string; done?: boolean; children: React.ReactNode }) {
   const { t } = useTranslation();
   return (
-    <section aria-labelledby={`onb-${n}`} className="relative rounded-xl border border-border/80 bg-card p-5 shadow-[var(--kx-shadow-1)]">
+    <section aria-labelledby={`onb-${n}`} className="relative rounded-xl border border-border/80 bg-card p-5 shadow-kx-1">
       <div className="mb-3 flex items-center gap-3"><span aria-hidden className={`flex size-7 items-center justify-center rounded-full text-xs font-semibold ${done ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}`}>{done ? <Check className="size-4" /> : n}</span><h2 id={`onb-${n}`} className="text-base font-semibold">{title}</h2>{done && <StatusChip tone="good" className="ms-auto">{t("common.saved")}</StatusChip>}</div>
       {children}
     </section>

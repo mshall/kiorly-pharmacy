@@ -10,9 +10,9 @@ import { Search, X } from "lucide-react";
 
 export const cn = (...i: ClassValue[]) => twMerge(clsx(i));
 
-const button = cva("inline-flex min-h-10 whitespace-nowrap items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,box-shadow,transform] duration-150 ease-[var(--kx-ease-standard)] active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50", {
+const button = cva("inline-flex min-h-10 whitespace-nowrap items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,box-shadow,transform] duration-150 ease-(--kx-ease-standard) active:translate-y-px focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50", {
   variants: {
-    variant: { primary: "bg-primary text-primary-foreground shadow-[var(--kx-shadow-1)] hover:bg-[var(--kx-primary-hover)]", secondary: "bg-secondary text-secondary-foreground hover:bg-accent", outline: "border border-input bg-card shadow-[var(--kx-shadow-1)] hover:bg-accent", danger: "bg-destructive text-destructive-foreground dark:bg-[#c92a2a] shadow-[var(--kx-shadow-1)] hover:opacity-90", ghost: "hover:bg-accent" },
+    variant: { primary: "bg-primary text-primary-foreground shadow-kx-1 hover:bg-(--kx-primary-hover)", secondary: "bg-secondary text-secondary-foreground hover:bg-accent", outline: "border border-input bg-card shadow-kx-1 hover:bg-accent", danger: "bg-destructive text-destructive-foreground dark:bg-[#c92a2a] shadow-kx-1 hover:opacity-90", ghost: "hover:bg-accent" },
     size: { md: "", lg: "min-h-14 rounded-xl px-6 text-base", sm: "min-h-8 px-3 text-xs" },
   },
   defaultVariants: { variant: "primary", size: "md" },
@@ -25,7 +25,7 @@ export function Button({ className, variant, size, ...p }: ButtonHTMLAttributes<
 
 export function Card({ className, children, title, actions }: { className?: string; children: ReactNode; title?: ReactNode; actions?: ReactNode }) {
   return (
-    <section className={cn("rounded-xl border border-border/80 bg-card p-4 shadow-[var(--kx-shadow-1)]", className)}>
+    <section className={cn("rounded-xl border border-border/80 bg-card p-4 shadow-kx-1", className)}>
       {(title || actions) && <header className="mb-3 flex items-center justify-between gap-2"><h2 className="text-base font-semibold tracking-tight">{title}</h2><div className="flex gap-2">{actions}</div></header>}
       {children}
     </section>
@@ -43,7 +43,7 @@ export function Field({ label, children, hint, error, className }: { label: stri
     </div>
   );
 }
-const inputCls = "min-h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-[var(--kx-shadow-1)] transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const inputCls = "min-h-10 w-full rounded-lg border border-input bg-card px-3 text-sm shadow-kx-1 transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-ring";
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(({ className, ...p }, ref) => <input ref={ref} className={cn(inputCls, className)} {...p} />);
 Input.displayName = "Input";
 export const Select = ({ className, ...p }: SelectHTMLAttributes<HTMLSelectElement>) => <select className={cn(inputCls, className)} {...p} />;
@@ -77,10 +77,10 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label={title} className={cn("kx-dialog w-full rounded-2xl border border-border/60 bg-card p-0 text-card-foreground shadow-[var(--kx-shadow-4)] backdrop:bg-[var(--kx-overlay)] max-sm:m-0 max-sm:mt-auto max-sm:max-h-[92dvh] max-sm:max-w-none max-sm:rounded-b-none", wide ? "max-w-3xl" : "max-w-lg")}>
+    <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label={title} className={cn("kx-dialog w-full rounded-2xl border border-border/60 bg-card p-0 text-card-foreground shadow-kx-4 backdrop:bg-(--kx-overlay) max-sm:m-0 max-sm:mt-auto max-sm:max-h-[92dvh] max-sm:max-w-none max-sm:rounded-b-none", wide ? "max-w-3xl" : "max-w-lg")}>
       {open && (
         <div>
-          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border/70 bg-card/95 px-5 py-3 backdrop-blur"><h2 className="text-lg font-semibold">{title}</h2><Button variant="ghost" size="sm" onClick={onClose} aria-label={t("common.close")} className="size-9 px-0"><X aria-hidden className="size-4" /></Button></div>
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border/70 bg-card/95 px-5 py-3 backdrop-blur-sm"><h2 className="text-lg font-semibold">{title}</h2><Button variant="ghost" size="sm" onClick={onClose} aria-label={t("common.close")} className="size-9 px-0"><X aria-hidden className="size-4" /></Button></div>
           <div className="p-5">{children}</div>
         </div>
       )}
@@ -149,7 +149,7 @@ export function Tabs({ tabs, value, onChange }: { tabs: Array<{ id: string; labe
     // eslint-disable-next-line jsx-a11y/interactive-supports-focus -- focus lives on the tab buttons (roving tabindex); this handler only receives bubbled keys
     <div role="tablist" onKeyDown={onKey} className="mb-5 flex gap-1 overflow-x-auto border-b border-border">
       {tabs.map((t) => (
-        <button key={t.id} role="tab" type="button" tabIndex={value === t.id ? 0 : -1} aria-selected={value === t.id} id={`tab-${t.id}`} aria-controls={`panel-${t.id}`} onClick={() => onChange(t.id)}
+        <button key={t.id} role="tab" type="button" tabIndex={value === t.id ? 0 : -1} aria-selected={value === t.id} id={`tab-${t.id}`} onClick={() => onChange(t.id)}
           className={cn("-mb-px inline-flex min-h-11 items-center gap-2 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors duration-150", value === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
           {t.icon && <span aria-hidden className="[&>svg]:size-4">{t.icon}</span>}{t.label}{t.count !== undefined && t.count > 0 && <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">{t.count}</span>}
         </button>
@@ -162,7 +162,7 @@ export function Tabs({ tabs, value, onChange }: { tabs: Array<{ id: string; labe
 export function SearchInput({ label, className, ...p }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <div className={cn("relative", className)}>
-      <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Search aria-hidden className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <input type="search" aria-label={label} className={cn(inputCls, "ps-9")} {...p} />
     </div>
   );
@@ -173,7 +173,7 @@ export function Segmented<T extends string>({ label, value, onChange, options }:
   return (
     <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-muted/60 p-1">
       {options.map((o) => (
-        <label key={o.id} className={cn("relative inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors duration-150 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring", value === o.id ? "bg-card text-foreground shadow-[var(--kx-shadow-1)]" : "text-muted-foreground hover:text-foreground")}>
+        <label key={o.id} className={cn("relative inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors duration-150 has-focus-visible:outline-solid has-focus-visible:outline-2 has-focus-visible:outline-ring", value === o.id ? "bg-card text-foreground shadow-kx-1" : "text-muted-foreground hover:text-foreground")}>
           <input type="radio" name={label} className="sr-only" checked={value === o.id} onChange={() => onChange(o.id)} />
           {o.label}{o.count !== undefined && <span className="text-xs tabular-nums text-muted-foreground">{o.count}</span>}
         </label>
@@ -205,7 +205,7 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
       className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-transparent transition-colors duration-150 disabled:opacity-50", checked ? "bg-primary" : "bg-[hsl(var(--input))]")}>
-      <span aria-hidden className={cn("size-5 rounded-full bg-white shadow-[var(--kx-shadow-1)] transition-transform duration-150 motion-reduce:transition-none", checked ? "translate-x-[22px] rtl:-translate-x-[22px]" : "translate-x-0.5 rtl:-translate-x-0.5")} />
+      <span aria-hidden className={cn("size-5 rounded-full bg-white shadow-kx-1 transition-transform duration-150 motion-reduce:transition-none", checked ? "translate-x-[22px] rtl:translate-x-[-22px]" : "translate-x-0.5 rtl:-translate-x-0.5")} />
     </button>
   );
 }

@@ -152,17 +152,17 @@ export function Pos() {
         <div className="space-y-3">
           <form onSubmit={(e) => { e.preventDefault(); void onScanSubmit(); }} className="relative">
             <label htmlFor="pos-scan" className="sr-only">{t("pos.scan")}</label>
-            <ScanLine aria-hidden="true" className="pointer-events-none absolute start-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <ScanLine aria-hidden="true" className="pointer-events-none absolute inset-s-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
             <Input id="pos-scan" ref={scanRef} autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }} placeholder={t("pos.scan")} className="min-h-14 ps-12 pe-16 text-lg" />
-            <kbd aria-hidden="true" className="pointer-events-none absolute end-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground sm:block">F2</kbd>
+            <kbd aria-hidden="true" className="pointer-events-none absolute inset-e-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground sm:block">F2</kbd>
           </form>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-label={t("pos.results")}>
             {results.map((i) => {
               const inCart = cart.find((x) => x.item.id === i.id)?.qty ?? 0;
               const stockTone = i.available <= 0 ? "text-[hsl(var(--danger-text))]" : i.available <= 10 ? "text-[hsl(var(--warning))]" : "text-muted-foreground";
               return (
-                <li key={i.id}><button type="button" onClick={() => add(i)} className="group relative flex min-h-28 w-full flex-col justify-between rounded-xl bg-card p-3 text-start shadow-[var(--kx-shadow-1)] ring-1 ring-border transition-[box-shadow,transform,background-color] duration-150 hover:-translate-y-px hover:shadow-[var(--kx-shadow-2)] active:translate-y-0 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none">
-                  {inCart > 0 && <span className="absolute -top-2 end-2 grid min-w-6 place-items-center rounded-full bg-primary px-1.5 text-xs font-bold tabular-nums text-primary-foreground shadow-[var(--kx-shadow-1)]" aria-label={t("pos.inCart", { count: inCart })}>{inCart}</span>}
+                <li key={i.id}><button type="button" onClick={() => add(i)} className="group relative flex min-h-28 w-full flex-col justify-between rounded-xl bg-card p-3 text-start shadow-kx-1 ring-1 ring-border transition-[box-shadow,transform,background-color] duration-150 hover:-translate-y-px hover:shadow-kx-2 active:translate-y-0 active:scale-[0.99] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none">
+                  {inCart > 0 && <span className="absolute -top-2 inset-e-2 grid min-w-6 place-items-center rounded-full bg-primary px-1.5 text-xs font-bold tabular-nums text-primary-foreground shadow-kx-1" aria-label={t("pos.inCart", { count: inCart })}>{inCart}</span>}
                   <div><div className="line-clamp-2 text-sm font-semibold leading-snug">{drugName(i)}</div><div className="mt-0.5 text-xs text-muted-foreground">{[i.strength, i.dosageForm].filter(Boolean).join(" · ")}</div></div>
                   <div className="mt-2 flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5"><span className="whitespace-nowrap text-base font-bold tabular-nums">{fmtMoney(i.price)}</span><span className={cn("whitespace-nowrap text-xs tabular-nums", stockTone)}>{i.available <= 0 ? t("pos.outOfStock") : `${t("inv.available")}: ${i.available}`}</span></div>
                 </button></li>
@@ -172,7 +172,7 @@ export function Pos() {
           </ul>
           <p className="text-xs text-muted-foreground">{t("pos.rxNote")} <Link className="underline" to="/rx">{t("nav.rx")}</Link></p>
         </div>
-        <section aria-label={t("pos.cart")} className="flex max-h-[calc(100vh-7rem)] flex-col rounded-2xl border border-border/80 bg-card shadow-[var(--kx-shadow-2)] lg:sticky lg:top-20">
+        <section aria-label={t("pos.cart")} className="flex max-h-[calc(100vh-7rem)] flex-col rounded-2xl border border-border/80 bg-card shadow-kx-2 lg:sticky lg:top-20">
           <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3"><h2 className="text-base font-semibold">{t("pos.cart")}</h2>{itemCount > 0 && <><span className="text-xs tabular-nums text-muted-foreground">{t("pos.items", { count: itemCount })}</span><Button size="sm" variant="ghost" onClick={() => setCart([])}>{t("pos.clear")}</Button></>}</header>
           {online && can("customer.read") && <div className="border-b border-border px-4 py-2"><CustomerPicker value={cust} onChange={setCust} label={t("pos.attachCustomer")} />{cust && cust.loyaltyPoints > 0 && <p className="mt-1 text-xs text-muted-foreground">{t("pos.redeemPoints")}: {cust.loyaltyPoints}</p>}</div>}
           <div className="min-h-32 flex-1 overflow-y-auto px-4">
@@ -207,7 +207,7 @@ export function Pos() {
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-muted p-4"><div className="text-xs font-medium text-muted-foreground">{t("pos.total")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(total)}</div></div>
-            <div className={cn("rounded-xl p-4", due > 0 ? "bg-[var(--kx-coral-50)] ring-1 ring-inset ring-[var(--kx-coral-200)] dark:bg-[hsl(var(--warning)/0.14)] dark:ring-0" : "bg-[hsl(var(--success)/0.14)]")} aria-live="polite"><div className="text-xs font-medium text-muted-foreground">{due > 0 ? t("pos.due") : t("pos.change")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(due > 0 ? due : paid - total)}</div></div>
+            <div className={cn("rounded-xl p-4", due > 0 ? "bg-(--kx-coral-50) ring-1 ring-inset ring-(--kx-coral-200) dark:bg-[hsl(var(--warning)/0.14)] dark:ring-0" : "bg-[hsl(var(--success)/0.14)]")} aria-live="polite"><div className="text-xs font-medium text-muted-foreground">{due > 0 ? t("pos.due") : t("pos.change")}</div><div className="mt-1 text-3xl font-bold tabular-nums">{fmtMoney(due > 0 ? due : paid - total)}</div></div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={t("pos.method")}>{METHODS.filter((m) => m !== "LOYALTY_POINTS" || (!!cust && cust.loyaltyPoints > 0 && online)).map((m) => <Button key={m} size="lg" className="min-h-14" variant={method === m ? "primary" : "outline"} aria-pressed={method === m} disabled={!online && !["CASH", "CUSTOMER_CREDIT"].includes(m)} onClick={() => setMethod(m)}>{t(`method.${m}`)}</Button>)}</div>
           {method === "CUSTOMER_CREDIT" && <Field label={t("pos.customer")}>{(id) => <Select id={id} value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">—</option>{customers.data?.map((c) => <option key={c.id} value={c.id}>{c.displayName} ({t("pos.creditAvailable")}: {fmtMoney(c.available)})</option>)}</Select>}</Field>}
@@ -260,7 +260,7 @@ function ReceiptModal({ data, onClose }: { data: { sale?: Sale; change: string; 
         <div className="space-y-4">
           {data.queued ? <p className="rounded-lg bg-[hsl(var(--warning)/0.14)] p-3 text-sm">{t("pos.savedOfflineLong")}</p> : sale && <>
             <div className="text-center"><div className="text-3xl font-bold tabular-nums">{fmtMoney(sale.total)}</div>{Number(data.change) > 0 && <div className="mt-1 text-lg">{t("pos.change")}: <strong className="tabular-nums">{fmtMoney(data.change)}</strong></div>}</div>
-            <div aria-label={t("pos.receiptPreview")} role="group" className="mx-auto max-w-xs rounded-md border border-dashed border-border bg-background p-4 font-mono text-xs shadow-[var(--kx-shadow-1)]">
+            <div aria-label={t("pos.receiptPreview")} role="group" className="mx-auto max-w-xs rounded-md border border-dashed border-border bg-background p-4 font-mono text-xs shadow-kx-1">
               <div className="text-center font-semibold">{t("app.product")}</div>
               <div className="text-center text-muted-foreground">{t("pos.receiptNo")}: {sale.receiptNo} · {fmtDateTime(sale.soldAt)}</div>
               <ul className="my-3 space-y-1 border-y border-dashed border-border py-2">

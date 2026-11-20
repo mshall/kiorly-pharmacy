@@ -14,7 +14,7 @@ function Typeahead<T extends { id: string }>({ label, placeholder, queryKey, fet
     <div className="relative">
       <Input aria-label={label} type="search" placeholder={placeholder ?? label} value={q} onChange={(e) => setQ(e.target.value)} />
       {!!res.data?.length && q.trim().length >= 2 && (
-        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-auto rounded-xl border border-border bg-card shadow-[var(--kx-shadow-3)]">
+        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-auto rounded-xl border border-border bg-card shadow-kx-3">
           {res.data.map((x) => <li key={x.id}><button type="button" className="min-h-10 w-full px-3 py-1.5 text-start text-sm hover:bg-accent" onClick={() => { onPick(x); setQ(""); }}>{render(x)}</button></li>)}
         </ul>
       )}

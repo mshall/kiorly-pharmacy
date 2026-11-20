@@ -69,11 +69,11 @@ export function Receiving() {
           <Card>
             <div className="grid gap-4 sm:grid-cols-2">
               <form onSubmit={(e) => { e.preventDefault(); if (scan.trim()) onScan.mutate(scan.trim()); }}>
-                <Field label={t("rcv.scan")} hint={t("rcv.scanHint")}>{(id) => <div className="relative"><ScanBarcode aria-hidden className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id={id} ref={scanRef} value={scan} onChange={(e) => setScan(e.target.value)} placeholder="(01)…(17)…(10)…" className="ps-9 font-mono" dir="ltr" /></div>}</Field>
+                <Field label={t("rcv.scan")} hint={t("rcv.scanHint")}>{(id) => <div className="relative"><ScanBarcode aria-hidden className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id={id} ref={scanRef} value={scan} onChange={(e) => setScan(e.target.value)} placeholder="(01)…(17)…(10)…" className="ps-9 font-mono" dir="ltr" /></div>}</Field>
               </form>
               <div className="relative">
                 <Field label={t("rcv.searchProduct")}>{(id) => <SearchInput id={id} label={t("rcv.searchProduct")} value={search} onChange={(e) => setSearch(e.target.value)} />}</Field>
-                {results.data?.items.length ? <ul className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--kx-shadow-3)]">{results.data.items.map((d) => <li key={d.id}><button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 px-3 text-start text-sm hover:bg-accent" onClick={() => { addDrug(d); setSearch(""); }}><span className="font-medium">{drugName(d)}</span><span className="text-xs text-muted-foreground">{d.strength} · {d.dosageForm}</span></button></li>)}</ul> : null}
+                {results.data?.items.length ? <ul className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-xl border border-border bg-card shadow-kx-3">{results.data.items.map((d) => <li key={d.id}><button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 px-3 text-start text-sm hover:bg-accent" onClick={() => { addDrug(d); setSearch(""); }}><span className="font-medium">{drugName(d)}</span><span className="text-xs text-muted-foreground">{d.strength} · {d.dosageForm}</span></button></li>)}</ul> : null}
               </div>
             </div>
             <ErrorNote error={onScan.error} />

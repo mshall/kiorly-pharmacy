@@ -27,7 +27,7 @@ export function Notifications() {
     <ErrorNote error={q.error || scan.error} />
     {tab === "alerts" ? <div className="mt-3 space-y-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={unread} onChange={(e) => setUnread(e.target.checked)} />{t("ntf.unreadOnly")}</label>
       {!q.data?.items.length ? <Card><Empty>{t("ntf.empty")}</Empty></Card> : <ul className="space-y-2">{q.data.items.map((a) => { const S = SEV[a.severity] ?? SEV.INFO!; const Icon = S.icon; return (
-        <li key={a.id} className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${a.read ? "border-border/60 bg-card opacity-75" : "border-border bg-card shadow-[var(--kx-shadow-1)]"}`}>
+        <li key={a.id} className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${a.read ? "border-border/60 bg-card opacity-75" : "border-border bg-card shadow-kx-1"}`}>
           <Icon aria-hidden className={`size-5 shrink-0 ${a.severity === "CRITICAL" ? "text-[hsl(var(--danger-text))]" : a.severity === "WARN" ? "text-[hsl(var(--warning))]" : "text-muted-foreground"}`} />
           <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{t(`ntf.kind.${a.kind}`)}</span><Badge tone={S.tone}>{t(`ntf.sev.${a.severity}`)}</Badge>{!a.read && <span aria-label="unread" className="size-2 rounded-full bg-primary" />}</div>
             <p className="text-sm text-muted-foreground"><b className="text-foreground" dir="auto">{a.title}</b> {t(`ntf.msg.${a.kind}`)}</p><p className="text-xs text-muted-foreground">{fmtDateTime(a.createdAt)}</p></div>

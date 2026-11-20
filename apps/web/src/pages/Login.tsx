@@ -12,15 +12,15 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
   const { t, i18n } = useTranslation();
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-[var(--kx-indigo-950)] p-12 text-white lg:flex">
-        <div className="pointer-events-none absolute -end-32 -top-32 size-[28rem] rounded-full bg-[var(--kx-indigo-800)]/50 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 -start-24 size-[26rem] rounded-full bg-[var(--kx-ocean-700)]/40 blur-3xl" />
+      <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-(--kx-indigo-950) p-12 text-white lg:flex">
+        <div className="pointer-events-none absolute -inset-e-32 -top-32 size-112 rounded-full bg-(--kx-indigo-800)/50 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 -inset-s-24 size-104 rounded-full bg-(--kx-ocean-700)/40 blur-3xl" />
         <div className="relative"><KiorexLogo variant="lockup" product="pharmacy" lang={i18n.language} tone="inverse" height={52} /><p data-kx-tagline className="mt-1 text-xs text-white/70">{t("app.tagline")}</p></div>
         <div className="relative max-w-md">
           <Pulse size={28} loop />
           <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-balance">{t("auth.heroTitle")}</h2>
           <p className="mt-4 text-base leading-relaxed text-white/75">{t("auth.heroBody")}</p>
-          <ul className="mt-8 space-y-3 text-sm text-white/85">{["heroA", "heroB", "heroC"].map((k) => <li key={k} className="flex items-center gap-3"><span aria-hidden className="size-1.5 rounded-full bg-[var(--kx-coral-500)]" />{t(`auth.${k}`)}</li>)}</ul>
+          <ul className="mt-8 space-y-3 text-sm text-white/85">{["heroA", "heroB", "heroC"].map((k) => <li key={k} className="flex items-center gap-3"><span aria-hidden className="size-1.5 rounded-full bg-(--kx-coral-500)" />{t(`auth.${k}`)}</li>)}</ul>
         </div>
         <p className="relative text-xs text-white/60"><KiorlyFootText text={t("auth.heroFoot")} word={t("auth.heroFootWord")} /></p>
       </aside>

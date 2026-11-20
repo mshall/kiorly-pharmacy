@@ -131,7 +131,7 @@ function ExpiryTab() {
     <div className="space-y-4">
       {can("inventory.adjust") && <Button variant="outline" onClick={() => sweep.mutate()} disabled={sweep.isPending}>{t("inv.runSweep")}</Button>}
       <ErrorNote error={res.error || sweep.error} />
-      {res.data && <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={t("inv.tabExpiry")}>{groups.map(([k, label]) => { const n = res.data[k].length; const tone = k === "expired" ? "text-[hsl(var(--danger-text))]" : k === "d30" ? "text-[hsl(var(--warning))]" : "text-foreground"; return <li key={k} className="rounded-xl border border-border/80 bg-card p-3 shadow-[var(--kx-shadow-1)]"><div className="text-xs font-medium text-muted-foreground">{label}</div><div className={`mt-1 text-2xl font-bold tabular-nums ${n ? tone : "text-muted-foreground"}`}>{fmtNum(n)}</div></li>; })}</ul>}
+      {res.data && <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={t("inv.tabExpiry")}>{groups.map(([k, label]) => { const n = res.data[k].length; const tone = k === "expired" ? "text-[hsl(var(--danger-text))]" : k === "d30" ? "text-[hsl(var(--warning))]" : "text-foreground"; return <li key={k} className="rounded-xl border border-border/80 bg-card p-3 shadow-kx-1"><div className="text-xs font-medium text-muted-foreground">{label}</div><div className={`mt-1 text-2xl font-bold tabular-nums ${n ? tone : "text-muted-foreground"}`}>{fmtNum(n)}</div></li>; })}</ul>}
       {res.isLoading ? <Spinner /> : groups.map(([k, label]) => (
         <Card key={k} title={`${label} (${res.data?.[k].length ?? 0})`}>
           {res.data?.[k].length ? (

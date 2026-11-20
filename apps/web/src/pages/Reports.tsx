@@ -105,7 +105,7 @@ export function Reports() {
   return (
     <>
       <PageHeader title={t("rep.title")} subtitle={t("rep.subtitle")} actions={<><Button variant="outline" onClick={() => void exp("csv")}><Download aria-hidden className="size-4" />{t("rep.csv")}</Button><Button variant="outline" onClick={() => void exp("pdf")}><FileText aria-hidden className="size-4" />{t("rep.pdf")}</Button></>} />
-      <div className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-[var(--kx-shadow-1)]">
+      <div className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-kx-1">
         <Field label={t("rep.report")}>{(id) => <Select id={id} value={name} onChange={(e) => setName(e.target.value)} className="min-w-52">{groups.map((x) => <optgroup key={x.g} label={t(`rep.groups.${x.g}`)}>{x.names.map((n) => <option key={n} value={n}>{t(`rep.names.${n}`)}</option>)}</optgroup>)}</Select>}</Field>
         <Field label={t("rep.from")}>{(id) => <Input id={id} type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />}</Field>
         <Field label={t("rep.to")}>{(id) => <Input id={id} type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />}</Field>

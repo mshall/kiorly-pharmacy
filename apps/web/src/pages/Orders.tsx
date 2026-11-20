@@ -60,8 +60,8 @@ function Timeline({ status }: { status: string }) {
         const bad = dead && i === 1;
         return (
           <li key={i} aria-current={active ? "step" : undefined} className="relative flex flex-1 flex-col items-center gap-1.5 text-center">
-            {i > 0 && <span aria-hidden className={`absolute start-[-50%] top-3 h-0.5 w-full ${i <= cur ? (bad ? "bg-[hsl(var(--danger-text))]" : "bg-primary") : "bg-border"}`} />}
-            <span className={`relative z-[1] flex size-6 items-center justify-center rounded-full text-[11px] font-semibold ring-4 ring-card ${bad ? "bg-[hsl(var(--danger-text))] text-white" : done ? "bg-primary text-primary-foreground" : active ? "bg-accent text-accent-foreground outline outline-2 outline-primary" : "bg-muted text-muted-foreground"}`}>
+            {i > 0 && <span aria-hidden className={`absolute inset-s-[-50%] top-3 h-0.5 w-full ${i <= cur ? (bad ? "bg-[hsl(var(--danger-text))]" : "bg-primary") : "bg-border"}`} />}
+            <span className={`relative z-1 flex size-6 items-center justify-center rounded-full text-[11px] font-semibold ring-4 ring-card ${bad ? "bg-[hsl(var(--danger-text))] text-white" : done ? "bg-primary text-primary-foreground" : active ? "bg-accent text-accent-foreground outline-solid outline-2 outline-primary" : "bg-muted text-muted-foreground"}`}>
               {bad ? <X aria-hidden className="size-3.5" /> : done ? <Check aria-hidden className="size-3.5" /> : i + 1}
             </span>
             <span className={`text-[11px] leading-tight ${active || bad ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{label}</span>
@@ -77,7 +77,7 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
   const { can } = useAuth();
   const units = o.lines.reduce((a, l) => a + l.qtyRequested, 0);
   return (
-    <article aria-label={`#${o.externalOrderId}`} className="flex flex-col rounded-xl border border-border/80 bg-card p-5 shadow-[var(--kx-shadow-1)] transition-shadow duration-150 hover:shadow-[var(--kx-shadow-2)]">
+    <article aria-label={`#${o.externalOrderId}`} className="flex flex-col rounded-xl border border-border/80 bg-card p-5 shadow-kx-1 transition-shadow duration-150 hover:shadow-kx-2">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div><h2 className="text-base font-semibold tracking-tight" title={o.externalOrderId}><bdi>#{shortId(o.externalOrderId)}</bdi></h2><p className="mt-0.5 text-sm text-muted-foreground">{o.customerName ?? t("ord.guest")} · <span className="kx-num">{fmtNum(units)} {t("ord.units")}</span></p></div>
         <div className="flex flex-col items-end gap-1.5"><div className="flex gap-1.5">{o.hasRx && <Badge tone="info">Rx</Badge>}<StatusChip tone={TONE[o.status] ?? "neutral"}>{t(`ordStatus.${o.status}`)}</StatusChip></div><div className="kx-num text-lg font-semibold">{fmtMoney(o.orderValue)}</div></div>
@@ -99,7 +99,7 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
       {can("orders.respond") && (o.status === "RECEIVED" || isProgress(o)) && (
         <footer className="mt-4 flex flex-wrap gap-2 border-t border-border/70 pt-4">
           {o.status === "RECEIVED" && <><Button onClick={() => onAccept(o)} disabled={busy}><Check aria-hidden className="size-4" />{t("ord.accept")}</Button><Button variant="outline" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
-          {isProgress(o) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-medium shadow-[var(--kx-shadow-1)] hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}<ArrowRight aria-hidden className="size-4 rtl:rotate-180" /></Link>}{o.status !== "READY" && <Button onClick={() => onReady(o)} disabled={busy}>{t("ord.ready")}</Button>}<Button variant="ghost" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
+          {isProgress(o) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-medium shadow-kx-1 hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}<ArrowRight aria-hidden className="size-4 rtl:rotate-180" /></Link>}{o.status !== "READY" && <Button onClick={() => onReady(o)} disabled={busy}>{t("ord.ready")}</Button>}<Button variant="ghost" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
         </footer>
       )}
     </article>

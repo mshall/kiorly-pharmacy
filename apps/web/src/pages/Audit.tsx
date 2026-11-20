@@ -23,7 +23,7 @@ export function Audit() {
   const exp = () => void download("/audit/export.csv", "audit.csv", query).catch(() => toast(t("errors.network"), "err"));
   return (<>
     <PageHeader title={t("aud.title")} subtitle={t("aud.subtitle")} actions={<Button variant="outline" onClick={exp}><Download aria-hidden className="size-4" />{t("aud.export")}</Button>} />
-    <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-[var(--kx-shadow-1)]">
+    <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-kx-1">
       <Field label={t("aud.action")}>{(id) => <Input id={id} dir="ltr" placeholder="sale." value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }} className="w-40" />}</Field>
       <Field label={t("aud.entity")}>{(id) => <Select id={id} value={entity} onChange={(e) => { setEntity(e.target.value); setPage(1); }}><option value="">{t("aud.allEntities")}</option>{ENTITIES.map((x) => <option key={x}>{x}</option>)}</Select>}</Field>
       {!!staff.data && <Field label={t("aud.actor")}>{(id) => <Select id={id} value={actor} onChange={(e) => { setActor(e.target.value); setPage(1); }}><option value="">{t("aud.allStaff")}</option>{staff.data!.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</Select>}</Field>}

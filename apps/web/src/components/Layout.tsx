@@ -58,10 +58,10 @@ export function Layout() {
         <div className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0 md:overflow-visible">
           {groups.map(({ g, items: gi }) => (
             <ul key={g || "root"} className="flex gap-1 md:mb-2 md:flex-col">
-              {g && <li aria-hidden className="hidden px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 md:block rtl:normal-case rtl:tracking-normal">{t(`nav.group${g[0]!.toUpperCase()}${g.slice(1)}`)}</li>}
+              {g && <li aria-hidden className="hidden px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground md:block rtl:normal-case rtl:tracking-normal">{t(`nav.group${g[0]!.toUpperCase()}${g.slice(1)}`)}</li>}
               {gi.map((i) => (
                 <li key={i.to}>
-                  <NavLink to={i.to} end={i.to === "/"} className={({ isActive }) => cn("relative flex min-h-10 items-center gap-3 whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground", isActive && "bg-accent font-semibold text-accent-foreground before:absolute before:inset-y-2 before:start-0 before:w-[3px] before:rounded-full before:bg-primary")}>
+                  <NavLink to={i.to} end={i.to === "/"} className={({ isActive }) => cn("relative flex min-h-10 items-center gap-3 whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground", isActive && "bg-accent font-semibold text-accent-foreground before:absolute before:inset-y-2 before:inset-s-0 before:w-[3px] before:rounded-full before:bg-primary")}>
                     <i.icon aria-hidden="true" className="size-[18px] shrink-0" />{i.label}
                   </NavLink>
                 </li>
@@ -71,7 +71,7 @@ export function Layout() {
         </div>
       </nav>
       <div className="min-w-0 flex-1">
-        <header className="no-print z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-2 backdrop-blur md:sticky md:top-0">
+        <header className="no-print z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-2 backdrop-blur-sm md:sticky md:top-0">
           <div className="flex items-center gap-3">
             {me && me.branches.length > 1 && !me.user.branchId ? (
               <label className="flex items-center gap-2 text-sm">{t("common.branch")}
@@ -82,7 +82,7 @@ export function Layout() {
             {!!queued.data && <span className="rounded-full bg-[hsl(var(--warning)/0.18)] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--warning))]">{t("pos.queued", { count: queued.data })}</span>}
           </div>
           <div className="flex items-center gap-2">
-            {can("notifications.read") && <Link to="/notifications" aria-label={`${t("nav.notifications")}${unreadQ.data?.unread ? ` (${unreadQ.data.unread})` : ""}`} className="relative inline-flex size-8 items-center justify-center rounded-lg border border-input text-muted-foreground hover:bg-muted hover:text-foreground"><Bell aria-hidden className="size-4" />{!!unreadQ.data?.unread && <span className={cn("absolute -end-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold text-white", unreadQ.data.critical ? "bg-[hsl(var(--danger-text))]" : "bg-primary")}>{unreadQ.data.unread > 99 ? "99+" : unreadQ.data.unread}</span>}</Link>}
+            {can("notifications.read") && <Link to="/notifications" aria-label={`${t("nav.notifications")}${unreadQ.data?.unread ? ` (${unreadQ.data.unread})` : ""}`} className="relative inline-flex size-8 items-center justify-center rounded-lg border border-input text-muted-foreground hover:bg-muted hover:text-foreground"><Bell aria-hidden className="size-4" />{!!unreadQ.data?.unread && <span className={cn("absolute -inset-e-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold text-white", unreadQ.data.critical ? "bg-[hsl(var(--danger-text))]" : "bg-primary")}>{unreadQ.data.unread > 99 ? "99+" : unreadQ.data.unread}</span>}</Link>}
             <span className="hidden text-sm sm:inline">{me?.user.displayName} · {me ? t(`roles.${me.user.role}`) : ""}</span>
             <KxControlPair><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} /><LanguageToggle onChange={setLang} /></KxControlPair>
             <Button variant="outline" size="sm" onClick={logout}>{t("auth.logout")}</Button>
