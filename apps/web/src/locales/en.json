@@ -67,7 +67,8 @@
     "heroA": "FEFO stock and expiry control",
     "heroB": "Pharmacist sign-off on every Rx",
     "heroC": "Works offline at the till",
-    "heroFoot": "Kiorly by Kiorex",
+    "heroFoot": "Kiorly Pharmacy by Kiorex",
+    "heroFootWord": "Pharmacy",
     "signInLede": "Sign in to your pharmacy workspace.",
     "signUpLede": "Create your pharmacy workspace in a minute."
   },
