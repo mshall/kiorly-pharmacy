@@ -93,7 +93,7 @@ export function ApAgingTab({ onStatement }: { onStatement: (id: string) => void 
 
 export function VarianceTab() {
   const { t } = useTranslation(); const { branchId } = useAuth(); const [min, setMin] = useState("5");
-  const from = new Date(Date.now() - 90 * 86_400_000).toISOString();
+  const [from] = useState(() => new Date(Date.now() - 90 * 86_400_000).toISOString());
   const q = useQuery({ queryKey: ["variance", branchId, min], queryFn: () => api<{ count: number; extraCostVsPo: string; items: Array<{ receiptLineId: string; receivedAt: string; brandName: string; brandNameAr: string | null; supplier: string | null; quantity: number; unitCost: string; poUnitCost: string | null; prevUnitCost: string | null; pctVsPo: number | null; pctVsPrev: number | null; extraCost: string | null }> }>("/purchasing/cost-variance", { query: { branchId, minPct: min, from } }), enabled: !!branchId });
   const pct = (v: number | null) => v == null ? "—" : <Badge tone={Math.abs(v) >= 10 ? "bad" : "warn"}>{v > 0 ? "+" : ""}{v}%</Badge>;
   return <Card><div className="mb-3 flex flex-wrap items-end gap-3"><Field label={t("pur.varianceMin")}>{(id) => <Input id={id} type="number" min={0} className="w-28" value={min} onChange={(e) => setMin(e.target.value)} />}</Field><StatCard label={t("pur.varExtra")} value={fmtMoney(q.data?.extraCostVsPo ?? 0)} tone="warn" className="min-w-48" /></div>

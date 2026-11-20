@@ -23,6 +23,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}/;
 function Insight({ name, rep }: { name: Name; rep: Report }) {
   const { t } = useTranslation();
   const rows = rep.rows;
+  const [now] = useState(() => Date.now());
   if (!rows.length) return null;
   let body: ReactNode = null;
   if (name === "sales-daily") {
@@ -51,7 +52,7 @@ function Insight({ name, rep }: { name: Name; rep: Report }) {
         <p className="mt-3 flex gap-4 text-xs text-muted-foreground"><LegendDot color={RAMP[0]!}>{t("rep.kRetail")}</LegendDot><LegendDot color="hsl(var(--foreground) / 0.7)">{t("rep.kCost")}</LegendDot></p></ChartCard></>;
   } else if (name === "expiry") {
     const sum = (s: string) => rows.filter((r) => String(r.status) === s).reduce((a, r) => a + num(r.qtyOnHand), 0);
-    const now = Date.now(); const soon = rows.filter((r) => String(r.status) !== "EXPIRED" && ISO.test(String(r.expiryDate)) && new Date(String(r.expiryDate)).getTime() - now <= 30 * 86_400_000).reduce((a, r) => a + num(r.qtyOnHand), 0);
+    const soon = rows.filter((r) => String(r.status) !== "EXPIRED" && ISO.test(String(r.expiryDate)) && new Date(String(r.expiryDate)).getTime() - now <= 30 * 86_400_000).reduce((a, r) => a + num(r.qtyOnHand), 0);
     const expired = sum("EXPIRED"), total = rows.reduce((a, r) => a + num(r.qtyOnHand), 0), value = rows.reduce((a, r) => a + num(r.value), 0);
     body = <>
       <div className="grid gap-4 sm:grid-cols-3"><StatCard label={t("rep.kAtRisk")} value={fmtMoney(value)} tone="warn" hint={t("rep.costValue")} /><StatCard label={t("rep.kExpired")} value={fmtNum(expired)} tone={expired ? "bad" : "neutral"} hint={t("rep.units")} /><StatCard label={t("rep.kSoon")} value={fmtNum(soon)} tone={soon ? "warn" : "neutral"} hint={t("rep.units")} /></div>
@@ -87,7 +88,7 @@ export function Reports() {
   const { branchId, can } = useAuth();
   const toast = useToast();
   const [name, setName] = useState<Name>("sales-daily");
-  const [from, setFrom] = useState(new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10)); const [to, setTo] = useState(todayIso());
+  const [from, setFrom] = useState(() => new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10)); const [to, setTo] = useState(todayIso());
   const query = { branchId: branchId ?? undefined, from: `${from}T00:00:00.000Z`, to: `${to}T23:59:59.999Z` };
   const cat = useQuery({ queryKey: ["report-catalogue"], queryFn: () => api<Catalogue>("/reports") });
   const res = useQuery({ queryKey: ["report", name, from, to, branchId], queryFn: () => api<Report>(`/reports/${name}`, { query }), placeholderData: (p) => p });

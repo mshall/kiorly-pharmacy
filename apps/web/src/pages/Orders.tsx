@@ -20,9 +20,12 @@ const isOpen = (o: Order) => o.status === "RECEIVED";
 const isProgress = (o: Order) => ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY"].includes(o.status);
 
 function useLeft(order: Order) {
-  const [left, setLeft] = useState(order.slaRemainingSeconds ?? 0);
-  useEffect(() => { setLeft(order.slaRemainingSeconds ?? 0); const id = setInterval(() => setLeft((x) => x - 1), 1000); return () => clearInterval(id); }, [order.slaRemainingSeconds]);
-  return left;
+  const base = order.slaRemainingSeconds ?? 0;
+  const [clock, setClock] = useState({ base, ticks: 0 });
+  // Server value changed: restart the countdown from it (state adjusted during render, no effect needed).
+  if (clock.base !== base) setClock({ base, ticks: 0 });
+  useEffect(() => { const id = setInterval(() => setClock((c) => ({ ...c, ticks: c.ticks + 1 })), 1000); return () => clearInterval(id); }, []);
+  return base - (clock.base === base ? clock.ticks : 0);
 }
 
 /** SLA countdown: a draining bar that turns amber under 2 minutes and red once breached. */
@@ -106,8 +109,11 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
 /** Accept dialog: full or partial, quantities per line (the API caps to what is in stock). */
 function AcceptModal({ order, onClose, onSubmit, busy, error }: { order: Order | null; onClose: () => void; onSubmit: (lines: Array<{ lineId: string; qtyAccepted: number }>) => void; busy: boolean; error: unknown }) {
   const { t } = useTranslation();
-  const [qty, setQty] = useState<Record<string, number>>({});
-  useEffect(() => { setQty(Object.fromEntries((order?.lines ?? []).map((l) => [l.id, l.qtyRequested]))); }, [order]);
+  const initialQty = (o: Order | null): Record<string, number> => Object.fromEntries((o?.lines ?? []).map((l) => [l.id, l.qtyRequested]));
+  const [qty, setQty] = useState(() => initialQty(order));
+  const [qtyFor, setQtyFor] = useState(order);
+  // A different order was opened: reset the per-line quantities (state adjusted during render, no effect needed).
+  if (qtyFor !== order) { setQtyFor(order); setQty(initialQty(order)); }
   const total = order?.lines.reduce((a, l) => a + l.qtyRequested, 0) ?? 0;
   const acc = order?.lines.reduce((a, l) => a + (qty[l.id] ?? 0), 0) ?? 0;
   return (

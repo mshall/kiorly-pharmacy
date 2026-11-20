@@ -38,11 +38,11 @@ export function Pos() {
   const [exchange, setExchange] = useState<Sale | null>(null);
 
   // --- local catalogue (offline bundle)
-  const refreshBundle = useCallback(async () => {
-    setItems(await loadCatalogue());
+  const refreshBundle = useCallback(() => loadCatalogue().then(async (cached) => {
+    setItems(cached);
     if (!navigator.onLine || !branchId) return;
     try { const b = await api<{ generatedAt: string; items: OfflineItem[] }>("/pos/offline-bundle", { query: { branchId } }); await saveCatalogue(b.items, b.generatedAt); setItems(b.items); } catch { /* keep cached copy */ }
-  }, [branchId]);
+  }), [branchId]);
   useEffect(() => { void refreshBundle(); const id = setInterval(() => void refreshBundle(), 120_000); return () => clearInterval(id); }, [refreshBundle]);
   useEffect(() => { scanRef.current?.focus(); }, [cart.length, pay]);
 

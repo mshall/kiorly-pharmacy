@@ -109,7 +109,7 @@ function ClaimsTab() {
 export function Finance() {
   const { t } = useTranslation(); const { can, branchId } = useAuth(); const toast = useToast();
   const [tab, setTab] = useState("overview"); const [stmt, setStmt] = useState<string | null>(null);
-  const [from, setFrom] = useState(new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10)); const [to, setTo] = useState(todayIso());
+  const [from, setFrom] = useState(() => new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10)); const [to, setTo] = useState(todayIso());
   const tabs = useMemo(() => [{ id: "overview", label: t("fin.tabOverview") }, { id: "margin", label: t("fin.tabMargin") }, ...(can("expense.read") ? [{ id: "expenses", label: t("fin.tabExpenses") }] : []), { id: "receivables", label: t("fin.tabReceivables") }, { id: "payables", label: t("fin.tabPayables") }, ...(can("claims.manage") ? [{ id: "claims", label: t("fin.tabClaims") }] : [])], [t, can]);
   const exp = (name: string) => download(`/reports/${name}`, `${name}.csv`, { format: "csv", branchId: branchId ?? undefined, from: `${from}T00:00:00.000Z`, to: `${to}T23:59:59.999Z` }).catch(() => toast(t("errors.network"), "err"));
   return (<>

@@ -41,7 +41,8 @@ export function Receiving() {
   const inv = Number(invoiceTotal);
   const variance = invoiceTotal && cost ? inv - cost : null;
   const incomplete = lines.filter((l) => !l.lotNumber || !l.expiryDate || !l.unitCost || (l.drug.coldChain && l.temperatureC === "")).length;
-  const daysTo = (iso: string) => Math.floor((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  const [nowMs] = useState(() => Date.now());
+  const daysTo = (iso: string) => Math.floor((new Date(iso).getTime() - nowMs) / 86_400_000);
   const po = pos.data?.find((p) => p.id === poId);
   return (
     <>

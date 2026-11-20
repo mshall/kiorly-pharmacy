@@ -33,7 +33,7 @@ export class TenantModeService {
 
   async settings(orgId: string): Promise<TenantSettings> {
     const t = await this.prisma.tenant.findUnique({ where: { id: orgId }, select: { settings: true } });
-    return ((t?.settings ?? {}) as TenantSettings) ?? {};
+    return (t?.settings ?? {}) as TenantSettings;
   }
 
   async mode(orgId: string): Promise<OperatingMode> {

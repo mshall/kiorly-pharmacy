@@ -21,7 +21,7 @@ function PriceModal({ drug, onClose }: { drug: Drug | null; onClose: () => void 
   const { t } = useTranslation();
   const { can, branchId } = useAuth();
   const qc = useQueryClient(); const toast = useToast();
-  const [price, setPrice] = useState(""); const [from, setFrom] = useState(new Date(Date.now() + 60_000).toISOString().slice(0, 16));
+  const [price, setPrice] = useState(""); const [from, setFrom] = useState(() => new Date(Date.now() + 60_000).toISOString().slice(0, 16));
   const hist = useQuery({ queryKey: ["price-history", drug?.id], queryFn: () => api<PricePoint[]>(`/catalogue/prices/${drug!.id}`), enabled: !!drug });
   const subs = useQuery({ queryKey: ["substitutes", drug?.id, branchId], queryFn: () => api<Array<{ drugId: string; brandName: string; brandNameAr: string | null; available: number; price: string | null; nextExpiry: string }>>(`/catalogue/drugs/${drug!.id}/substitutes`, { query: { branchId } }), enabled: !!drug && !!branchId });
   const save = useMutation({
