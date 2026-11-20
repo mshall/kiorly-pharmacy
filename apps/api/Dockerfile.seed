@@ -2,7 +2,7 @@
 # Compiled seeds only: plain `node dist-seed/prisma/demo/seed-demo.js` at run time, no ts-node/tsx. Build from the repo root:
 #   docker build -f apps/api/Dockerfile.seed -t kiorly-pharmacy-seed .
 # (`@kiorex/contracts` is a file: dependency on the tarball committed in vendor/; no extra build context needed.)
-FROM public.ecr.aws/lambda/nodejs:22 AS build
+FROM public.ecr.aws/lambda/nodejs:26 AS build
 RUN dnf install -y openssl ca-certificates && dnf clean all
 WORKDIR /repo
 COPY package.json package-lock.json ./
@@ -16,7 +16,7 @@ WORKDIR /repo/apps/api
 ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
 RUN npx prisma generate && npm run build:seed
 
-FROM public.ecr.aws/lambda/nodejs:22
+FROM public.ecr.aws/lambda/nodejs:26
 RUN dnf install -y openssl ca-certificates && dnf clean all
 COPY --from=build /repo/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 COPY --from=build /repo/packages ${LAMBDA_TASK_ROOT}/packages
