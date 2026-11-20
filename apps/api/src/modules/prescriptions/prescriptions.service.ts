@@ -8,18 +8,30 @@ import type { AuthUser } from "../../auth/auth-user";
 import { ConsentVerifier } from "../../platform/adapters/consent.adapter";
 import { StorageAdapter } from "../../platform/adapters/storage.adapter";
 import { groupKey } from "../catalogue/normalize";
+import { PriceService } from "../catalogue/price.service";
+import { PrescribersService } from "./prescribers.service";
+import { nextCustomerNo, normPhone } from "../customers/customer-registry.service";
 
 /** NEEDS_HUMAN default: an Rx is valid for 30 days from issue unless the prescription states otherwise. */
 export const DEFAULT_RX_VALIDITY_DAYS = 30;
 
 export interface PaperRxInput {
   branchId: string;
-  patient: { displayName: string; phone?: string; allergies?: string[]; birthYear?: number; externalId?: string };
-  prescriberName: string;
+  /** Existing customer (preferred) or details for a new / matched-by-phone one. */
+  patientId?: string;
+  patient?: { displayName: string; phone?: string; allergies?: string[]; birthYear?: number; externalId?: string };
+  /** Prescriber directory entry, or name + licence (added to the directory automatically). */
+  prescriberId?: string;
+  prescriberName?: string;
   prescriberLicenceNo?: string;
   issuedAt?: string;
+  validDays?: number;
   scanDataUrl?: string;
   scanFileName?: string;
+  source?: "PAPER_SCAN" | "MANUAL_ENTRY";
+  refillsAllowed?: number;
+  refillIntervalDays?: number;
+  priority?: "NORMAL" | "URGENT";
   lines: Array<{ drugId?: string; activeIngredient?: string; drugName?: string; strength?: string; dosageForm?: string; quantity: number; directions?: string }>;
 }
 
@@ -31,14 +43,18 @@ export class PrescriptionsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ConsentVerifier) private readonly consent: ConsentVerifier,
     @Inject(StorageAdapter) private readonly storage: StorageAdapter,
+    @Inject(PrescribersService) private readonly prescribers: PrescribersService,
+    @Inject(PriceService) private readonly prices: PriceService,
   ) {}
 
-  private async upsertPatient(tx: Prisma.TransactionClient, orgId: string, p: PaperRxInput["patient"]) {
-    if (p.externalId) {
-      const ex = await tx.patientRef.findFirst({ where: { orgId, externalId: p.externalId } });
-      if (ex) return tx.patientRef.update({ where: { id: ex.id }, data: { ...(p.allergies ? { allergies: p.allergies } : {}) } });
+  private async upsertPatient(tx: Prisma.TransactionClient, orgId: string, p: NonNullable<PaperRxInput["patient"]>) {
+    const phone = normPhone(p.phone);
+    const existing = p.externalId ? await tx.patientRef.findFirst({ where: { orgId, externalId: p.externalId } }) : phone ? await tx.patientRef.findFirst({ where: { orgId, phone, active: true, mergedIntoId: null }, orderBy: { createdAt: "asc" } }) : null;
+    if (existing) {
+      const allergies = [...new Set([...existing.allergies, ...(p.allergies ?? []).map((a) => a.toLowerCase().trim())])];
+      return tx.patientRef.update({ where: { id: existing.id }, data: { allergies } });
     }
-    return tx.patientRef.create({ data: { orgId, externalId: p.externalId, displayName: p.displayName, phone: p.phone, allergies: p.allergies ?? [], birthYear: p.birthYear } });
+    return tx.patientRef.create({ data: { orgId, customerNo: await nextCustomerNo(tx, orgId), externalId: p.externalId, displayName: p.displayName, phone, allergies: (p.allergies ?? []).map((a) => a.toLowerCase().trim()), birthYear: p.birthYear } });
   }
 
   private async resolveDrug(tx: Prisma.TransactionClient, orgId: string, l: { activeIngredient?: string; strength?: string; dosageForm?: string; drugId?: string }) {
@@ -50,15 +66,32 @@ export class PrescriptionsService {
     return null;
   }
 
-  /** KPRX01 paper scan capture: pharmacist/cashier keys the Rx lines; the scan image is stored via the storage adapter. */
+  /**
+   * KPRX01 paper / manual Rx capture (standalone-first: no Kiorly needed). The pharmacist or assistant keys the Rx lines; an optional scan image is stored
+   * via the storage adapter. Customers are matched by phone, prescribers by licence (directory grows automatically). Always lands in the verification queue.
+   */
   async intakePaper(user: AuthUser, input: PaperRxInput) {
     if (!input.lines.length) throw new DomainError("NO_LINES", "A prescription needs at least one line", 400);
+    if (!input.patientId && !input.patient) throw new DomainError("PATIENT_REQUIRED", "Choose or enter a patient", 400);
+    if (!input.prescriberId && !input.prescriberName) throw new DomainError("PRESCRIBER_REQUIRED", "Choose a prescriber or enter the prescriber name", 400);
+    const issued = input.issuedAt ? new Date(input.issuedAt) : new Date();
+    if (issued.getTime() > Date.now() + 86_400_000) throw new DomainError("ISSUED_IN_FUTURE", "Issue date cannot be in the future", 400);
+    if ((input.refillsAllowed ?? 0) < 0 || (input.refillsAllowed ?? 0) > 12) throw new DomainError("INVALID_REFILLS", "Refills must be between 0 and 12", 400);
     return this.prisma.$transaction(async (tx) => {
-      const patient = await this.upsertPatient(tx, user.orgId, input.patient);
+      const patient = input.patientId
+        ? await tx.patientRef.findFirst({ where: { id: input.patientId, orgId: user.orgId, active: true } })
+        : await this.upsertPatient(tx, user.orgId, input.patient!);
+      if (!patient) throw notFound("Customer", input.patientId);
+      // licence missing is allowed at intake (the pharmacist verification step flags it, PRESCRIBER_MISSING); no directory entry without a licence
+      const prescriber = input.prescriberId
+        ? await tx.prescriber.findFirst({ where: { id: input.prescriberId, orgId: user.orgId, active: true } })
+        : input.prescriberLicenceNo ? await this.prescribers.ensure(tx, user.orgId, { name: input.prescriberName!, licenceNo: input.prescriberLicenceNo }) : null;
+      if (input.prescriberId && !prescriber) throw notFound("Prescriber", input.prescriberId);
       const rx = await tx.prescription.create({
         data: {
-          orgId: user.orgId, branchId: input.branchId, source: "PAPER_SCAN", patientId: patient.id, prescriberName: input.prescriberName, prescriberLicenceNo: input.prescriberLicenceNo,
-          issuedAt: input.issuedAt ? new Date(input.issuedAt) : new Date(), validUntil: new Date((input.issuedAt ? new Date(input.issuedAt) : new Date()).getTime() + DEFAULT_RX_VALIDITY_DAYS * 86_400_000), receivedBy: user.userId,
+          orgId: user.orgId, branchId: input.branchId, source: input.source ?? (input.scanDataUrl ? "PAPER_SCAN" : "MANUAL_ENTRY"), patientId: patient.id, prescriberId: prescriber?.id, prescriberName: prescriber?.name ?? input.prescriberName, prescriberLicenceNo: prescriber?.licenceNo,
+          prescriberVerifiedBadge: prescriber?.verified ?? false, issuedAt: issued, validUntil: new Date(issued.getTime() + (input.validDays ?? DEFAULT_RX_VALIDITY_DAYS) * 86_400_000), receivedBy: user.userId,
+          refillsAllowed: input.refillsAllowed ?? 0, refillIntervalDays: input.refillIntervalDays ?? ((input.refillsAllowed ?? 0) > 0 ? 30 : null), priority: input.priority ?? "NORMAL",
         },
       });
       for (const l of input.lines) {
@@ -71,7 +104,7 @@ export class PrescriptionsService {
         const { key } = await this.storage.putDataUrl(`rx-scans/${user.orgId}/${rx.id}`, input.scanDataUrl);
         await tx.prescription.update({ where: { id: rx.id }, data: { scanStorageKey: key } });
       }
-      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "rx.intake", entityType: "Prescription", entityId: rx.id, meta: { source: "PAPER_SCAN", lines: input.lines.length } } });
+      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "rx.intake", entityType: "Prescription", entityId: rx.id, meta: { source: rx.source, lines: input.lines.length, refills: rx.refillsAllowed } } });
       return rx;
     }).then((rx) => this.get(user.orgId, rx.id));
   }
@@ -122,13 +155,72 @@ export class PrescriptionsService {
     }
   }
 
-  async list(orgId: string, q: { branchId?: string; status?: RxStatus; skip: number; take: number }) {
-    const where: Prisma.PrescriptionWhereInput = { orgId, ...(q.branchId ? { branchId: q.branchId } : {}), ...(q.status ? { status: q.status } : {}) };
+  async list(orgId: string, q: { branchId?: string; status?: RxStatus; source?: string; prescriberId?: string; patientId?: string; q?: string; skip: number; take: number }) {
+    const where: Prisma.PrescriptionWhereInput = {
+      orgId, ...(q.branchId ? { branchId: q.branchId } : {}), ...(q.status ? { status: q.status } : {}), ...(q.source ? { source: q.source as never } : {}), ...(q.prescriberId ? { prescriberId: q.prescriberId } : {}), ...(q.patientId ? { patientId: q.patientId } : {}),
+      ...(q.q ? { OR: [{ patient: { displayName: { contains: q.q, mode: "insensitive" } } }, { patient: { phone: { contains: q.q } } }, { prescriberName: { contains: q.q, mode: "insensitive" } }, { id: { startsWith: q.q } }] } : {}),
+    };
     const [items, total] = await Promise.all([
-      this.prisma.prescription.findMany({ where, include: { lines: true, patient: { select: { id: true, displayName: true } } }, orderBy: { receivedAt: "desc" }, skip: q.skip, take: q.take }),
+      this.prisma.prescription.findMany({ where, include: { lines: true, patient: { select: { id: true, displayName: true, customerNo: true } } }, orderBy: { receivedAt: "desc" }, skip: q.skip, take: q.take }),
       this.prisma.prescription.count({ where }),
     ]);
     return { items, total };
+  }
+
+  /** KPRX02 verification workflow: everything awaiting a pharmacist (RECEIVED / VALIDATING), urgent and oldest first, with issue hints. */
+  async verificationQueue(orgId: string, branchId?: string) {
+    const rows = await this.prisma.prescription.findMany({
+      where: { orgId, status: { in: ["RECEIVED", "VALIDATING"] }, ...(branchId ? { branchId } : {}) },
+      include: { lines: true, patient: { select: { id: true, displayName: true, allergies: true } } }, orderBy: { receivedAt: "asc" }, take: 200,
+    });
+    const now = Date.now();
+    const items = rows.map((r) => ({
+      id: r.id, status: r.status, priority: r.priority, source: r.source, receivedAt: r.receivedAt, ageMinutes: Math.floor((now - r.receivedAt.getTime()) / 60_000), patient: r.patient, prescriberName: r.prescriberName,
+      prescriberVerified: r.prescriberVerifiedBadge, lines: r.lines.length, controlled: r.lines.some((l) => l.controlled), hasAllergyOnFile: !!r.patient?.allergies.length, refillsAllowed: r.refillsAllowed, verificationNotes: r.verificationNotes,
+      expiresInDays: r.validUntil ? Math.floor((r.validUntil.getTime() - now) / 86_400_000) : null,
+    })).sort((a, b) => Number(b.priority === "URGENT") - Number(a.priority === "URGENT") || b.ageMinutes - a.ageMinutes);
+    return { total: items.length, urgent: items.filter((i) => i.priority === "URGENT").length, items };
+  }
+
+  async annotate(user: AuthUser, id: string, d: { priority?: "NORMAL" | "URGENT"; verificationNotes?: string }) {
+    await this.get(user.orgId, id);
+    const r = await this.prisma.prescription.update({ where: { id }, data: { ...(d.priority ? { priority: d.priority } : {}), ...(d.verificationNotes !== undefined ? { verificationNotes: d.verificationNotes } : {}) } });
+    await this.prisma.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "rx.annotate", entityType: "Prescription", entityId: id, meta: { fields: Object.keys(d) } } });
+    return r;
+  }
+
+  /** Partial fills: what has been dispensed and what is still owed per line. */
+  async balance(orgId: string, id: string) {
+    const rx = await this.get(orgId, id);
+    const lines = rx.lines.map((l) => ({ lineId: l.id, drugName: l.drug?.brandName ?? l.drugName ?? l.activeIngredient, prescribed: l.quantity, dispensed: l.qtyDispensed, remaining: Math.max(l.quantity - l.qtyDispensed, 0) }));
+    return { prescriptionId: id, status: rx.status, lines, owed: lines.reduce((a, l) => a + l.remaining, 0), complete: lines.every((l) => l.remaining === 0), refillsAllowed: rx.refillsAllowed, refillsUsed: rx.refillsUsed, nextRefillDueAt: rx.nextRefillDueAt };
+  }
+
+  /** Partially dispensed prescriptions with quantity still owed to the patient. */
+  async partialFills(orgId: string, branchId?: string) {
+    const rows = await this.prisma.prescription.findMany({ where: { orgId, status: "PARTIALLY_DISPENSED", ...(branchId ? { branchId } : {}) }, include: { lines: true, patient: { select: { id: true, displayName: true, phone: true } } }, orderBy: { receivedAt: "asc" }, take: 200 });
+    return rows.map((r) => ({ id: r.id, patient: r.patient, receivedAt: r.receivedAt, validUntil: r.validUntil, owed: r.lines.reduce((a, l) => a + Math.max(l.quantity - l.qtyDispensed, 0), 0) }));
+  }
+
+  /** KPRX04: substitution candidates for a prescription line (same ingredient + strength + form), with stock, price and savings vs the prescribed product. */
+  async lineSubstitutes(user: AuthUser, id: string, lineId: string, branchId: string) {
+    const rx = await this.get(user.orgId, id);
+    const line = rx.lines.find((l) => l.id === lineId);
+    if (!line) throw notFound("Prescription line", lineId);
+    const base = line.drug;
+    const ingredient = (base?.activeIngredient ?? line.activeIngredient ?? "").trim();
+    if (!ingredient) return [];
+    const strength = base?.strength ?? line.strength;
+    const form = base?.dosageForm ?? line.dosageForm;
+    const drugs = await this.prisma.drug.findMany({ where: { active: true, OR: [{ orgId: null }, { orgId: user.orgId }], activeIngredient: { equals: ingredient, mode: "insensitive" }, ...(strength ? { strength: { equals: strength, mode: "insensitive" } } : {}), ...(form ? { dosageForm: { equals: form, mode: "insensitive" } } : {}) }, take: 40 });
+    const stock = await this.prisma.stockLot.groupBy({ by: ["drugId"], where: { orgId: user.orgId, branchId, drugId: { in: drugs.map((d) => d.id) }, status: { in: ["AVAILABLE", "RESERVED"] }, qtyOnHand: { gt: 0 } }, _sum: { qtyOnHand: true, qtyReserved: true } });
+    const sm = new Map(stock.map((x) => [x.drugId, (x._sum.qtyOnHand ?? 0) - (x._sum.qtyReserved ?? 0)]));
+    const prices = await this.prices.pricesAt(user.orgId, branchId, drugs.map((d) => d.id));
+    const basePrice = base ? prices.get(base.id) : undefined;
+    return drugs.map((d) => {
+      const price = prices.get(d.id);
+      return { drugId: d.id, brandName: d.brandName, brandNameAr: d.brandNameAr, strength: d.strength, dosageForm: d.dosageForm, available: Math.max(sm.get(d.id) ?? 0, 0), price: price?.toFixed(2) ?? null, isPrescribed: d.id === base?.id, saving: price && basePrice && d.id !== base?.id ? basePrice.minus(price).toFixed(2) : null };
+    }).sort((a, b) => Number(b.available > 0) - Number(a.available > 0) || Number(a.price ?? 1e9) - Number(b.price ?? 1e9));
   }
 
   async get(orgId: string, id: string) {

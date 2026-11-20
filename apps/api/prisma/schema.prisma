@@ -110,6 +110,10 @@ enum RxSource {
   PAPER_SCAN
   KIORLY_E_RX
   KIOREX_UPLOAD
+  /// Walk-in / phone / handwritten Rx keyed in by staff without a scan (standalone-first).
+  MANUAL_ENTRY
+  /// Transferred in from another pharmacy.
+  TRANSFER_IN
 }
 
 enum RxStatus {
@@ -121,6 +125,8 @@ enum RxStatus {
   DISPENSED
   CANCELLED
   EXPIRED
+  /// Remaining quantity sent to another pharmacy (RxTransfer OUT).
+  TRANSFERRED_OUT
 }
 
 enum DispensingStatus {
@@ -680,6 +686,16 @@ model Prescription {
   validUntil              DateTime?
   scanStorageKey          String?
   prescriberRef           String?
+  /// Prescriber directory entry (standalone: the doctors this pharmacy knows).
+  prescriberId            String?
+  /// Repeat / refill tracking: refills authorised on top of the first fill.
+  refillsAllowed          Int       @default(0)
+  refillsUsed             Int       @default(0)
+  refillIntervalDays      Int?
+  nextRefillDueAt         DateTime?
+  priority                String    @default("NORMAL")
+  verificationNotes       String?
+  transferredOutAt        DateTime?
   clinicRef               String?
   validatedBy             String?
   validatedAt             DateTime?
@@ -695,6 +711,9 @@ model Prescription {
   /// One intake per issuing event per tenant.
   @@unique([orgId, sourceEventId])
   @@index([orgId, branchId, status])
+  @@index([orgId, prescriberId])
+  @@index([orgId, patientId])
+  @@index([orgId, nextRefillDueAt])
 }
 
 model PrescriptionLine {
@@ -737,6 +756,9 @@ model Dispensing {
   kiorexOrderRef       String?
   /// Controlled substances: ID captured (KPRX05).
   controlledIdCaptured Boolean          @default(false)
+  /// Why less than the prescribed quantity was dispensed (partial fill).
+  partialReason        String?
+  counsellingTopics    String[]
   /// Set when the KPRX03 safety checks ran; DB CHECK requires it before sign-off.
   safetyChecksRunAt    DateTime?
   saleId               String?
@@ -1344,4 +1366,77 @@ model RolePermissionOverride {
 
   @@unique([orgId, role, permission])
   @@index([orgId])
+}
+
+/// Prescriber (doctor) directory: licence-checked, reusable on manual Rx entry, with verification state.
+model Prescriber {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  nameAr      String?
+  licenceNo   String
+  specialty   String?
+  phone       String?
+  clinicName  String?
+  clinicAddress String?
+  /// Licence verified by a pharmacist (syndicate lookup done by a human).
+  verified    Boolean  @default(false)
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  active      Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@unique([orgId, licenceNo])
+  @@index([orgId, name])
+}
+
+/// One row per refill granted on a repeat prescription.
+model RxRefill {
+  id             String   @id @default(cuid())
+  orgId          String
+  prescriptionId String
+  refillNo       Int
+  early          Boolean  @default(false)
+  earlyReason    String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  @@unique([prescriptionId, refillNo])
+  @@index([orgId, prescriptionId])
+}
+
+/// Refill reminder sent (mock dev inbox until a real messaging provider is wired): one per Rx per refill number.
+model RefillReminder {
+  id             String   @id @default(cuid())
+  orgId          String
+  prescriptionId String
+  refillNo       Int
+  notificationId String?
+  sentAt         DateTime @default(now())
+
+  @@unique([prescriptionId, refillNo])
+  @@index([orgId])
+}
+
+/// Prescription transfer between pharmacies. OUT: remaining quantities leave this pharmacy; IN: a transferred Rx is received.
+model RxTransfer {
+  id                   String   @id @default(cuid())
+  orgId                String
+  branchId             String
+  direction            String
+  prescriptionId       String
+  counterpartyName     String
+  counterpartyPhone    String?
+  counterpartyPharmacist String?
+  counterpartyLicenceNo  String?
+  reason               String?
+  /// Snapshot of the remaining lines at transfer time.
+  snapshot             Json?
+  createdBy            String
+  createdAt            DateTime @default(now())
+
+  @@index([orgId, direction, createdAt])
+  @@index([prescriptionId])
 }

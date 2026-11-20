@@ -15,6 +15,7 @@ import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import { DispenseHooks } from "../../common/dispense-hooks";
 import { hasUnresolvedBlock, runSafetyChecks, type EngineItem } from "../prescriptions/safety/rx-safety-engine";
 import { roleHas } from "../../auth/permissions";
+import { renderRxLabelsHtml } from "./rx-label-template";
 
 /**
  * SAFETY PATH (KPRX03-06, ADR-025: NEVER behind a feature flag and not switchable).
@@ -35,6 +36,8 @@ export interface CreateDispensingInput {
   prescriptionId?: string;
   kiorexOrderId?: string;
   patientId?: string;
+  /** Why less than the prescribed quantity is being dispensed (partial fill). */
+  partialReason?: string;
   items: DispenseItemInput[];
 }
 
@@ -127,7 +130,7 @@ export class DispensingService {
 
     const at = new Date();
     return this.prisma.$transaction(async (tx) => {
-      const disp = await tx.dispensing.create({ data: { orgId, branchId: input.branchId, prescriptionId: rx?.id, patientId: patient?.id, status: "VALIDATED", createdBy: user.userId, kiorexOrderRef: input.kiorexOrderId, safetyChecksRunAt: at } });
+      const disp = await tx.dispensing.create({ data: { orgId, branchId: input.branchId, prescriptionId: rx?.id, patientId: patient?.id, status: "VALIDATED", createdBy: user.userId, kiorexOrderRef: input.kiorexOrderId, safetyChecksRunAt: at, partialReason: input.partialReason } });
       await tx.safetyCheckResult.createMany({ data: results.map((r) => ({ dispensingId: disp.id, kind: r.kind, outcome: r.outcome, detail: r.detail })) });
       // KPINV02 FEFO reservation across lots (all-or-nothing)
       const takenByLot = new Map<string, number>();
@@ -324,7 +327,9 @@ export class DispensingService {
         if (d.prescriptionId) {
           for (const l of d.lines) if (l.prescriptionLineId) await tx.prescriptionLine.update({ where: { id: l.prescriptionLineId }, data: { qtyDispensed: { increment: l.quantity } } });
           const lines = await tx.prescriptionLine.findMany({ where: { prescriptionId: d.prescriptionId } });
-          await tx.prescription.update({ where: { id: d.prescriptionId }, data: { status: lines.every((x) => x.qtyDispensed >= x.quantity) ? "DISPENSED" : "PARTIALLY_DISPENSED" } });
+          const done = lines.every((x) => x.qtyDispensed >= x.quantity);
+          const rxNow = await tx.prescription.findUniqueOrThrow({ where: { id: d.prescriptionId }, select: { refillsAllowed: true, refillsUsed: true, refillIntervalDays: true } });
+          await tx.prescription.update({ where: { id: d.prescriptionId }, data: { status: done ? "DISPENSED" : "PARTIALLY_DISPENSED", ...(done && rxNow.refillsUsed < rxNow.refillsAllowed ? { nextRefillDueAt: new Date(Date.now() + (rxNow.refillIntervalDays ?? 30) * 86_400_000) } : {}) } });
         }
         const dispensedAt = new Date();
         await tx.dispensing.update({ where: { id }, data: { status: "DISPENSED", dispensedAt, saleId: sale.id } });
@@ -341,6 +346,38 @@ export class DispensingService {
 
   private vat(gross: Prisma.Decimal, rate: Prisma.Decimal) {
     return rate.isZero() ? D(0) : gross.mul(rate).div(rate.plus(1)).toDecimalPlaces(2);
+  }
+
+  /** Counselling record (topics + notes) by the pharmacist; kept on the dispensing and on the customer's notes. Allowed until dispensed and as an addendum after. */
+  async setCounselling(user: AuthUser, id: string, d: { notes: string; topics?: string[] }) {
+    if (!isPharmacist(user)) throw new DomainError("PHARMACIST_REQUIRED", "Only a licensed pharmacist records counselling", 403);
+    const disp = await this.get(user.orgId, id);
+    if (disp.status === "CANCELLED") throw new DomainError("BAD_STATE", "Dispensing is cancelled", 409);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.dispensing.update({ where: { id }, data: { counsellingNotes: d.notes, counsellingTopics: d.topics ?? [] } });
+      if (disp.patientId) await tx.customerNote.create({ data: { orgId: user.orgId, patientId: disp.patientId, kind: "COUNSELLING", body: d.notes, refType: "Dispensing", refId: id, createdBy: user.userId } });
+      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "dispense.counselling", entityType: "Dispensing", entityId: id, meta: { topics: d.topics ?? [] } } });
+    });
+    return this.get(user.orgId, id);
+  }
+
+  /** Printable medication labels for a signed-off / dispensed dispensing (AR/EN). */
+  async labelsHtml(orgId: string, id: string, lang: "ar" | "en") {
+    const d = await this.get(orgId, id);
+    if (!["SIGNED_OFF", "DISPENSED"].includes(d.status)) throw new DomainError("LABELS_NOT_READY", "Labels print after the pharmacist signs off", 409);
+    const [tenant, branch, pharm, rx, rxLines, drugs] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } }), this.prisma.branch.findUnique({ where: { id: d.branchId } }), d.pharmacistId ? this.prisma.staffUser.findUnique({ where: { id: d.pharmacistId } }) : null,
+      d.prescriptionId ? this.prisma.prescription.findUnique({ where: { id: d.prescriptionId }, include: { patient: { select: { displayName: true } } } }) : null,
+      this.prisma.prescriptionLine.findMany({ where: { id: { in: d.lines.map((l) => l.prescriptionLineId).filter((x): x is string => !!x) } } }),
+      this.prisma.drug.findMany({ where: { id: { in: d.lines.map((l) => l.drugId) } } }),
+    ]);
+    const patient = rx?.patient?.displayName ?? (d.patientId ? (await this.prisma.patientRef.findUnique({ where: { id: d.patientId } }))?.displayName : null) ?? "—";
+    const dm = new Map(drugs.map((x) => [x.id, x])), rl = new Map(rxLines.map((x) => [x.id, x]));
+    return renderRxLabelsHtml({
+      pharmacy: tenant.name, branch: branch?.name ?? "", branchPhone: branch?.phone ?? null, licenceNo: branch?.licenceNo ?? null, rxNo: (d.prescriptionId ?? d.id).slice(-8).toUpperCase(), dispensedAt: d.dispensedAt ?? d.signedOffAt ?? new Date(),
+      patient, refillsLeft: rx ? rx.refillsAllowed - rx.refillsUsed : null, prescriber: rx?.prescriberName ?? null, pharmacist: pharm?.displayName ?? null, pharmacistLicence: pharm?.pharmacistLicenceNo ?? null, counselling: d.counsellingNotes ?? null,
+      lines: d.lines.map((l) => { const dr = dm.get(l.drugId); return { name: dr?.brandName ?? "", nameAr: dr?.brandNameAr ?? null, strength: dr?.strength ?? null, quantity: l.quantity, directions: l.prescriptionLineId ? rl.get(l.prescriptionLineId)?.directions ?? null : null, lotNumber: l.lot.lotNumber, expiryDate: l.lot.expiryDate, coldChain: !!dr?.coldChain, controlled: dr?.controlledSchedule !== "NONE", substituted: !!l.substitutedFromDrugId }; }),
+    }, lang);
   }
 
   /** KPRX05 controlled-substance register for an auditor (never exposed to Kiorex). */

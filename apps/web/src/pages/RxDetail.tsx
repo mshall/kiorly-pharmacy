@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 import { api, newKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Badge, Button, Card, ErrorNote, Field, Input, Modal, OUTCOME_TONE, PageHeader, Select, Spinner, Table, Td, Textarea } from "@/components/ui";
+import { useAction, useForm } from "@/lib/hooks";
+import { Printer, Repeat, Send } from "lucide-react";
 import { RX_TONE } from "@/pages/RxQueue";
 import { drugName, fmtDate, fmtMoney } from "@/lib/format";
 import { printHtml } from "@/lib/print";
@@ -148,16 +150,49 @@ export function Workflow({ d, rx }: { d: Dispensing; rx?: Rx }) {
             </div>
           )}
           <ErrorNote error={complete.error} />
-          <Button size="lg" className="mt-3" onClick={() => complete.mutate()} disabled={complete.isPending}>{t("disp.complete")}</Button>
+          <div className="mt-3 flex flex-wrap gap-2"><Button size="lg" onClick={() => complete.mutate()} disabled={complete.isPending}>{t("disp.complete")}</Button><Button size="lg" variant="outline" onClick={() => void printHtml(`/dispensings/${d.id}/labels.html`, { lang: document.documentElement.lang })}><Printer aria-hidden className="size-4" />{t("rx.printLabels")}</Button></div>
         </Card>
       )}
       {(done || d.status === "DISPENSED") && (
         <Card title={t("disp.dispensed")}>
           <Badge tone="good">{t("dispStatus.DISPENSED")}</Badge>
+          <Button className="ms-3" variant="outline" onClick={() => void printHtml(`/dispensings/${d.id}/labels.html`, { lang: document.documentElement.lang })}><Printer aria-hidden className="size-4" />{t("rx.printLabels")}</Button>
           {done && <Button className="ms-3" variant="outline" onClick={() => void printHtml(`/pos/sales/${done.id}/receipt.html`, { lang: document.documentElement.lang })}>{t("pos.printReceipt")}</Button>}
         </Card>
       )}
     </div>
+  );
+}
+
+interface Balance { owed: number; complete: boolean; lines: Array<{ lineId: string; drugName: string | null; prescribed: number; dispensed: number; remaining: number }> }
+function RepeatCard({ rx }: { rx: Rx }) {
+  const { t } = useTranslation();
+  const { can } = useAuth(); const toast = useToast();
+  const bal = useQuery({ queryKey: ["rx", rx.id, "balance"], queryFn: () => api<Balance>(`/prescriptions/${rx.id}/balance`) });
+  const [early, setEarly] = useState(""); const [xfer, setXfer] = useState(false);
+  const [f, , bind] = useForm({ name: "", phone: "", pharmacist: "", reason: "" });
+  const [notes, setNotes] = useState(rx.verificationNotes ?? "");
+  const left = (rx.refillsAllowed ?? 0) - (rx.refillsUsed ?? 0);
+  const refill = useAction(() => api<{ remaining: number }>(`/prescriptions/${rx.id}/refill`, { body: { earlyReason: early || undefined } }), ["rx", "rx-list", "rx-refills"], { silent: true, onDone: (r) => { toast(t("rx.refillDone", { count: r.remaining })); setEarly(""); } });
+  const out = useAction(() => api<{ id: string }>(`/prescriptions/${rx.id}/transfer-out`, { body: { counterparty: { name: f.name, phone: f.phone || undefined, pharmacist: f.pharmacist || undefined }, reason: f.reason || undefined } }), ["rx", "rx-list", "rx-transfers"], { ok: t("rx.transferDone"), onDone: (r) => { setXfer(false); void printHtml(`/prescriptions/transfers/${r.id}/note.html`, { lang: document.documentElement.lang }); } });
+  const annotate = useAction((b: { priority?: string; verificationNotes?: string }) => api(`/prescriptions/${rx.id}`, { method: "PATCH", body: b }), ["rx", "rx-queue"]);
+  const tooEarly = refill.error && (refill.error as { code?: string }).code === "REFILL_TOO_EARLY";
+  const open = !["DISPENSED", "CANCELLED", "REJECTED", "EXPIRED", "TRANSFERRED_OUT"].includes(rx.status) && !rx.lines.some((l) => l.controlled);
+  return (
+    <Card title={t("rx.balance")}>
+      <Table dense numeric={[1, 2, 3]} head={[t("common.product"), t("rx.prescribedQty"), t("rx.dispensedQty"), t("rx.owed")]}>{bal.data?.lines.map((l) => <tr key={l.lineId}><Td>{l.drugName}</Td><Td className="kx-num text-end">{l.prescribed}</Td><Td className="kx-num text-end">{l.dispensed}</Td><Td className="kx-num text-end font-semibold">{l.remaining}</Td></tr>)}</Table>
+      {(rx.refillsAllowed ?? 0) > 0 && <p className="mt-3 text-sm">{t("rx.refills")}: <b>{rx.refillsUsed}/{rx.refillsAllowed}</b> · {t("rx.refillsLeft", { count: left })}{rx.nextRefillDueAt && <> · {t("rx.dueOn")} {fmtDate(rx.nextRefillDueAt)}</>}</p>}
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        {can("rx.refill") && rx.status === "DISPENSED" && left > 0 && <>{tooEarly && <Field label={t("rx.refillEarly")}>{(id) => <Input id={id} value={early} onChange={(e) => setEarly(e.target.value)} />}</Field>}<Button onClick={() => refill.mutate()} disabled={refill.isPending}><Repeat aria-hidden className="size-4" />{t("rx.refill")}</Button></>}
+        {can("rx.transfer") && open && <Button variant="outline" onClick={() => setXfer(true)}><Send aria-hidden className="size-4" />{t("rx.transferOut")}</Button>}
+        {can("rx.validate") && ["RECEIVED", "VALIDATING"].includes(rx.status) && <Button variant="outline" onClick={() => annotate.mutate({ priority: rx.priority === "URGENT" ? "NORMAL" : "URGENT" })}>{rx.priority === "URGENT" ? t("rx.normal") : t("rx.markUrgent")}</Button>}
+      </div>
+      {can("rx.validate") && ["RECEIVED", "VALIDATING"].includes(rx.status) && <div className="mt-3 flex items-end gap-2"><Field label={t("rx.verificationNotes")} className="flex-1">{(id) => <Input id={id} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field><Button variant="outline" size="sm" onClick={() => annotate.mutate({ verificationNotes: notes })}>{t("common.save")}</Button></div>}
+      <div className="mt-2"><ErrorNote error={tooEarly ? null : refill.error} /></div>
+      <Modal open={xfer} onClose={() => setXfer(false)} title={t("rx.transferOut")}><form className="space-y-3" onSubmit={(e) => { e.preventDefault(); out.mutate(); }}>
+        <Field label={t("rx.transferTo")}>{(id) => <Input id={id} required minLength={2} {...bind("name")} />}</Field><Field label={t("rx.pharmacistName")}>{(id) => <Input id={id} {...bind("pharmacist")} />}</Field><Field label={t("sup.phone")}>{(id) => <Input id={id} dir="ltr" {...bind("phone")} />}</Field><Field label={t("common.reason")}>{(id) => <Input id={id} {...bind("reason")} />}</Field>
+        <ErrorNote error={out.error} /><Button type="submit" disabled={out.isPending}>{t("rx.transferOut")}</Button></form></Modal>
+    </Card>
   );
 }
 
@@ -166,7 +201,7 @@ export function RxDetail() {
   const { t } = useTranslation();
   const { branchId, can } = useAuth();
   const qc = useQueryClient(); const toast = useToast();
-  const [issues, setIssues] = useState<Issue[] | null>(null); const [picks, setPicks] = useState<Record<string, Pick>>({}); const [rejectReason, setRejectReason] = useState(""); const [rejecting, setRejecting] = useState(false);
+  const [partialReason, setPartialReason] = useState(""); const [issues, setIssues] = useState<Issue[] | null>(null); const [picks, setPicks] = useState<Record<string, Pick>>({}); const [rejectReason, setRejectReason] = useState(""); const [rejecting, setRejecting] = useState(false);
   const rxQ = useQuery({ queryKey: ["rx", id], queryFn: () => api<Rx>(`/prescriptions/${id}`) });
   const list = useQuery({ queryKey: ["dispensings-for-rx", id], queryFn: () => api<Page<{ id: string; status: string; prescriptionId: string | null }>>("/dispensings", { query: { pageSize: 50 } }) });
   const activeId = list.data?.items.find((x) => x.prescriptionId === id && ["VALIDATED", "RESERVED", "SIGNED_OFF", "DISPENSED"].includes(x.status))?.id;
@@ -179,7 +214,7 @@ export function RxDetail() {
       const rx = rxQ.data!;
       const items = rx.lines.filter((l) => l.quantity > l.qtyDispensed).map((l) => ({ l, p: picks[l.id] ?? { drugId: l.drugId ?? "", quantity: String(l.quantity - l.qtyDispensed), consent: false } })).filter((x) => x.p.drugId)
         .map(({ l, p }) => ({ prescriptionLineId: l.id, drugId: p.drugId, quantity: Number(p.quantity), ...(l.drugId && p.drugId !== l.drugId ? { substitution: { fromDrugId: l.drugId, consent: p.consent } } : {}) }));
-      return api("/dispensings", { body: { branchId, prescriptionId: id, items } });
+      return api("/dispensings", { body: { branchId, prescriptionId: id, items, partialReason: partialReason || undefined } });
     },
     onSuccess: () => { toast(t("disp.created")); refresh(); },
   });
@@ -202,11 +237,13 @@ export function RxDetail() {
             <ErrorNote error={validate.error || reject.error} />
             {can("rx.validate") && ["RECEIVED", "VALIDATING"].includes(rx.status) && <div className="mt-3 flex gap-2"><Button onClick={() => validate.mutate()} disabled={validate.isPending}>{t("rx.validate")}</Button><Button variant="danger" onClick={() => setRejecting(true)}>{t("rx.reject")}</Button></div>}
           </Card>
+          <RepeatCard rx={rx} />
           {canPlan && can("dispense.create") && branchId && (
             <Card title={t("disp.plan")}>
               <Table head={[t("rx.prescribedItem"), t("rx.remaining"), t("rx.chooseProduct"), t("inv.qty")]}>
                 {open.map((l) => <LinePicker key={l.id} line={l} branchId={branchId} value={picks[l.id] ?? { drugId: l.drugId ?? "", quantity: String(l.quantity - l.qtyDispensed), consent: false }} onChange={(p) => setPicks({ ...picks, [l.id]: p })} />)}
               </Table>
+              {open.some((l) => { const p = picks[l.id]; return p && Number(p.quantity) < l.quantity - l.qtyDispensed; }) && <div className="mt-3"><Field label={t("rx.partialReason")}>{(fid) => <Input id={fid} value={partialReason} onChange={(e) => setPartialReason(e.target.value)} />}</Field></div>}
               <ErrorNote error={dispense.error} />
               <Button className="mt-3" size="lg" onClick={() => dispense.mutate()} disabled={dispense.isPending}>{t("disp.start")}</Button>
               <p className="mt-2 text-xs text-muted-foreground">{t("disp.startNote")}</p>

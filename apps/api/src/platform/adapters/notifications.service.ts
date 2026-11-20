@@ -8,6 +8,7 @@ export const TEMPLATES: Record<string, { en: string; ar: string }> = {
   "expiry.alert": { en: "Expiry alert: {drug} lot {lot} expires in {days} days ({qty} on hand).", ar: "تنبيه انتهاء صلاحية: {drug} تشغيلة {lot} تنتهي خلال {days} يوم (الكمية {qty})." },
   "recall.notice": { en: "RECALL: {drug} lot(s) {lots} blocked across all branches. Reason: {reason}", ar: "سحب: تم إيقاف {drug} التشغيلات {lots} في كل الفروع. السبب: {reason}" },
   "po.send": { en: "Purchase order {po} from Kiorly Pharmacy ({branch}). Lines: {lines}", ar: "أمر شراء {po} من كيورلي فارمسي ({branch}). البنود: {lines}" },
+  "rx.refill_reminder": { en: "Refill reminder from {pharmacy}: your prescription {rx} is due for refill on {date}. Reply or visit us to collect it.", ar: "تذكير من {pharmacy}: موعد إعادة صرف الروشتة {rx} بتاريخ {date}. تفضل بزيارتنا لاستلامها." },
   "order.inbox": { en: "New Kiorex order {order}: respond within {minutes} minutes.", ar: "طلب كيوريكس جديد {order}: يرجى الرد خلال {minutes} دقيقة." },
 };
 

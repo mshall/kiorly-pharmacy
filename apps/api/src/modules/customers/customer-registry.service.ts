@@ -14,10 +14,15 @@ export interface CustomerInput {
   weightKg?: string | null; nationalId?: string; consentDataProcessing?: boolean; consentMarketing?: boolean; active?: boolean;
 }
 
+/** Next customer number (CUS-000123) inside a transaction. Callers retry on the unique (orgId, customerNo) conflict. */
+export async function nextCustomerNo(tx: Prisma.TransactionClient, orgId: string): Promise<string> {
+  const [{ n }] = await tx.$queryRaw<Array<{ n: number }>>`SELECT COALESCE(MAX(CAST(SUBSTRING("customerNo" FROM 5) AS INTEGER)),0)::int + 1 AS n FROM "PatientRef" WHERE "orgId" = ${orgId} AND "customerNo" ~ '^CUS-[0-9]+$'`;
+  return `CUS-${String(n).padStart(6, "0")}`;
+}
+
 const norm = (xs: string[] | undefined) => [...new Set((xs ?? []).map((x) => x.toLowerCase().trim()).filter(Boolean))];
 export const normPhone = (p?: string | null) => (p ? p.replace(/[^\d+]/g, "") : null);
 const nidHash = (orgId: string, nid: string) => createHmac("sha256", process.env.NATIONAL_ID_PEPPER ?? "dev-only-pepper").update(`${orgId}:${nid}`).digest("hex");
-const SAFE = { nationalIdHash: false } as const;
 
 /** Customer registry (works with no Kiorly / Kiorex at all). PatientRef is the single person record shared by Rx, dispensing, POS, loyalty and credit. */
 @Injectable()
@@ -39,8 +44,7 @@ export class CustomerRegistryService {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         return await this.prisma.$transaction(async (tx) => {
-          const [{ n }] = await tx.$queryRaw<Array<{ n: number }>>`SELECT COALESCE(MAX(CAST(SUBSTRING("customerNo" FROM 5) AS INTEGER)),0)::int + 1 AS n FROM "PatientRef" WHERE "orgId" = ${u.orgId} AND "customerNo" ~ '^CUS-[0-9]+$'`;
-          const p = await tx.patientRef.create({ data: this.data(u, d, { customerNo: `CUS-${String(n).padStart(6, "0")}`, orgId: u.orgId }) as Prisma.PatientRefUncheckedCreateInput });
+          const p = await tx.patientRef.create({ data: this.data(u, d, { customerNo: await nextCustomerNo(tx, u.orgId), orgId: u.orgId }) as Prisma.PatientRefUncheckedCreateInput });
           await this.audit(tx, u, "customer.create", p.id, { customerNo: p.customerNo });
           return this.view(p);
         });

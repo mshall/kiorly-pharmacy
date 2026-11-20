@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Header, Inject, Param, Post, Put, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumberString, IsOptional, IsString, Min, MinLength, ValidateNested } from "class-validator";
@@ -21,11 +21,13 @@ class CreateDto {
   @IsOptional() @IsString() prescriptionId?: string;
   @IsOptional() @IsString() kiorexOrderId?: string;
   @IsOptional() @IsString() patientId?: string;
+  @IsOptional() @IsString() @MinLength(3) partialReason?: string;
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ItemDto) items!: ItemDto[];
 }
 class OverrideDto { @IsString() @MinLength(5) reason!: string; }
 class ControlledIdDto { @IsString() nationalId!: string; @IsString() @MinLength(2) patientName!: string; }
 class SignoffDto { @IsOptional() @IsString() counsellingNotes?: string; }
+class CounsellingDto { @IsString() @MinLength(3) notes!: string; @IsOptional() @IsArray() @IsString({ each: true }) topics?: string[]; }
 class CancelDto { @IsString() @MinLength(3) reason!: string; }
 class PayDto { @IsIn(["CASH", "CARD", "INSTAPAY", "FAWRY", "WALLET", "CUSTOMER_CREDIT"]) method!: "CASH" | "CARD" | "INSTAPAY" | "FAWRY" | "WALLET" | "CUSTOMER_CREDIT"; @IsNumberString() amount!: string; @IsOptional() @IsString() walletRef?: string; }
 class CompleteDto {
@@ -58,6 +60,12 @@ export class DispensingController {
 
   @Post("dispensings/:id/signoff") @Perm("dispense.signoff")
   signoff(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: SignoffDto) { return this.svc.signOff(u, id, d.counsellingNotes); }
+
+  @Put("dispensings/:id/counselling") @Perm("dispense.signoff")
+  counselling(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: CounsellingDto) { return this.svc.setCounselling(u, id, d); }
+
+  @Get("dispensings/:id/labels.html") @Header("Content-Type", "text/html; charset=utf-8") @Perm("rx.read")
+  labels(@CurrentUser() u: AuthUser, @Param("id") id: string, @Query("lang") lang?: string) { return this.svc.labelsHtml(u.orgId, id, lang === "en" ? "en" : "ar"); }
 
   @Post("dispensings/:id/repick") @Perm("dispense.create")
   repick(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.svc.repick(u, id); }
