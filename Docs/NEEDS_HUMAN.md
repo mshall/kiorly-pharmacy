@@ -68,3 +68,10 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 | Identity | `AUTH_MODE=oidc` | Kiorex Passport client for Pharmacy, redirect URIs, back-channel logout URL (NH-PH-031) |
 | Commerce kernel | `src/kernel-adapter` | Package published (NH-PH-023) |
 | Thermal printers / scanners | Browser print of `/pos/sales/:id/receipt.html` | Hardware decision (NH-PH-017); ESC/POS driver if the print dialog is not acceptable |
+
+## Complete-pharmacy additions (human review needed)
+- **NH-PH-040 Clinical knowledge base**: the built-in interaction/dose/pregnancy/renal dataset is synthetic starter data. A licensed pharmacist (or a licensed commercial KB behind `ClinicalKnowledge`) must review it before real clinical use.
+- **NH-PH-041 Refill validity**: default 180 days from issue (`refillReminderDays` and validity are settings); confirm the local rule for each drug class.
+- **NH-PH-042 Controlled witness policy**: witness required for adjustments, write-offs, returns, count variances and transfers of controlled drugs; confirm it matches the regulator's register rules.
+- **NH-PH-043 Loyalty and credit terms**: tier thresholds, points value and customer credit days are defaults; the owner must set them.
+- **NH-PH-044 Application backup**: `/admin/export` is a data export, not a disaster-recovery backup.

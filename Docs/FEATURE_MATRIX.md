@@ -1,0 +1,18 @@
+# Feature matrix - complete standalone pharmacy
+
+Status: DONE = backend + UI + tests + seed. Paths are relative to `apps/api/src/` (API), `apps/web/src/` (web), `apps/api/test/` (e2e).
+
+| # | Area | Status | Key files | Tests |
+|---|---|---|---|---|
+| 1 | Customers: registry, profile, allergies/conditions, history, family, notes, consent, loyalty/tiers, credit, merge, search | DONE | `modules/customers/*`, `common/loyalty.ts`; web `pages/Customers.tsx`, `components/pickers.tsx` | `customers.e2e`, `common/loyalty.node.test.ts` |
+| 2 | Prescriptions: manual entry, prescribers, refills + reminders, partial fills, transfer in/out, optional e-Rx, verification queue, substitution, labels, counselling | DONE | `modules/prescriptions/*` (prescribers, refills, transfers, rx-label-template), `modules/dispensing`; web `pages/RxQueue.tsx`, `RxDetail.tsx` | `rx-suite.e2e`, `rx-dispense.e2e` |
+| 3 | Clinical safety: 9 checks (interaction, allergy, duplicate, dose range, pregnancy/lactation, renal/hepatic), pluggable KB, override with reason + audit; controlled register, running balance, witness, discrepancies | DONE (KB is synthetic, NH-PH-040) | `modules/clinical/*`, `modules/prescriptions/safety/*`, `modules/controlled/*`, `auth/approval.service.ts`; web `pages/Safety.tsx`, `Controlled.tsx` | `clinical.e2e`, `rx-safety-engine.node.test.ts`, `dose.node.test.ts`, `stop-ship.e2e` |
+| 4 | POS and cash: promotions, coupons, bundles, price book + history, VAT lines (display only), split payments, held carts, returns/exchanges, thermal/A4 receipts, shifts, drawer, X/Z, offline queue | DONE (offline: no promos/loyalty redemption) | `modules/pos/*`, `modules/catalogue/*`; web `pages/Pos.tsx`, `pos/PosExtras.tsx`, `Promotions.tsx`, `Catalogue.tsx` | `pos-suite.e2e`, `pos.e2e`, `pos/promotions.node.test.ts` |
+| 5 | Inventory: lots/FEFO, min/max + reorder, counts, adjustments with reasons, write-offs, transfers, cold chain, recalls, labels/barcodes, movers/dead stock, shelf locations, pack units | DONE | `modules/inventory/*`, `common/barcode.ts`; web `pages/Inventory.tsx`, `inventory/InventoryMore.tsx` | `inventory-suite.e2e`, `inventory.e2e`, `barcode.node.test.ts`, `inventory-analytics.node.test.ts` |
+| 6 | Purchasing: RFQ/PO lifecycle, goods receipt, supplier returns, ledger/payments/aging, cost variance, auto-reorder | DONE | `modules/purchasing/*`, `common/aging.ts`; web `pages/Purchasing.tsx`, `purchasing/PurchasingMore.tsx` | `purchasing-finance.e2e`, `aging.node.test.ts` |
+| 7 | Finance: daily sales, margin, payments by method, expenses, payables, receivables, insurer claims, CSV/PDF | DONE (PDF = print-to-PDF of HTML views) | `modules/finance/*`, `modules/claims/*`, `common/csv.ts`; web `pages/Finance.tsx` | `purchasing-finance.e2e`, `csv.node.test.ts` |
+| 8 | Admin: staff/roles matrix, branches, settings (receipt, printers, tax, currency, languages), audit viewer, CSV import, export/backup, notifications | DONE | `modules/admin/*`, `auth/permissions*.ts`, `audit/*`, `tenancy/*`; web `pages/Settings.tsx`, `settings/SettingsMore.tsx`, `Audit.tsx`, `Notifications.tsx` | `admin.e2e`, `tenancy.e2e` |
+| 9 | Reports: dashboard + 32 reports in 6 groups | DONE | `modules/reports/*`, `modules/dashboard/*`; web `pages/Reports.tsx`, `Dashboard.tsx` | `reports.e2e` |
+| 10 | Optional marketplace link; standalone as first-class mode | DONE | `tenancy/tenant-mode.service.ts`, `requires-integration.guard.ts`; Docs README/RUNBOOK | `tenancy.e2e`, `marketplace.e2e`, `flags-off.e2e`, `admin.e2e` |
+
+Cross-cutting: migrations 0007-0014, seed `apps/api/prisma/demo/seed-suite.ts`, i18n ar/en (`apps/web/src/locales`, parity + usage tests), no tax-authority reporting anywhere (CI scan).

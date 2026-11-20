@@ -19,3 +19,18 @@ Base path `/api/v1` (Swagger UI at `/docs`, machine-readable spec in [`openapi.j
 
 ## Safety paths (never flags, ADR-025)
 `inventory/lot-guard`, `dispensing`, `prescriptions/safety`, `suppliers/recall` must not reference the flag service (CI-enforced). Each rule also exists as a DB trigger/CHECK in migrations 0002/0004: append-only stock ledger/audit/controlled log, sellable-lot check on every outbound movement, sign-off before DISPENSE, Rx-only sale requires a signed dispensing, controlled dispensing requires a log entry, negative stock requires a manager approver.
+
+## Complete-pharmacy modules (all under `/api/v1`, full list in [openapi.json](./openapi.json))
+| Area | Endpoints (prefix) | Notes |
+|---|---|---|
+| Customers | `/customers` (+ `/duplicates`, `/{id}/history|notes|family|consent|credit-account|loyalty|loyalty/adjust|merge`) | search by name/phone/no.; duplicate phone returns 409; merge moves sales, Rx, notes, loyalty, credit |
+| Prescribers and Rx | `/prescribers`, `/prescriptions/manual`, `/verification-queue`, `/partial`, `/refills/due`, `/refills/reminders/run`, `/transfer-in`, `/transfers`, `/{id}/refill|transfer-out|balance`, `/dispensings/{id}/counselling|labels.html` | refill validity default 180 days; partial fills keep a balance; e-Rx intake (`/webhooks/kiorex`) is optional |
+| Clinical safety | `/clinical/kb`, `/clinical/overrides`; checks run inside dispensing (9 kinds) | overridable checks need reason + audit; hard blocks never overridable |
+| Controlled | `/controlled/register|balances|audits|discrepancies` | witness via `approval`/`witness` credentials |
+| POS and cash | `/pos/promotions`, `/pos/held`, `/pos/cash-movements`, `/pos/shifts/{id}/x-report|z-report`, `/pos/sales/{id}/exchange`, `/receipt.html?format=thermal|a4` | promotions: percent, amount, BOGO, bundle, coupon; VAT is a display line only |
+| Inventory | `/inventory/locations`, `/uoms`, `/analytics/movers|auto-reorder`, `/cold-chain/lots`, `/movements`, `/lots/labels.html`, `/lots/{id}/damage` | adjustments carry `reasonCode` |
+| Purchasing | `/purchasing/rfqs`, `/aging`, `/cost-variance`, `/supplier-returns`, `/purchase-orders/{id}/close|print.html`, `/suppliers/{id}/statement` | RFQ > award creates PO(s) |
+| Finance | `/finance/overview|margin|receivables|expenses`, `/claims/{id}/approve|reject|payments`, `/claims/batch-submit|reconciliation` | CSV via `?format=csv` on reports |
+| Admin | `/admin/roles`, `/admin/mode`, `/admin/import/{kind}`, `/admin/export`, `/audit` + `/audit/export.csv`, `/notifications/*` | |
+| Reports | `/reports` (catalogue of 32 reports in 6 groups), `/reports/{name}` | JSON or CSV |
+New permissions: `customers.*`, `rx.refill`, `rx.transfer`, `safety.kb.manage`, `controlled.manage`, `promo.manage`, `pos.discount_override`, `pos.cash_drawer`, `finance.*`, `roles.manage`, `data.import|export`, `notifications.read`. New role `ASSISTANT`. Standalone tenants get `403 STANDALONE_MODE` on Kiorex-only routes.
