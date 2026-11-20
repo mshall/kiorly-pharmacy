@@ -11,6 +11,8 @@ export class ReceiptLineDto {
   @IsInt() @Min(1) quantity!: number;
   @IsNumberString() unitCost!: string;
   @IsOptional() @IsNumber() temperatureC?: number;
+  @IsOptional() @IsString() uom?: string;
+  @IsOptional() @IsString() locationId?: string;
 }
 export class ReceiptDto {
   @IsOptional() @IsString() branchId?: string;

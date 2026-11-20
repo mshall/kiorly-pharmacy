@@ -12,6 +12,7 @@ import { CustomersService } from "./customers.service";
 import { PromotionsService, PROMO_KINDS } from "./promotions.service";
 import { HeldCartsService } from "./held-carts.service";
 import { CashService } from "./cash.service";
+import { UomService } from "../inventory/uom.service";
 import { resolveBranchId, branchFilter } from "../../common/branch-scope";
 import { PrismaService } from "../../prisma/prisma.service";
 import { pageArgs } from "../../common/pagination";
@@ -22,6 +23,8 @@ class CartLineDto {
   @IsInt() @Min(1) quantity!: number;
   @IsOptional() @IsString() lotId?: string;
   @IsOptional() @IsNumberString() discount?: string;
+  /** Sell in a pack unit defined for the drug (box, carton): quantity is converted to base units. */
+  @IsOptional() @IsString() uom?: string;
 }
 class PaymentDto {
   @IsIn(METHODS) method!: (typeof METHODS)[number];
@@ -107,20 +110,26 @@ export class PosController {
     @Inject(PromotionsService) private readonly promos: PromotionsService,
     @Inject(HeldCartsService) private readonly held: HeldCartsService,
     @Inject(CashService) private readonly cash: CashService,
+    @Inject(UomService) private readonly uoms: UomService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
+
+  /** Converts pack-unit lines (uom) to base units; the line discount stays as given. */
+  private async expand(u: AuthUser, lines: CartLineDto[]) {
+    return Promise.all(lines.map(async (l) => { const f = await this.uoms.factor(u.orgId, l.drugId, l.uom); return { drugId: l.drugId, lotId: l.lotId, discount: l.discount, quantity: l.quantity * f }; }));
+  }
 
   @Get("lookup") @Perm("pos.sell")
   async lookup(@CurrentUser() u: AuthUser, @Query("code") code: string, @Query("branchId") branchId?: string) { return this.pos.lookup(u, await resolveBranchId(this.prisma, u, branchId), code); }
 
   @Post("cart/quote") @Perm("pos.sell")
-  async quote(@CurrentUser() u: AuthUser, @Body() d: QuoteDto) { return this.pos.quote(u, await resolveBranchId(this.prisma, u, d.branchId), d.lines, d.couponCodes); }
+  async quote(@CurrentUser() u: AuthUser, @Body() d: QuoteDto) { return this.pos.quote(u, await resolveBranchId(this.prisma, u, d.branchId), await this.expand(u, d.lines), d.couponCodes); }
 
   @Get("offline-bundle") @Perm("pos.sell")
   async bundle(@CurrentUser() u: AuthUser, @Query("branchId") branchId?: string) { return this.pos.offlineBundle(u, await resolveBranchId(this.prisma, u, branchId)); }
 
   @Post("sales") @Perm("pos.sell")
-  async checkout(@CurrentUser() u: AuthUser, @Body() d: CheckoutDto) { return this.sales.checkout(u, { ...d, branchId: await resolveBranchId(this.prisma, u, d.branchId) }); }
+  async checkout(@CurrentUser() u: AuthUser, @Body() d: CheckoutDto) { return this.sales.checkout(u, { ...d, lines: await this.expand(u, d.lines), branchId: await resolveBranchId(this.prisma, u, d.branchId) }); }
 
   @Get("sales") @Perm("pos.sell")
   list(@CurrentUser() u: AuthUser, @Query() q: { branchId?: string; shiftId?: string; page?: string; pageSize?: string }) { const { skip, take } = pageArgs(q); return this.pos.listSales(u.orgId, { ...branchFilter(u, q.branchId), shiftId: q.shiftId, skip, take }); }

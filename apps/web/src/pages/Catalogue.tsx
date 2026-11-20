@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { ArrowRight, Printer, Plus, Snowflake, ShieldAlert, Tag, X } from "lucide-react";
-import { Badge, Button, Card, Empty, ErrorNote, ExpiryChip, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select, Table, Td, Toolbar } from "@/components/ui";
+import { Badge, Button, Card, Empty, ErrorNote, ExpiryChip, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select, Table, Tabs, Td, Toolbar } from "@/components/ui";
+import { useAction, useForm } from "@/lib/hooks";
 import { TableSkeleton } from "@/brand/ui-kit";
 import { Sparkline } from "@/components/charts";
 import { drugName, fmtDate, fmtMoney } from "@/lib/format";
@@ -60,6 +61,7 @@ function PriceModal({ drug, onClose }: { drug: Drug | null; onClose: () => void 
             )}
             <div className="mt-2"><ErrorNote error={save.error} /></div>
           </section>
+          <UomSection drugId={drug.id} baseUnit={drug.packSize} canWrite={can("catalogue.write")} />
           <section aria-labelledby="sub-h">
             <div className="mb-2 flex items-baseline justify-between gap-2"><h3 id="sub-h" className="text-sm font-semibold">{t("cat.substitutes")}</h3><span className="text-xs text-muted-foreground">{t("cat.subsHint")}</span></div>
             {subs.isLoading ? <TableSkeleton rows={3} cols={4} /> : group.length ? (
@@ -80,22 +82,55 @@ function PriceModal({ drug, onClose }: { drug: Drug | null; onClose: () => void 
   );
 }
 
+function UomSection({ drugId, canWrite }: { drugId: string; baseUnit: string; canWrite: boolean }) {
+  const { t } = useTranslation();
+  const q = useQuery({ queryKey: ["uoms", drugId], queryFn: () => api<Array<{ id: string; name: string; factor: number }>>(`/inventory/uoms/${drugId}`) });
+  const [f, , bind, reset] = useForm({ name: "", factor: "12" });
+  const add = useAction(() => api(`/inventory/uoms/${drugId}`, { body: { name: f.name, factor: Number(f.factor) } }), ["uoms"], { onDone: () => reset() });
+  const del = useAction((id: string) => api(`/inventory/uoms/item/${id}`, { method: "DELETE" }), ["uoms"]);
+  return (
+    <section aria-labelledby="uom-h"><h3 id="uom-h" className="mb-1 text-sm font-semibold">{t("cat.packUnits")}</h3><p className="mb-2 text-xs text-muted-foreground">{t("cat.packUnitHint")}</p>
+      <div className="flex flex-wrap gap-2">{q.data?.map((u) => <span key={u.id} className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">1 {u.name} = {u.factor}{canWrite && <button type="button" aria-label={t("common.remove")} onClick={() => del.mutate(u.id)}>✕</button>}</span>)}</div>
+      {canWrite && <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}><Field label={t("cat.unitName")}>{(id) => <Input id={id} required className="w-40" {...bind("name")} />}</Field><Field label={t("cat.unitFactor")}>{(id) => <Input id={id} type="number" min={2} required className="w-28" {...bind("factor")} />}</Field><Button type="submit" size="sm" variant="outline">{t("cat.addUnit")}</Button></form>}
+      <div className="mt-1"><ErrorNote error={add.error || del.error} /></div></section>
+  );
+}
+
+interface PbRow { id: string; brandName: string; brandNameAr: string | null; strength: string; dosageForm: string; category: string | null; price: string; since: string; cost: string | null; marginPct: number | null; onHand: number }
+function PriceBook({ onOpen }: { onOpen: (id: string) => void }) {
+  const { t } = useTranslation(); const { branchId } = useAuth();
+  const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [low, setLow] = useState(false); const [page, setPage] = useState(1);
+  const cats = useQuery({ queryKey: ["categories"], queryFn: () => api<string[]>("/catalogue/categories") });
+  const res = useQuery({ queryKey: ["price-book", branchId, q, cat, low, page], queryFn: () => api<{ total: number; items: PbRow[] }>("/catalogue/price-book", { query: { branchId, q: q || undefined, category: cat || undefined, lowMargin: low ? "true" : undefined, page, pageSize: 25 } }), enabled: !!branchId, placeholderData: (p) => p });
+  return (
+    <>
+      <Toolbar><SearchInput label={t("common.search")} placeholder={t("cat.searchHint")} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} className="w-full sm:w-80" />
+        <Select aria-label={t("cat.category")} value={cat} onChange={(e) => { setCat(e.target.value); setPage(1); }} className="w-52"><option value="">{t("cat.allCategories")}</option>{cats.data?.map((c) => <option key={c} value={c}>{c}</option>)}</Select>
+        <label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" checked={low} onChange={(e) => { setLow(e.target.checked); setPage(1); }} />{t("cat.lowMargin")}</label></Toolbar>
+      <Card className="p-0">{res.isLoading ? <TableSkeleton rows={8} cols={6} /> : <Table numeric={[3, 4, 5, 6]} hideOnPhone={[1, 4]} head={[t("common.product"), t("cat.category"), t("cat.priceSince"), t("cat.price"), t("cat.cost"), t("cat.margin"), t("cat.onHand")]} empty={!res.data?.items.length ? <Empty>{t("common.noResults")}</Empty> : null}>
+        {res.data?.items.map((r) => <tr key={r.id} className="kx-row-click" onClick={() => onOpen(r.id)}><Td className="font-medium">{drugName(r)} <bdi className="text-xs text-muted-foreground">{r.strength}</bdi></Td><Td>{r.category ?? "—"}</Td><Td className="kx-num text-end text-xs text-muted-foreground">{fmtDate(r.since)}</Td><Td className="kx-num text-end font-semibold">{fmtMoney(r.price)}</Td><Td className="kx-num text-end">{r.cost ? fmtMoney(r.cost) : "—"}</Td>
+          <Td className="text-end">{r.marginPct == null ? "—" : <Badge tone={r.marginPct < 10 ? "bad" : r.marginPct < 20 ? "warn" : "good"}>{r.marginPct}%</Badge>}</Td><Td className="kx-num text-end">{r.onHand}</Td></tr>)}</Table>}
+        <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3 text-sm"><span className="text-muted-foreground">{t("common.total", { count: res.data?.total ?? 0 })}</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t("common.prev")}</Button><Button size="sm" variant="outline" disabled={page * 25 >= (res.data?.total ?? 0)} onClick={() => setPage(page + 1)}>{t("common.next")}</Button></div></div></Card>
+    </>
+  );
+}
+
 function AddDrug({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient(); const toast = useToast();
-  const blank = { brandName: "", brandNameAr: "", activeIngredient: "", strength: "", dosageForm: "tablet", packSize: "", gtin: "", price: "", rxOnly: false, controlledSchedule: "NONE", coldChain: false };
+  const blank = { brandName: "", brandNameAr: "", activeIngredient: "", strength: "", dosageForm: "tablet", packSize: "", gtin: "", price: "", category: "", rxOnly: false, controlledSchedule: "NONE", coldChain: false };
   const [f, setF] = useState(blank);
   const m = useMutation({
-    mutationFn: () => api("/catalogue/drugs", { body: { ...f, brandNameAr: f.brandNameAr || undefined, gtin: f.gtin || undefined, price: f.price || undefined } }),
+    mutationFn: () => api("/catalogue/drugs", { body: { ...f, brandNameAr: f.brandNameAr || undefined, gtin: f.gtin || undefined, price: f.price || undefined, category: f.category || undefined } }),
     onSuccess: () => { toast(t("common.saved")); setF(blank); onClose(); void qc.invalidateQueries({ queryKey: ["drugs"] }); },
   });
-  const text = (k: "brandName" | "brandNameAr" | "activeIngredient" | "strength" | "packSize" | "gtin" | "price", label: string, req = false) => <Field label={label}>{(id) => <Input id={id} required={req} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />}</Field>;
+  const text = (k: "brandName" | "brandNameAr" | "activeIngredient" | "strength" | "packSize" | "gtin" | "price" | "category", label: string, req = false) => <Field label={label}>{(id) => <Input id={id} required={req} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />}</Field>;
   return (
     <Modal open={open} onClose={onClose} title={t("cat.addDrug")} wide>
       <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="grid gap-3 sm:grid-cols-2">
         {text("brandName", t("cat.brand"), true)}{text("brandNameAr", t("cat.brandAr"))}{text("activeIngredient", t("cat.ingredient"), true)}{text("strength", t("cat.strength"), true)}
         <Field label={t("cat.form")}>{(id) => <Select id={id} value={f.dosageForm} onChange={(e) => setF({ ...f, dosageForm: e.target.value })}>{["tablet", "capsule", "syrup", "suspension", "injection", "cream", "ointment", "drops", "inhaler", "powder"].map((x) => <option key={x} value={x}>{x}</option>)}</Select>}</Field>
-        {text("packSize", t("cat.pack"), true)}{text("gtin", t("cat.barcode"))}{text("price", t("cat.price"))}
+        {text("packSize", t("cat.pack"), true)}{text("gtin", t("cat.barcode"))}{text("price", t("cat.price"))}{text("category", t("cat.category"))}
         <Field label={t("cat.schedule")}>{(id) => <Select id={id} value={f.controlledSchedule} onChange={(e) => setF({ ...f, controlledSchedule: e.target.value })}>{["NONE", "SCHEDULE_1", "SCHEDULE_2", "SCHEDULE_3", "SCHEDULE_4"].map((x) => <option key={x} value={x}>{x === "NONE" ? t("cat.notControlled") : x}</option>)}</Select>}</Field>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.rxOnly} onChange={(e) => setF({ ...f, rxOnly: e.target.checked })} />{t("cat.rxOnly")}</label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.coldChain} onChange={(e) => setF({ ...f, coldChain: e.target.checked })} />{t("cat.coldChain")}</label>
@@ -113,7 +148,7 @@ export function Catalogue() {
   const { can, branchId } = useAuth();
   const [q, setQ] = useState(""); const [filter, setFilter] = useState<CatFilter>(""); const [page, setPage] = useState(1);
   const [price, setPrice] = useState<Drug | null>(null); const [add, setAdd] = useState(false);
-  const [sel, setSel] = useState<string[]>([]);
+  const [sel, setSel] = useState<string[]>([]); const [view, setView] = useState("drugs");
   const query: Record<string, string | number | undefined> = { q: q || undefined, page, pageSize: 25, ...(filter === "rx" ? { rxOnly: "true" } : filter === "controlled" ? { controlled: "true" } : filter === "cold" ? { coldChain: "true" } : filter === "otc" ? { otc: "true" } : {}) };
   const res = useQuery({ queryKey: ["drugs", query], queryFn: () => api<Page<Drug>>("/catalogue/drugs", { query }), placeholderData: (p) => p });
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -124,6 +159,8 @@ export function Catalogue() {
       <PageHeader title={t("cat.title")} subtitle={t("cat.subtitle")} actions={<>
         {can("catalogue.write") && <Button onClick={() => setAdd(true)}><Plus aria-hidden className="size-4" />{t("cat.addDrug")}</Button>}
       </>} />
+      <Tabs value={view} onChange={setView} tabs={[{ id: "drugs", label: t("cat.tabDrugs") }, { id: "pricebook", label: t("cat.tabPriceBook") }]} />
+      {view === "pricebook" ? <div className="mt-3"><PriceBook onOpen={(id) => void api<Drug>(`/catalogue/drugs/${id}`).then(setPrice)} /></div> : <>
       <Toolbar>
         <SearchInput label={t("common.search")} placeholder={t("cat.searchHint")} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} className="w-full sm:w-80" />
         <Segmented<CatFilter> label={t("cat.filter")} value={filter} onChange={(v) => { setFilter(v); setPage(1); }} options={[{ id: "", label: t("common.all") }, { id: "rx", label: "Rx" }, { id: "controlled", label: t("cat.controlled") }, { id: "cold", label: t("cat.coldChain") }, { id: "otc", label: "OTC" }]} />
@@ -156,6 +193,7 @@ export function Catalogue() {
           <div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t("common.prev")}</Button><Button size="sm" variant="outline" disabled={page * 25 >= total} onClick={() => setPage(page + 1)}>{t("common.next")}</Button></div>
         </div>
       </Card>
+      </>}
       <PriceModal drug={price} onClose={() => setPrice(null)} />
       <AddDrug open={add} onClose={() => setAdd(false)} />
     </>

@@ -83,7 +83,7 @@ export class InventoryController {
     if (!lot) throw new DomainError("LOT_NOT_FOUND", "Lot not found", 404);
     const goesNegative = d.quantity < 0 && lot.qtyOnHand + d.quantity < 0;
     const approver = goesNegative ? await this.approvals.approver(u, "inventory.negative_stock", d.approval) : undefined;
-    return this.inv.adjust(u, d.lotId, d.quantity, d.reasonCode ? `[${d.reasonCode}] ${d.reason}` : d.reason, approver, d.witness ? await this.approvals.witness(u, d.witness) : undefined);
+    return this.inv.adjust(u, d.lotId, d.quantity, d.reason, approver, d.witness ? await this.approvals.witness(u, d.witness) : undefined, d.reasonCode);
   }
 
   @Get("expiry")

@@ -195,7 +195,7 @@ export class TenancyController {
   async patchSettings(@CurrentUser() u: AuthUser, @Body() dto: SettingsDto) {
     const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: u.orgId } });
     const settings = { ...((t.settings as object | null) ?? {}), ...dto };
-    await this.prisma.tenant.update({ where: { id: u.orgId }, data: { settings } });
+    await this.prisma.tenant.update({ where: { id: u.orgId }, data: { settings: JSON.parse(JSON.stringify(settings)) } });
     await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "settings.update", entityType: "Tenant", entityId: u.orgId, meta: { fields: Object.keys(dto) } });
     return settings;
   }

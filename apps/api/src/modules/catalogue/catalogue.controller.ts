@@ -31,6 +31,8 @@ export class DrugDto {
   @IsOptional() @IsBoolean() coldChain?: boolean;
   @IsOptional() @IsBoolean() otc?: boolean;
   @IsOptional() @IsNumberString() vatRate?: string;
+  @IsOptional() @IsString() category?: string;
+  @IsOptional() @IsString() baseUnit?: string;
 }
 class DrugPatchDto {
   @IsOptional() @IsString() brandName?: string;
@@ -46,6 +48,8 @@ class DrugPatchDto {
   @IsOptional() @IsBoolean() coldChain?: boolean;
   @IsOptional() @IsBoolean() otc?: boolean;
   @IsOptional() @IsNumberString() vatRate?: string;
+  @IsOptional() @IsString() category?: string;
+  @IsOptional() @IsString() baseUnit?: string;
 }
 class ImportDto {
   @IsArray() @ArrayMaxSize(5000) @ValidateNested({ each: true }) @Type(() => DrugDto) drugs!: DrugDto[];
@@ -61,6 +65,7 @@ class BulkPriceDto {
 }
 class SearchQuery {
   @IsOptional() @IsString() q?: string;
+  @IsOptional() @IsString() category?: string;
   @IsOptional() @Transform(bool) @IsBoolean() rxOnly?: boolean;
   @IsOptional() @Transform(bool) @IsBoolean() controlled?: boolean;
   @IsOptional() @Transform(bool) @IsBoolean() coldChain?: boolean;
@@ -84,9 +89,20 @@ export class CatalogueController {
   @Perm("catalogue.read")
   async search(@CurrentUser() u: AuthUser, @Query() q: SearchQuery) {
     const { skip, take, page, pageSize } = pageArgs(q, 100);
-    const r = await this.svc.search(u.orgId, { q: q.q, rxOnly: q.rxOnly, controlled: q.controlled, coldChain: q.coldChain, otc: q.otc, skip, take });
+    const r = await this.svc.search(u.orgId, { q: q.q, rxOnly: q.rxOnly, controlled: q.controlled, coldChain: q.coldChain, otc: q.otc, category: q.category, skip, take });
     return { ...r, page, pageSize };
   }
+
+  @Get("price-book")
+  @Perm("catalogue.read")
+  async priceBook(@CurrentUser() u: AuthUser, @Query() q: { q?: string; category?: string; lowMargin?: string; branchId?: string; page?: string; pageSize?: string }) {
+    const { skip, take, page, pageSize } = pageArgs(q, 200);
+    return { ...(await this.svc.priceBook(u.orgId, await resolveBranchId(this.prisma, u, q.branchId), { q: q.q, category: q.category, lowMargin: q.lowMargin === "true", skip, take })), page, pageSize };
+  }
+
+  @Get("categories")
+  @Perm("catalogue.read")
+  async categories(@CurrentUser() u: AuthUser) { return (await this.prisma.drug.findMany({ where: { OR: [{ orgId: null }, { orgId: u.orgId }], category: { not: null } }, distinct: ["category"], select: { category: true }, orderBy: { category: "asc" } })).map((x) => x.category); }
 
   @Get("drugs/:id")
   @Perm("catalogue.read")

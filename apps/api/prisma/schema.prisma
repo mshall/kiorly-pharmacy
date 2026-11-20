@@ -332,6 +332,10 @@ model Drug {
   substitutionGroupId String?
   /// Per-drug VAT override (fraction, e.g. 0.14). null => market-pack default. Display/export only.
   vatRate             Decimal?           @db.Decimal(5, 4)
+  /// Reporting category (margin by category), e.g. "Analgesics", "Antibiotics", "Vitamins".
+  category            String?
+  /// Name of the base stock unit (what StockLot.qtyOnHand counts): pack | strip | bottle ...
+  baseUnit            String             @default("pack")
   /// Dataset key for idempotent seed/re-import (e.g. "egdb:12345").
   sourceKey           String?            @unique
   active              Boolean            @default(true)
@@ -339,6 +343,7 @@ model Drug {
 
   substitutionGroup SubstitutionGroup? @relation(fields: [substitutionGroupId], references: [id])
   prices            PriceBookEntry[]
+  uoms              UomConversion[]
   lots              StockLot[]
   rxLines           PrescriptionLine[]
   reorderPolicies   ReorderPolicy[]
@@ -483,6 +488,8 @@ model StockLot {
   recallNoticeId    String?
   /// Status before the block, restored when a quarantine/recall is lifted.
   statusBeforeBlock LotStatus?
+  /// Shelf / fridge / safe the lot sits in.
+  locationId        String?
   createdAt         DateTime   @default(now())
 
   drug            Drug               @relation(fields: [drugId], references: [id])
@@ -511,6 +518,8 @@ model StockMovement {
   /// Source document: sale/dispensing/PO/count/recall id + kind.
   refType           String?
   refId             String?
+  /// Adjustment reason code for reporting (DAMAGE | THEFT | LOSS | FOUND | COUNT_CORRECTION | SAMPLE | OTHER).
+  reasonCode        String?
   /// Negative stock only with manager permission (KPINV03): who approved.
   managerApprovalBy String?
   performedBy       String
@@ -1607,4 +1616,39 @@ model CashMovement {
 
   @@index([orgId, shiftId])
   @@index([orgId, branchId, createdAt])
+}
+
+// ------------------------------------------------------------- inventory suite ----
+
+/// Physical storage places per branch (shelf A3, fridge 1, controlled safe ...). Lots point at a location.
+model ShelfLocation {
+  id        String   @id @default(cuid())
+  orgId     String
+  branchId  String
+  code      String
+  label     String?
+  /// SHELF | FRIDGE | SAFE | BACKROOM | DISPLAY | QUARANTINE
+  kind      String   @default("SHELF")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([branchId, code])
+  @@index([orgId, branchId])
+}
+
+/// Pack conversion: 1 `name` (box, carton, strip ...) = `factor` base units of the drug. Used when receiving and selling in another unit.
+model UomConversion {
+  id        String   @id @default(cuid())
+  orgId     String
+  drugId    String
+  name      String
+  factor    Int
+  barcode   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  drug Drug @relation(fields: [drugId], references: [id])
+
+  @@unique([drugId, name])
+  @@index([orgId, drugId])
 }

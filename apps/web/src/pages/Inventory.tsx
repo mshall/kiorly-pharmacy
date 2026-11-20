@@ -7,6 +7,9 @@ import { Badge, Button, Card, Empty, ErrorNote, ExpiryChip, Field, Input, LOT_TO
 import { drugName, fmtDate, fmtNum } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 import type { Lot, Page, StockRow } from "@/lib/types";
+import { WitnessFields, useWitness } from "@/components/witness";
+import { AdjustModal, ColdChainTab, LocationsTab, MovementsTab, MoversTab, PrintLotLabel, TransfersTab } from "@/pages/inventory/InventoryMore";
+import { Printer } from "lucide-react";
 
 function StockTab() {
   const { t } = useTranslation();
@@ -35,13 +38,14 @@ function StockTab() {
   );
 }
 
-function ReasonModal({ title, open, onClose, onSubmit, busy, error }: { title: string; open: boolean; onClose: () => void; onSubmit: (reason: string) => void; busy: boolean; error: unknown }) {
+function ReasonModal({ title, open, onClose, onSubmit, busy, error, controlled }: { title: string; open: boolean; onClose: () => void; onSubmit: (reason: string, witness?: { email: string; password: string }) => void; busy: boolean; error: unknown; controlled?: boolean }) {
   const { t } = useTranslation();
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(""); const w = useWitness();
   return (
     <Modal open={open} onClose={onClose} title={title}>
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit(reason); }} className="space-y-3">
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit(reason, w.value); }} className="space-y-3">
         <Field label={t("common.reason")}>{(id) => <Input id={id} required minLength={3} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+        {controlled && <><p className="text-sm text-[hsl(var(--warning))]">{t("inv.controlledWitness")}</p><WitnessFields w={w.w} setW={w.setW} required /></>}
         <ErrorNote error={error} /><Button type="submit" disabled={busy}>{t("common.confirm")}</Button>
       </form>
     </Modal>
@@ -62,13 +66,14 @@ function LotsTab() {
   const qc = useQueryClient(); const toast = useToast();
   const [status, setStatus] = useState(""); const [q, setQ] = useState("");
   const [act, setAct] = useState<{ lot: Lot; kind: "quarantine" | "release" | "write-off" | "temp" } | null>(null);
+  const [adj, setAdj] = useState<Lot | null>(null);
   const [temp, setTemp] = useState("");
   const res = useQuery({ queryKey: ["lots", branchId, status, q], queryFn: () => api<Page<Lot>>("/inventory/lots", { query: { branchId, status, q, pageSize: 100 } }), enabled: !!branchId });
   const run = useMutation({
-    mutationFn: async (reason: string) => {
+    mutationFn: async (v: { reason: string; witness?: { email: string; password: string } }) => {
       if (!act) return;
       if (act.kind === "temp") return api(`/inventory/cold-chain/${act.lot.id}/readings`, { body: { temperatureC: Number(temp) } });
-      return api(`/inventory/lots/${act.lot.id}/${act.kind}`, { body: { reason } });
+      return api(`/inventory/lots/${act.lot.id}/${act.kind}`, { body: { reason: v.reason, witness: act.kind === "write-off" ? v.witness : undefined } });
     },
     onSuccess: () => { toast(t("common.saved")); setAct(null); void qc.invalidateQueries({ queryKey: ["lots"] }); void qc.invalidateQueries({ queryKey: ["stock"] }); },
   });
@@ -92,14 +97,17 @@ function LotsTab() {
                 {can("inventory.quarantine") && l.status === "QUARANTINE" && <Button size="sm" variant="outline" onClick={() => setAct({ lot: l, kind: "release" })}>{t("inv.release")}</Button>}
                 {can("inventory.adjust") && (l.status === "EXPIRED" || l.status === "RECALLED" || l.blockReason === "EXPIRED") && l.qtyOnHand > 0 && <Button size="sm" variant="danger" onClick={() => setAct({ lot: l, kind: "write-off" })}>{t("inv.writeOff")}</Button>}
                 {l.drug.coldChain && <Button size="sm" variant="outline" onClick={() => setAct({ lot: l, kind: "temp" })}>{t("inv.logTemp")}</Button>}
+                {can("inventory.adjust") && l.qtyOnHand > 0 && <Button size="sm" variant="outline" onClick={() => setAdj(l)}>{t("inv.adjust")}</Button>}
+                <Button size="sm" variant="ghost" aria-label={t("inv.printLabel")} onClick={() => PrintLotLabel(l.id)}><Printer aria-hidden className="size-4" /></Button>
               </div></Td>
             </tr>
           ))}
         </Table>
       )}
-      {act && act.kind !== "temp" && <ReasonModal open title={t(`inv.${act.kind === "write-off" ? "writeOff" : act.kind}`)} onClose={() => setAct(null)} onSubmit={(r) => run.mutate(r)} busy={run.isPending} error={run.error} />}
+      <AdjustModal lot={adj} onClose={() => setAdj(null)} />
+      {act && act.kind !== "temp" && <ReasonModal open title={t(`inv.${act.kind === "write-off" ? "writeOff" : act.kind}`)} onClose={() => setAct(null)} controlled={act.lot.drug.controlledSchedule !== "NONE" && act.kind === "write-off"} onSubmit={(r, w) => run.mutate({ reason: r, witness: w })} busy={run.isPending} error={run.error} />}
       <Modal open={act?.kind === "temp"} onClose={() => setAct(null)} title={t("inv.logTemp")}>
-        <form onSubmit={(e) => { e.preventDefault(); run.mutate(""); }} className="space-y-3">
+        <form onSubmit={(e) => { e.preventDefault(); run.mutate({ reason: "" }); }} className="space-y-3">
           <Field label={t("inv.tempC")} hint={t("inv.tempHint")}>{(id) => <Input id={id} type="number" step="0.1" required value={temp} onChange={(e) => setTemp(e.target.value)} />}</Field>
           <ErrorNote error={run.error} /><Button type="submit" disabled={run.isPending}>{t("common.save")}</Button>
         </form>
@@ -186,9 +194,9 @@ export function Inventory() {
   return (
     <>
       <PageHeader title={t("inv.title")} />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: "stock", label: t("inv.tabStock") }, { id: "lots", label: t("inv.tabLots") }, { id: "expiry", label: t("inv.tabExpiry") }, { id: "counts", label: t("inv.tabCounts") }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: "stock", label: t("inv.tabStock") }, { id: "lots", label: t("inv.tabLots") }, { id: "expiry", label: t("inv.tabExpiry") }, { id: "counts", label: t("inv.tabCounts") }, { id: "locations", label: t("inv.tabLocations") }, { id: "movers", label: t("inv.tabMovers") }, { id: "transfers", label: t("inv.tabTransfers") }, { id: "cold", label: t("inv.tabCold") }, { id: "movements", label: t("inv.tabMovements") }]} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "stock" && <StockTab />}{tab === "lots" && <LotsTab />}{tab === "expiry" && <ExpiryTab />}{tab === "counts" && <CountsTab />}
+        {tab === "stock" && <StockTab />}{tab === "lots" && <LotsTab />}{tab === "expiry" && <ExpiryTab />}{tab === "counts" && <CountsTab />}{tab === "locations" && <LocationsTab />}{tab === "movers" && <MoversTab />}{tab === "transfers" && <TransfersTab />}{tab === "cold" && <ColdChainTab />}{tab === "movements" && <MovementsTab />}
       </div>
     </>
   );

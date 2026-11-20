@@ -26,6 +26,8 @@ export interface PostMovement {
   approvedBy?: string;
   /** SALE/DISPENSE that consumes its own earlier reservation: skip the free-quantity check. */
   fromReservation?: boolean;
+  /** Adjustment reason code (DAMAGE | THEFT | LOSS | FOUND | COUNT_CORRECTION | SAMPLE | OTHER). */
+  reasonCode?: string;
   /** Controlled medicines: second staff member who countersigned the adjustment / write-off / return / transfer (required for those types). */
   witness?: { id: string; name: string };
 }
@@ -85,7 +87,7 @@ export class StockLedger {
 
     const row = await tx.stockMovement.create({
       data: {
-        orgId: m.orgId, branchId: m.branchId, lotId: m.lotId, type: m.type, qtyDelta, reason: m.reason, refType: m.refType, refId: m.refId,
+        orgId: m.orgId, branchId: m.branchId, lotId: m.lotId, type: m.type, qtyDelta, reason: m.reason, reasonCode: m.reasonCode, refType: m.refType, refId: m.refId,
         managerApprovalBy: m.approvedBy, performedBy: m.performedBy,
       },
     });

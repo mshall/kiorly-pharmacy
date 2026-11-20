@@ -8,6 +8,7 @@ import { StockLedger } from "./stock-ledger.service";
 import { KERNEL, type MarketPackPort } from "../../kernel-adapter/ports";
 import type { AuthUser } from "../../auth/auth-user";
 import { parseGs1 } from "./gs1";
+import { UomService } from "./uom.service";
 
 export interface ReceiptLineInput {
   drugId?: string;
@@ -19,6 +20,10 @@ export interface ReceiptLineInput {
   unitCost: string;
   /** Required for cold-chain drugs (KPINV06). */
   temperatureC?: number;
+  /** Receive in a pack unit defined for the drug (box, carton ...): quantity and unitCost are then per that unit. */
+  uom?: string;
+  /** Shelf location to put the lot on. */
+  locationId?: string;
 }
 export interface ReceiptInput {
   branchId: string;
@@ -38,6 +43,7 @@ export class ReceivingService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(StockLedger) private readonly ledger: StockLedger,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
+    @Inject(UomService) private readonly uoms: UomService,
   ) {}
 
   /** KPINV01 scan -> {drug, lot, expiry} prefill. Looks up by GTIN in the tenant's visible catalogue. */
@@ -70,10 +76,13 @@ export class ReceivingService {
       });
       let total = D(0);
       const outLines: Array<{ lotId: string; drugId: string; quantity: number; status: string }> = [];
-      for (const line of input.lines) {
-        const scan = line.scan ? await this.resolveScan(orgId, line.scan) : null;
-        const drugId = line.drugId ?? scan?.drug?.id;
+      for (const rawLine of input.lines) {
+        const scan = rawLine.scan ? await this.resolveScan(orgId, rawLine.scan) : null;
+        const drugId = rawLine.drugId ?? scan?.drug?.id;
         if (!drugId) throw new DomainError("DRUG_UNRESOLVED", "Line needs a drugId or a scan that matches the catalogue", 400);
+        // pack conversion: 1 box = N base units; cost per base unit = box cost / N
+        const factor = await this.uoms.factor(orgId, drugId, rawLine.uom);
+        const line = factor === 1 ? rawLine : { ...rawLine, quantity: rawLine.quantity * factor, unitCost: D(rawLine.unitCost).div(factor).toDecimalPlaces(2).toString() };
         const drug = await tx.drug.findFirst({ where: { id: drugId, OR: [{ orgId: null }, { orgId }] } });
         if (!drug) throw notFound("Drug", drugId);
         const lotNumber = (line.lotNumber ?? scan?.lotNumber ?? "").trim();
@@ -100,6 +109,7 @@ export class ReceivingService {
           lot = await tx.stockLot.create({
             data: {
               orgId, branchId: input.branchId, drugId, lotNumber, expiryDate, unitCost: line.unitCost, supplierId: supplierId ?? po?.supplierId, purchaseOrderId: po?.id, supplierInvoiceNo: input.invoiceNo,
+              locationId: line.locationId,
               status: recall ? "RECALLED" : excursion ? "QUARANTINE" : "AVAILABLE",
               blockedReason: recall ? `Recall: ${recall.reason}` : excursion ? `Cold-chain excursion at receipt (${line.temperatureC}°C)` : null,
               blockedAt: recall || excursion ? new Date() : null, recallNoticeId: recall?.id, statusBeforeBlock: recall || excursion ? "AVAILABLE" : null,

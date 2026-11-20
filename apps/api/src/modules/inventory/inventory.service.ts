@@ -107,11 +107,11 @@ export class InventoryService {
     });
   }
 
-  async adjust(user: AuthUser, lotId: string, quantity: number, reason: string, approvedBy?: string, witness?: { id: string; name: string }) {
+  async adjust(user: AuthUser, lotId: string, quantity: number, reason: string, approvedBy?: string, witness?: { id: string; name: string }, reasonCode?: string) {
     return this.prisma.$transaction(async (tx) => {
       const lot = await this.ledger.lockLot(tx, lotId, user.orgId);
-      const m = await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId, type: "ADJUSTMENT", quantity, performedBy: user.userId, reason, approvedBy, refType: "Adjustment", witness });
-      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "stock.adjust", entityType: "StockLot", entityId: lotId, meta: { quantity, reason, approvedBy: approvedBy ?? null } } });
+      const m = await this.ledger.post(tx, { orgId: user.orgId, branchId: lot.branchId, lotId, type: "ADJUSTMENT", quantity, performedBy: user.userId, reason, approvedBy, refType: "Adjustment", witness, reasonCode });
+      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "stock.adjust", entityType: "StockLot", entityId: lotId, meta: { quantity, reason, reasonCode: reasonCode ?? null, approvedBy: approvedBy ?? null } } });
       return m;
     });
   }
