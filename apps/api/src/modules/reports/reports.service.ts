@@ -2,19 +2,24 @@ import { Inject, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { DomainError } from "../../common/errors";
 import { money } from "../../common/money";
+import { ExtraReports, REPORT_CATALOGUE } from "./reports-extra";
 
 export interface ReportColumn { key: string; label: string }
 export interface Report { name: string; title: string; note?: string; columns: ReportColumn[]; rows: Array<Record<string, string | number | null>> }
 export interface ReportParams { orgId: string; branchId?: string; from: Date; to: Date }
 
-export const REPORT_NAMES = ["sales-daily", "top-sellers", "stock-valuation", "expiry", "controlled-register", "supplier-balances", "vat-lines", "dispensing-log"] as const;
-export type ReportName = (typeof REPORT_NAMES)[number];
+const BASE_REPORTS = ["sales-daily", "top-sellers", "stock-valuation", "expiry", "controlled-register", "supplier-balances", "vat-lines", "dispensing-log"] as const;
+export const REPORT_NAMES = REPORT_CATALOGUE.map((r) => r.name);
+export { REPORT_CATALOGUE };
+type ReportName = (typeof BASE_REPORTS)[number];
 
 @Injectable()
 export class ReportsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(ExtraReports) private readonly extra: ExtraReports) {}
 
   async run(name: string, p: ReportParams): Promise<Report> {
+    const x = await this.extra.run(name, p);
+    if (x) return x;
     switch (name as ReportName) {
       case "sales-daily": return this.salesDaily(p);
       case "top-sellers": return this.topSellers(p);
@@ -61,12 +66,13 @@ export class ReportsService {
       rows: lots.map((l) => ({ brandName: l.drug.brandName, lotNumber: l.lotNumber, expiryDate: l.expiryDate.toISOString().slice(0, 10), qtyOnHand: l.qtyOnHand, status: l.status, value: money(l.unitCost.mul(l.qtyOnHand)) })) };
   }
 
+  /** The register book with the running balance after every movement (receipts, dispensing, adjustments, write-offs, transfers), patient ID last 4 and witness. */
   private async controlled(p: ReportParams): Promise<Report> {
-    const rows = await this.prisma.controlledSubstanceLogEntry.findMany({ where: { orgId: p.orgId, ...(p.branchId ? { branchId: p.branchId } : {}), loggedAt: { gte: p.from, lte: p.to } }, orderBy: { loggedAt: "asc" } });
-    const drugs = await this.prisma.drug.findMany({ where: { id: { in: rows.map((r) => r.drugId) } }, select: { id: true, brandName: true, controlledSchedule: true } });
-    const dm = new Map(drugs.map((d) => [d.id, d]));
-    return { name: "controlled-register", title: "Controlled-substance register", note: "Regulatory record. Never shared with Kiorex.", columns: [{ key: "loggedAt", label: "Date" }, { key: "drug", label: "Drug" }, { key: "schedule", label: "Schedule" }, { key: "quantity", label: "Qty" }, { key: "idLast4", label: "Patient ID (last 4)" }, { key: "prescriber", label: "Prescriber licence" }, { key: "pharmacistId", label: "Pharmacist" }],
-      rows: rows.map((r) => ({ loggedAt: r.loggedAt.toISOString(), drug: dm.get(r.drugId)?.brandName ?? r.drugId, schedule: dm.get(r.drugId)?.controlledSchedule ?? "", quantity: r.quantity, idLast4: r.patientNationalIdLast4, prescriber: r.prescriberLicenceNo ?? "", pharmacistId: r.pharmacistId })) };
+    const rows = await this.prisma.controlledRegisterEntry.findMany({ where: { orgId: p.orgId, ...(p.branchId ? { branchId: p.branchId } : {}), occurredAt: { gte: p.from, lte: p.to } }, orderBy: { occurredAt: "asc" }, take: 20_000 });
+    const [drugs, staff] = await Promise.all([this.prisma.drug.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.drugId))] } }, select: { id: true, brandName: true, controlledSchedule: true } }), this.prisma.staffUser.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.performedBy))] } }, select: { id: true, displayName: true } })]);
+    const dm = new Map(drugs.map((d) => [d.id, d])), sm = new Map(staff.map((x) => [x.id, x.displayName]));
+    return { name: "controlled-register", title: "Controlled-substance register", note: "Regulatory record with a running balance. Never shared with Kiorex.", columns: [{ key: "loggedAt", label: "Date" }, { key: "drug", label: "Drug" }, { key: "schedule", label: "Schedule" }, { key: "kind", label: "Movement" }, { key: "quantity", label: "Change" }, { key: "balance", label: "Balance" }, { key: "idLast4", label: "Patient ID (last 4)" }, { key: "patient", label: "Patient" }, { key: "prescriber", label: "Prescriber licence" }, { key: "by", label: "By" }, { key: "witness", label: "Witness" }],
+      rows: rows.map((r) => ({ loggedAt: r.occurredAt.toISOString(), drug: dm.get(r.drugId)?.brandName ?? r.drugId, schedule: dm.get(r.drugId)?.controlledSchedule ?? "", kind: r.kind, quantity: r.qtyDelta, balance: r.balanceAfter, idLast4: r.patientIdLast4, patient: r.patientName, prescriber: r.prescriberLicenceNo, by: sm.get(r.performedBy) ?? r.performedBy, witness: r.witnessName })) };
   }
 
   private async supplierBalances(p: ReportParams): Promise<Report> {

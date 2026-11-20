@@ -36,7 +36,7 @@ describe("i18n usage", () => {
       ordStatus: ["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED", "REJECTED", "READY", "DISPENSED", "CANCELLED", "EXPIRED"],
       poStatus: ["DRAFT", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"],
       recallStatus: ["ACTIVE", "LIFTED"], countStatus: ["OPEN", "PENDING_APPROVAL", "APPROVED", "REJECTED"], ledger: ["INVOICE", "PAYMENT", "RETURN_CREDIT", "ADJUSTMENT"],
-      "rep.names": ["sales-daily", "top-sellers", "stock-valuation", "expiry", "controlled-register", "supplier-balances", "vat-lines", "dispensing-log"],
+      "rep.names": ["sales-daily", "top-sellers", "stock-valuation", "expiry", "controlled-register", "supplier-balances", "vat-lines", "dispensing-log", "sales-by-cashier", "sales-by-hour", "payments-by-method", "returns", "discount-usage", "cash-close", "loyalty", "margin-by-product", "margin-by-category", "expenses", "price-changes", "near-expiry", "low-stock", "fast-slow-movers", "dead-stock", "stock-adjustments", "rx-volume", "pharmacist-performance", "safety-overrides", "refills-due", "supplier-aging", "cost-variance", "customer-receivables", "insurer-claims"], "rep.groups": ["SALES", "PROFIT", "STOCK", "CLINICAL", "PURCHASING", "RECEIVABLES"],
       z: ["salesCount", "grossSales", "vatTotal", "cashSales", "expectedCash", "countedCash", "variance"],
       sup: ["name", "phone", "email", "paymentTerms", "creditLimit"], inv: ["writeOff", "quarantine", "release"],
     };

@@ -4,7 +4,9 @@ import type { Response } from "express";
 import PDFDocument from "pdfkit";
 import { CurrentUser, Perm } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";
-import { ReportsService, REPORT_NAMES, toCsv, type Report } from "./reports.service";
+import { ReportsService, REPORT_CATALOGUE, toCsv, type Report } from "./reports.service";
+import { PermissionsService } from "../../auth/permissions.service";
+import { forbidden } from "../../common/errors";
 import { branchFilter } from "../../common/branch-scope";
 
 function renderPdf(r: Report): Promise<Buffer> {
@@ -28,14 +30,15 @@ function renderPdf(r: Report): Promise<Buffer> {
 @ApiBearerAuth()
 @Controller("reports")
 export class ReportsController {
-  constructor(@Inject(ReportsService) private readonly svc: ReportsService) {}
+  constructor(@Inject(ReportsService) private readonly svc: ReportsService, @Inject(PermissionsService) private readonly perms: PermissionsService) {}
 
   @Get() @Perm("reports.read")
-  list() { return { reports: REPORT_NAMES }; }
+  list() { return { reports: REPORT_CATALOGUE.map((r) => r.name), catalogue: REPORT_CATALOGUE }; }
 
   /** ?format=json|csv|pdf — CSV/PDF are for handing to the pharmacy's accountant; no submission to any authority. */
   @Get(":name") @Perm("reports.read")
   async run(@CurrentUser() u: AuthUser, @Param("name") name: string, @Query() q: { branchId?: string; from?: string; to?: string; format?: string }, @Res({ passthrough: true }) res: Response) {
+    if (name === "controlled-register" && !(await this.perms.has(u.orgId, u.role, "controlled.read"))) throw forbidden("PERMISSION_DENIED", "The controlled-substance register needs controlled.read");
     const to = q.to ? new Date(q.to) : new Date();
     const from = q.from ? new Date(q.from) : new Date(to.getTime() - 30 * 86_400_000);
     const report = await this.svc.run(name, { orgId: u.orgId, branchId: branchFilter(u, q.branchId).branchId, from, to });

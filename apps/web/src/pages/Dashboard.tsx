@@ -8,6 +8,7 @@ import { buttonClass, ErrorNote, PageHeader } from "@/components/ui";
 import { StatCard } from "@/brand/ui-kit";
 import { fmtMoney, fmtNum } from "@/lib/format";
 import type { Dashboard as D } from "@/lib/types";
+import { ChartCard, Columns, HBars } from "@/components/charts";
 
 function Tile({ to, label, value, tone }: { to: string; label: string; value: string | number; tone?: "bad" | "warn" | "good" }) {
   return (
@@ -45,9 +46,16 @@ export function Dashboard() {
               <Tile to="/pos" label={t("dash.salesCount")} value={fmtNum(d.today.salesCount)} />
               {d.openShift ? <Tile to="/pos" label={t("dash.shift")} value={t("dash.shiftOpen")} tone="good" /> : <Tile to="/pos" label={t("dash.shift")} value={t("dash.shiftClosed")} tone="warn" />}
             </div></section>
+          {d.finance && <section aria-labelledby="dash-fin"><h2 id="dash-fin" className="mb-3 text-sm font-semibold text-muted-foreground">{t("fin.title")}</h2>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Tile to="/finance" label={t("fin.revenueNet")} value={fmtMoney(d.finance.revenueNet)} tone="good" /><Tile to="/finance" label={t("fin.grossMargin")} value={fmtMoney(d.finance.grossMargin)} /><Tile to="/finance" label={t("fin.receivables")} value={fmtMoney(d.finance.receivables)} /><Tile to="/finance" label={t("fin.payables")} value={fmtMoney(d.finance.payables)} /></div></section>}
+          {(d.salesTrend?.length ?? 0) > 0 && <div className="grid gap-4 lg:grid-cols-2"><ChartCard title={t("dash.trend7")} subtitle={t("dash.trend7Hint")}><Columns ariaLabel={t("dash.trend7")} format={(n) => String(Math.round(n))} data={d.salesTrend.map((x) => ({ label: x.day.slice(5), value: Number(x.total) }))} /></ChartCard>
+            <ChartCard title={t("dash.topSellers")} subtitle={t("dash.trend7Hint")}><HBars ariaLabel={t("dash.topSellers")} format={(n) => String(Math.round(n))} rows={d.topSellers.map((x) => ({ label: x.brandName, value: x.qty }))} /></ChartCard></div>}
           <section aria-labelledby="dash-disp"><h2 id="dash-disp" className="mb-3 text-sm font-semibold text-muted-foreground">{t("dash.grpDispensing")}</h2>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <Tile to="/rx" label={t("dash.rxQueue")} value={fmtNum(d.rxQueue)} tone={d.rxQueue ? "warn" : undefined} />
+              <Tile to="/rx" label={t("dash.rxVerification")} value={fmtNum(d.rxVerification ?? 0)} tone={d.rxVerification ? "warn" : undefined} />
+              {(d.refillsDue ?? 0) > 0 && <Tile to="/rx" label={t("dash.refillsDue")} value={fmtNum(d.refillsDue)} />}
+              {(d.controlledDiscrepancies ?? 0) > 0 && <Tile to="/controlled" label={t("dash.ctlDisc")} value={fmtNum(d.controlledDiscrepancies)} tone="bad" />}
               <Tile to="/rx" label={t("dash.awaitingSignoff")} value={fmtNum(d.awaitingSignoff)} tone={d.awaitingSignoff ? "warn" : undefined} />
               {d.kiorexOrdersPending !== null && can("orders.read") && <Tile to="/orders" label={t("dash.kiorexOrders")} value={fmtNum(d.kiorexOrdersPending)} tone={d.kiorexOrdersPending ? "warn" : undefined} />}
             </div></section>
