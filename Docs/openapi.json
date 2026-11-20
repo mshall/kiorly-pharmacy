@@ -10,13 +10,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "audit"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -29,13 +29,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "audit"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -48,13 +48,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "feature-flags"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "feature-flags"
         ]
       }
     },
@@ -105,13 +105,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "auth"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "auth"
         ]
       }
     },
@@ -124,13 +124,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -153,13 +153,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       },
       "get": {
@@ -170,13 +170,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -198,13 +198,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -236,13 +236,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -255,13 +255,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -274,13 +274,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -302,13 +302,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -321,13 +321,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -349,13 +349,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -387,13 +387,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -423,13 +423,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -451,13 +451,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -479,13 +479,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -498,13 +498,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -527,13 +527,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -555,13 +555,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "mobile"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "mobile"
         ]
       }
     },
@@ -574,13 +574,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       },
       "post": {
@@ -601,13 +601,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -620,13 +620,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -639,13 +639,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -667,13 +667,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       },
       "patch": {
@@ -703,13 +703,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -732,13 +732,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -768,13 +768,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -796,13 +796,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -840,13 +840,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -869,13 +869,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -905,13 +905,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -949,13 +949,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "catalogue"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "catalogue"
         ]
       }
     },
@@ -968,13 +968,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -987,13 +987,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1006,13 +1006,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1035,13 +1035,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1064,13 +1064,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "get": {
@@ -1081,13 +1081,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1119,13 +1119,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1157,13 +1157,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1195,13 +1195,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1224,13 +1224,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1252,13 +1252,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1271,13 +1271,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1300,13 +1300,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1338,13 +1338,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "get": {
@@ -1364,13 +1364,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1392,13 +1392,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "put": {
@@ -1428,13 +1428,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1456,13 +1456,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "post": {
@@ -1483,13 +1483,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1511,13 +1511,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1549,13 +1549,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1577,13 +1577,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1615,13 +1615,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1643,13 +1643,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1662,13 +1662,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "post": {
@@ -1689,13 +1689,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1727,13 +1727,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1755,13 +1755,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1783,13 +1783,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1811,13 +1811,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "post": {
@@ -1838,13 +1838,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1876,13 +1876,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1904,13 +1904,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1942,13 +1942,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -1970,13 +1970,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       },
       "post": {
@@ -2006,13 +2006,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2034,13 +2034,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2053,13 +2053,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2082,13 +2082,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2110,13 +2110,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2129,13 +2129,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2165,13 +2165,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2203,13 +2203,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "inventory"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "inventory"
         ]
       }
     },
@@ -2239,13 +2239,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2268,13 +2268,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2296,13 +2296,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2325,13 +2325,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       },
       "get": {
@@ -2342,13 +2342,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2370,13 +2370,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2398,13 +2398,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2442,13 +2442,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2480,13 +2480,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2518,13 +2518,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2556,13 +2556,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2585,13 +2585,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2604,13 +2604,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2642,13 +2642,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2671,13 +2671,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2699,13 +2699,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2727,13 +2727,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2755,13 +2755,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2783,13 +2783,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2821,13 +2821,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2849,13 +2849,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       },
       "post": {
@@ -2876,13 +2876,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2904,13 +2904,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2942,13 +2942,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -2980,13 +2980,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -3009,13 +3009,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       },
       "get": {
@@ -3035,13 +3035,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -3063,13 +3063,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -3091,13 +3091,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -3120,13 +3120,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       },
       "get": {
@@ -3137,13 +3137,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -3156,13 +3156,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       },
       "post": {
@@ -3183,13 +3183,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
@@ -3221,20 +3221,19 @@
             "description": ""
           }
         },
-        "tags": [
-          "pos"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "pos"
         ]
       }
     },
     "/api/v1/health/live": {
       "get": {
         "operationId": "HealthController_live",
-        "summary": "Liveness probe",
         "parameters": [],
         "responses": {
           "200": {
@@ -3254,6 +3253,7 @@
             }
           }
         },
+        "summary": "Liveness probe",
         "tags": [
           "health"
         ]
@@ -3262,13 +3262,13 @@
     "/api/v1/health/ready": {
       "get": {
         "operationId": "HealthController_ready",
-        "summary": "Readiness probe (database connectivity)",
         "parameters": [],
         "responses": {
           "200": {
             "description": ""
           }
         },
+        "summary": "Readiness probe (database connectivity)",
         "tags": [
           "health"
         ]
@@ -3293,13 +3293,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3312,13 +3312,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3331,13 +3331,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       },
       "post": {
@@ -3358,13 +3358,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3396,13 +3396,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3415,13 +3415,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       },
       "post": {
@@ -3442,13 +3442,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3480,13 +3480,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3499,13 +3499,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       },
       "patch": {
@@ -3526,13 +3526,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3545,13 +3545,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "tenancy"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "tenancy"
         ]
       }
     },
@@ -3574,13 +3574,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3602,13 +3602,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3630,13 +3630,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3649,13 +3649,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3677,13 +3677,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3706,13 +3706,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3725,13 +3725,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3761,13 +3761,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3790,13 +3790,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3809,13 +3809,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3837,13 +3837,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       },
       "patch": {
@@ -3873,13 +3873,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3901,13 +3901,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3945,13 +3945,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -3973,13 +3973,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -4011,13 +4011,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -4049,13 +4049,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -4077,13 +4077,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -4115,13 +4115,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -4161,13 +4161,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescriptions"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescriptions"
         ]
       }
     },
@@ -4180,13 +4180,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescribers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescribers"
         ]
       },
       "post": {
@@ -4207,13 +4207,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescribers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescribers"
         ]
       }
     },
@@ -4235,13 +4235,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescribers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescribers"
         ]
       },
       "patch": {
@@ -4271,13 +4271,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescribers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescribers"
         ]
       }
     },
@@ -4309,13 +4309,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "prescribers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "prescribers"
         ]
       }
     },
@@ -4338,13 +4338,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       },
       "get": {
@@ -4355,13 +4355,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4383,13 +4383,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4429,13 +4429,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4467,13 +4467,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4505,13 +4505,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4543,13 +4543,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4579,13 +4579,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4607,13 +4607,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4645,13 +4645,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4683,13 +4683,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4702,13 +4702,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dispensing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dispensing"
         ]
       }
     },
@@ -4721,13 +4721,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "clinical"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "clinical"
         ]
       },
       "post": {
@@ -4748,13 +4748,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "clinical"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "clinical"
         ]
       }
     },
@@ -4776,13 +4776,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "clinical"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "clinical"
         ]
       }
     },
@@ -4795,13 +4795,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "clinical"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "clinical"
         ]
       }
     },
@@ -4814,13 +4814,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       },
       "post": {
@@ -4841,13 +4841,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -4869,13 +4869,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       },
       "patch": {
@@ -4905,13 +4905,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -4933,13 +4933,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -4971,13 +4971,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -4999,13 +4999,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       },
       "post": {
@@ -5026,13 +5026,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5054,13 +5054,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5092,13 +5092,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5120,13 +5120,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5148,13 +5148,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5177,13 +5177,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5196,13 +5196,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       },
       "post": {
@@ -5223,13 +5223,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5251,13 +5251,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "suppliers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "suppliers"
         ]
       }
     },
@@ -5270,13 +5270,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "forecasting"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "forecasting"
         ]
       }
     },
@@ -5298,13 +5298,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "forecasting"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "forecasting"
         ]
       }
     },
@@ -5317,13 +5317,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5336,13 +5336,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5374,13 +5374,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5393,13 +5393,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       },
       "post": {
@@ -5420,13 +5420,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5448,13 +5448,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5486,13 +5486,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5524,13 +5524,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5552,13 +5552,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5571,13 +5571,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "kiorex-orders"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "kiorex-orders"
         ]
       }
     },
@@ -5737,13 +5737,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       },
       "post": {
@@ -5764,13 +5764,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -5783,13 +5783,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -5802,13 +5802,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -5831,13 +5831,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -5859,13 +5859,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       },
       "post": {
@@ -5895,13 +5895,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -5933,13 +5933,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -5971,13 +5971,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -6009,13 +6009,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "claims"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "claims"
         ]
       }
     },
@@ -6028,13 +6028,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "reports"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "reports"
         ]
       }
     },
@@ -6056,13 +6056,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "reports"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "reports"
         ]
       }
     },
@@ -6075,13 +6075,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       }
     },
@@ -6094,13 +6094,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       }
     },
@@ -6113,13 +6113,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       }
     },
@@ -6132,13 +6132,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       }
     },
@@ -6151,13 +6151,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       },
       "post": {
@@ -6178,13 +6178,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       }
     },
@@ -6206,13 +6206,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "finance"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "finance"
         ]
       }
     },
@@ -6234,13 +6234,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6262,13 +6262,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6281,13 +6281,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6300,13 +6300,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6338,13 +6338,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6376,13 +6376,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6412,13 +6412,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6431,13 +6431,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       },
       "post": {
@@ -6458,13 +6458,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6487,13 +6487,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6515,13 +6515,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6543,13 +6543,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6589,13 +6589,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6625,13 +6625,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6663,13 +6663,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6691,13 +6691,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "purchasing"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "purchasing"
         ]
       }
     },
@@ -6719,13 +6719,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dashboard"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dashboard"
         ]
       }
     },
@@ -6738,13 +6738,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dashboard"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dashboard"
         ]
       }
     },
@@ -6757,13 +6757,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "dashboard"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "dashboard"
         ]
       }
     },
@@ -6776,13 +6776,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6814,13 +6814,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6842,13 +6842,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6861,13 +6861,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6889,13 +6889,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6927,13 +6927,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6946,13 +6946,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6965,13 +6965,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -6993,13 +6993,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "admin"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -7012,13 +7012,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "notifications"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "notifications"
         ]
       }
     },
@@ -7031,13 +7031,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "notifications"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "notifications"
         ]
       }
     },
@@ -7050,13 +7050,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "notifications"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "notifications"
         ]
       }
     },
@@ -7069,13 +7069,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "notifications"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "notifications"
         ]
       }
     },
@@ -7097,13 +7097,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "notifications"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "notifications"
         ]
       }
     },
@@ -7116,13 +7116,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       },
       "post": {
@@ -7143,13 +7143,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7162,13 +7162,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7190,13 +7190,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       },
       "patch": {
@@ -7226,13 +7226,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7254,13 +7254,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7282,13 +7282,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       },
       "post": {
@@ -7318,13 +7318,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7346,13 +7346,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       },
       "post": {
@@ -7382,13 +7382,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7418,13 +7418,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7456,13 +7456,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7494,13 +7494,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7522,13 +7522,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7560,13 +7560,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7598,13 +7598,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "customers"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "customers"
         ]
       }
     },
@@ -7631,13 +7631,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "controlled"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "controlled"
         ]
       }
     },
@@ -7659,13 +7659,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "controlled"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "controlled"
         ]
       }
     },
@@ -7688,13 +7688,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "controlled"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "controlled"
         ]
       }
     },
@@ -7707,13 +7707,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "controlled"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "controlled"
         ]
       }
     },
@@ -7745,13 +7745,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "controlled"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "controlled"
         ]
       }
     }
