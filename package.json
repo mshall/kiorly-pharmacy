@@ -22,6 +22,7 @@
     "db:migrate": "npm run db:migrate -w api",
     "db:deploy": "npm run db:deploy -w api",
     "db:setup": "npm run db:ensure && npm run db:deploy",
+    "seed:all": "npm run seed:all -w api",
     "docs:check": "node scripts/check-docs.mjs"
   },
   "devDependencies": {

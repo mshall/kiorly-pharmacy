@@ -15,11 +15,14 @@
     "test:e2e": "node scripts/run-e2e.mjs",
     "seed": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/seed.ts",
     "seed:demo": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/demo/seed-demo.ts",
+    "seed:suite": "DEMO_SEED_ALLOWED=true node --require @swc-node/register prisma/demo/seed-suite.ts",
+    "seed:all": "npm run seed && npm run seed:demo && npm run seed:suite",
     "openapi:export": "node --require @swc-node/register scripts/export-openapi.ts",
     "start:swc": "node --require @swc-node/register src/main.ts",
     "build:seed": "tsc -p tsconfig.seed.json",
     "seed:dist": "node dist-seed/prisma/seed.js",
-    "seed:demo:dist": "node dist-seed/prisma/demo/seed-demo.js"
+    "seed:demo:dist": "node dist-seed/prisma/demo/seed-demo.js",
+    "seed:suite:dist": "node dist-seed/prisma/demo/seed-suite.js"
   },
   "dependencies": {
     "@kiorex/contracts": "file:../../../kiorex-contracts/dist-pack/kiorex-contracts-1.4.1.tgz",

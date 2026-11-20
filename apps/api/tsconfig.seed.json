@@ -12,7 +12,8 @@
   },
   "include": [
     "prisma/seed.ts",
-    "prisma/demo/seed-demo.ts"
+    "prisma/demo/seed-demo.ts",
+    "prisma/demo/seed-suite.ts"
   ],
   "exclude": [
     "node_modules",

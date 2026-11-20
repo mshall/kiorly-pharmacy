@@ -1659,7 +1659,7 @@ model UomConversion {
 
   drug Drug @relation(fields: [drugId], references: [id])
 
-  @@unique([drugId, name])
+  @@unique([orgId, drugId, name])
   @@index([orgId, drugId])
 }
 
