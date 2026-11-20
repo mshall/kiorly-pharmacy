@@ -60,7 +60,9 @@ export class SuppliersService {
   // ---- purchase orders
   private async nextPoNumber(orgId: string): Promise<string> {
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const n = await this.prisma.purchaseOrder.count({ where: { orgId, poNumber: { startsWith: `PO-${day}` } } });
+    // Next after the highest existing number (not count+1: deleted/cancelled demo rows leave gaps and count+1 would then collide forever).
+    const last = await this.prisma.purchaseOrder.findFirst({ where: { orgId, poNumber: { startsWith: `PO-${day}` } }, orderBy: { poNumber: "desc" }, select: { poNumber: true } });
+    const n = last?.poNumber ? Number(last.poNumber.slice(`PO-${day}-`.length)) || 0 : 0;
     return `PO-${day}-${String(n + 1).padStart(4, "0")}`;
   }
 
