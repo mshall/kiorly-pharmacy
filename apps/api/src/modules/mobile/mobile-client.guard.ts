@@ -1,25 +1,26 @@
 import { CanActivate, ExecutionContext, Inject, Injectable } from "@nestjs/common";
 import type { AuthUser } from "../../auth/auth-user";
+import { PermissionsService } from "../../auth/permissions.service";
+import type { Permission } from "../../auth/permissions";
+import { DomainError } from "../../common/errors";
 import { MobileDevicesService } from "./mobile-devices.service";
 import { MobileEntitlementService } from "./mobile-entitlement.service";
 
-/** Routes the Kiorly Work client may call even without the mobile_staff_app entitlement (login, bootstrap, safety alerts ADR-025, own sign-out). */
-export function isEntitlementExempt(method: string, path: string): boolean {
-  const p = path.split("?")[0]!.replace(/\/+$/, "");
-  if (/^\/api\/v1\/auth(\/|$)/.test(p) || p === "/api/v1/mobile/bootstrap") return true;
-  if (/^\/api\/v1\/mobile\/alerts(\/|$)/.test(p)) return true;
-  if (method === "POST" && p === "/api/v1/mobile/upgrade-request") return true;
-  return method === "DELETE" && /^\/api\/v1\/mobile\/devices\/[^/]+$/.test(p);
-}
+import { isEntitlementExempt, isMobilePlanGated } from "./mobile-gate";
+export { isEntitlementExempt };
 
 /**
  * Global guard (registered after AuthGuard). 1) Device-bound sessions: X-Kiorly-Device + X-Kiorly-Device-Token must match an ACTIVE device of the
  * caller, else 401 DEVICE_REVOKED (remote sign-out takes effect on the next request). 2) Client entitlement: requests from the Kiorly Work client
- * (X-Kiorly-Client: kiorly-work/<version>) on a tenant without mobile_staff_app get 403 FEATURE_DISABLED, except the exempt routes above.
+ * (X-Kiorly-Client: kiorly-work/<version>) or any /mobile/* route, on a tenant without mobile_staff_app get 403 FEATURE_DISABLED, except the exempt routes above.
  */
 @Injectable()
 export class MobileClientGuard implements CanActivate {
-  constructor(@Inject(MobileDevicesService) private readonly devices: MobileDevicesService, @Inject(MobileEntitlementService) private readonly ent: MobileEntitlementService) {}
+  constructor(
+    @Inject(MobileDevicesService) private readonly devices: MobileDevicesService,
+    @Inject(MobileEntitlementService) private readonly ent: MobileEntitlementService,
+    @Inject(PermissionsService) private readonly perms: PermissionsService,
+  ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     if (ctx.getType() !== "http") return true;
@@ -27,8 +28,15 @@ export class MobileClientGuard implements CanActivate {
     if (!req.user) return true;
     const h = (n: string) => { const v = req.headers[n]; return Array.isArray(v) ? v[0] : v; };
     await this.devices.verify(req.user, h("x-kiorly-device"), h("x-kiorly-device-token"));
-    if (h("x-kiorly-client")?.startsWith("kiorly-work") && !isEntitlementExempt(req.method, req.originalUrl ?? req.url)) {
+    if (isMobilePlanGated(req)) {
       await this.ent.assertEnabled(req.user.orgId);
+      // RBAC deferred by AuthGuard so the plan gate answers first
+      const need = (req as { deferredPerms?: Permission[] }).deferredPerms;
+      if (need?.length) {
+        const have = await this.perms.forRole(req.user.orgId, req.user.role);
+        const missing = need.filter((p) => !have.has(p));
+        if (missing.length) throw new DomainError("PERMISSION_DENIED", `Missing permission: ${missing.join(", ")}`, 403, { missing });
+      }
     }
     return true;
   }

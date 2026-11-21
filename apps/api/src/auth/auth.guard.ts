@@ -6,6 +6,7 @@ import { authMode, TokenVerifier } from "./token-verifier";
 import { PRIVILEGED_ROLES, type Permission } from "./permissions";
 import { PermissionsService } from "./permissions.service";
 import type { AuthUser } from "./auth-user";
+import { isMobilePlanGated } from "../modules/mobile/mobile-gate";
 import { DomainError, forbidden } from "../common/errors";
 
 /**
@@ -25,7 +26,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     if (ctx.getType() !== "http") return true;
     if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [ctx.getHandler(), ctx.getClass()])) return true;
-    const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined>; user?: AuthUser }>();
+    const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined>; user?: AuthUser; method: string; originalUrl?: string; url: string }>();
     const header = req.headers.authorization;
     if (!header?.startsWith("Bearer ")) throw new UnauthorizedException({ statusCode: 401, code: "UNAUTHENTICATED", message: "Missing bearer token" });
     let verified;
@@ -48,6 +49,11 @@ export class AuthGuard implements CanActivate {
     };
     req.user = user;
     const need = this.reflector.getAllAndOverride<Permission[] | undefined>(REQUIRES_PERM, [ctx.getHandler(), ctx.getClass()]);
+    if (need?.length && isMobilePlanGated(req)) {
+      // plan-gated /mobile routes: FEATURE_DISABLED must win over PERMISSION_DENIED, so MobileClientGuard runs this check after the entitlement check
+      (req as { deferredPerms?: Permission[] }).deferredPerms = need;
+      return true;
+    }
     if (need?.length) {
       const have = await this.perms.forRole(user.orgId, user.role);
       const missing = need.filter((p) => !have.has(p));

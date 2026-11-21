@@ -11,17 +11,17 @@ A multi-branch chain pharmacy with every stock state (valid, near-expiry, expire
 
 ```bash
 e2e/scripts/up.sh [--build] [--seed]          # workspace root: starts the Pharmacy API :3100 (AUTH_MODE=local, KIOREX_MODE=real) with the other services
-cd kiorly-pharmacy && npm run dev -w web       # web on http://localhost:5190 (proxies /api to :3100)
+cd kiorly-pharmacy && npm run dev -w web       # web on http://localhost:5192 (proxies /api to :3100; port from PHARMACY_WEB_PORT, default 5192)
 cd kiorly-pharmacy/apps/api
 npm run seed                # base tenant "Kiorly Demo Pharmacy" (org_demo_kiorly, the tenant Kiorex's dev client is bound to)
 npm run seed:demo           # idempotent, NEW records only on top of the base tenant
 npm run seed:suite          # ~500 drugs, ~150 customers, Rx in every state, ~360 sales, solo tenant (re-runnable)
 npm run seed:mobile         # Kiorly Work tenants per plan (Solo PRO, Corner BASIC) + alerts
-npm run seed:all            # all four
+npm run seed:all            # all four (scripts/seed-all.sh at the workspace root runs seed:demo and seed:mobile in the right order)
 npm run seed:demo -- --reset   # best-effort removal of demo sales/Rx/POs/Kiorex orders
 ```
 
-* **Port clash:** on this Mac port **5190** is currently held by the Kiorly Clinic *main* checkout's web (its `local-dev-ports.sh` assigns main web 5190 and docs 5191). If `http://localhost:5190` shows "Kiorly Clinic by Kiorex", start the Pharmacy web elsewhere: `PHARMACY_WEB_PORT=5192 npm run dev -w web` and open `http://localhost:5192` (API origin override: `PHARMACY_API_ORIGIN`).
+* **Ports:** the web dev port is configurable and defaults to **5192** (`PHARMACY_WEB_PORT=<port> npm run dev -w web`; API origin override: `PHARMACY_API_ORIGIN`). It used to be 5190, which is the Kiorly Clinic *main* checkout's web port (and 5191 its docs port), so the Pharmacy and Lab webs now default to 5192 / 5193.
 * **No true reset:** global drugs, price history, stock lots and stock movements are append-only (DB rules); `--reset` cannot remove them (the "append-only delete" log lines are expected). For a full wipe recreate the `kiorly_pharmacy` database and run `seed` + `seed:all`.
 * Run beside Kiorex with `KIOREX_MODE=real` (see [Docs/RUNBOOK.md](Docs/RUNBOOK.md)); `up.sh` already does.
 
@@ -46,11 +46,11 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 | Data | Detail | Where to click |
 |---|---|---|
 | Branches | Demo: Maadi `MAIN`, Nasr City `NASR` (+ an `E2E Till Branch (test)` left by a test); Solo: Zamalek `SOLO`; Lite: Corner `CORNER` | branch switcher |
-| Catalogue | 299 tenant drugs for the Demo tenant (+259 global rows, 560 in the table); names are fictional "(DEMO)" | Catalogue |
-| **Stock lots (Demo tenant)** | ~900 AVAILABLE; **near-expiry** (<= 30 d with stock): 58; **expired** x4 (`DMEXP0..2`, `EXPIRED-DEMO`); **quarantined** x4 (incl. `L00089`, `DM00007`, `DM00008`); **recalled** (`DM00013`, notice source `DEMO-RECALL-001`, plus lots recalled by tests) | Inventory (filter blocked / expiring), Safety, Reports -> expiry |
+| Catalogue | **259 shared catalogue rows** (44 base + 215 generated `demo-eg:*`, fictional names) plus 1 Demo-tenant drug from the Kiorly Work seed. The Demo tenant also holds 523 tenant-owned `E2E-Med-*` rows left by e2e runs (524 tenant rows, 785 in the table on 21 Nov), so any total above 260 is e2e noise | Catalogue |
+| **Stock lots (Demo tenant)** | ~900 AVAILABLE; **near-expiry** (<= 30 d with stock): 58; **expired** x4 (`DMEXP0..2`, `EXPIRED-DEMO`); **quarantined** x4 (incl. `L00089`, `DM00007`, `DM00008`); **recalled** (`DM00013`, notice source `DEMO-RECALL-001`, plus lots recalled by tests); the matching **RecallNotice** (`source = DEMO-RECALL-001`, ACTIVE, lot `DM00013`) is re-created by `seed:demo` whenever it is missing (the Recalls list also shows 9 `E2E` notices from tests) | Inventory (filter blocked / expiring), Safety, Reports -> expiry |
 | Prescriptions (Demo, 121) | RECEIVED 14, VALIDATING 1, VALIDATED 12, REJECTED 36, PARTIALLY_DISPENSED 1, DISPENSED 54, CANCELLED 1, EXPIRED 1, TRANSFERRED_OUT 1 (patients named "... (DEMO)") | Prescriptions queue (`/rx`) |
 | POS | 384 sales in the Demo tenant (~45 in the last 30 days, 8 today in the base demo), split payments, returns, exchanges, coupons, shifts and cash movements | Point of sale (`/pos`), Reports, Finance |
-| Purchasing | POs DRAFT 2, SENT 1, PARTIALLY_RECEIVED 1, RECEIVED 2, CANCELLED 1; 6 suppliers (3 marked "(DEMO)") | Purchasing, Receiving |
+| Purchasing | POs DRAFT 2, SENT 1, PARTIALLY_RECEIVED 1, RECEIVED 2, CANCELLED 1; **5 seeded suppliers** (3 marked "(DEMO)" + Delta Medical Supplies + Nile Pharma Distribution; the Demo tenant shows 32 because of 27 `E2E Supplier ...` leftovers) | Purchasing, Receiving |
 | Customers | ~150 (families, allergies, loyalty tiers, credit accounts, duplicate pairs to merge) | Customers |
 | Kiorex orders | mirrors of Kiorex orders `kx_ph_demo_3..7`: `3` Karim EXPIRED here (the "new" order aged past its SLA; Kiorex shows it REJECTED), `4` Nourhan READY, `5` Mahmoud and `6` Mariam DISPENSED, `7` Omar REJECTED. `kx_ph_demo_1` (Hoda, PENDING_PAYMENT), `2` (Samir, PAID) and `8` (Dalia, CANCELLED) exist only in Kiorex. Many more `kx-e2e-*` / `kx_ph_mwo*` rows are e2e leftovers | Orders (`/orders`) |
 | **Controlled drug discrepancy** | "Morphicure 10 mg (DEMO)": register expected **40**, counted **38** (difference -2), CRITICAL, awaiting a witness (8 OPEN across the three tenants, one per tenant plus test rows) | Controlled (`/controlled`), Safety; Kiorly Work Controlled -> countersign |
@@ -92,8 +92,10 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 ## 7. Known limitations and inconsistencies found
 
 * Mock providers: Kiorex messaging, SMS, push and PSP are mocked; the Kiorex link uses the dev HMAC client (`kx_dev_pharmacy_client`, DEV ONLY).
-* Port 5190 collides with Clinic main (section 2).
-* `RecallNotice` has **0 rows** in the live database although lot `DM00013` is `RECALLED` ("Recalled (DEMO-RECALL-001)"): the notice row was removed (by a `--reset`) while the append-only lot stayed, so a "Recalls" list will be empty while Inventory still shows the recalled lot. Re-run `seed:demo` after wiping, or recreate the DB.
-* The doc statements "Catalogue 343 drugs" and "5 suppliers" do not match the live data (299 tenant drugs, 560 in the table; 6 suppliers). The `kx_ph_demo_3` order is no longer "new" (EXPIRED) because the SLA job ran.
+* Fixed 21 Nov 2026: `RecallNotice` was empty while lot `DM00013` was RECALLED (a test cleanup / `--reset` removed the notice, the append-only lot stayed). `seed:demo` now re-creates the `DEMO-RECALL-001` notice idempotently; re-run it after any wipe.
+* Fixed 21 Nov 2026: the older docs said "343 drugs / 5 suppliers". The seed gives 259 shared catalogue rows and 5 suppliers (the live 32 suppliers and 524 tenant drugs include e2e leftovers). `kx_ph_demo_3` is not a "new" order any more: the SLA job expired it, so it is EXPIRED here (`SLA_EXPIRED`) and REJECTED in Kiorex (reason `SLA_EXPIRED`); both docs say so.
 * The Demo tenant carries test leftovers (`E2E Till Branch (test)`, hundreds of `kx-e2e-*`/`kx_ph_mwo*` Kiorex orders), so Orders counts are far above the 5 demo orders.
 * No tax-authority integration exists; VAT is a plain configurable line on receipts.
+
+---
+Verified: 2026-11-21 (seed scripts, `kiorly_pharmacy` database via SELECT, web dev port start-up check on 5192).

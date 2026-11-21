@@ -120,6 +120,15 @@ async function main() {
         await prisma.stockLot.update({ where: { id: rlot.id }, data: { status: "RECALLED", statusBeforeBlock: rlot.status, blockedReason: "Recalled (DEMO-RECALL-001)", blockedAt: new Date(), recallNoticeId: notice.id } });
       }
     }
+    // The recalled demo lot always has its matching notice (a test cleanup or a re-seed can leave the lot RECALLED with the notice gone). Idempotent: keyed by source DEMO-RECALL-001.
+    {
+      const rlot = await prisma.stockLot.findFirst({ where: { orgId: org, status: "RECALLED", blockedReason: { contains: "DEMO-RECALL-001" } } });
+      if (rlot) {
+        const existing = await prisma.recallNotice.findFirst({ where: { orgId: org, source: "DEMO-RECALL-001" } });
+        const notice = existing ?? await prisma.recallNotice.create({ data: { orgId: org, drugId: rlot.drugId, lotNumbers: [rlot.lotNumber], affectedLots: 1, reason: "Supplier recall: labelling error (DEMO notice)", source: "DEMO-RECALL-001", enteredBy: owner.id } });
+        if (rlot.recallNoticeId !== notice.id) await prisma.stockLot.update({ where: { id: rlot.id }, data: { recallNoticeId: notice.id } });
+      }
+    }
     await inv.runExpiryAlerts(org).catch(() => {});
 
     // 3) purchase orders in every state ----------------------------------------------------------------------------------

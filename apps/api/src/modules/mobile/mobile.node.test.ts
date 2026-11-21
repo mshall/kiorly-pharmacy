@@ -39,3 +39,23 @@ describe("push templates", () => {
     for (const k of Object.keys(PUSH_TEMPLATES) as Array<keyof typeof PUSH_TEMPLATES>) { const x = renderPush(k, { drug: "D", expected: 1, counted: 2, days: 3, lot: "L", qty: 4, order: "O", minutes: 5 }); assert.ok(!/[{}]/.test(x.title + x.body + x.titleAr + x.bodyAr), k); }
   });
 });
+
+import { MobileClientGuard } from "./mobile-client.guard";
+import { isMobilePlanGated } from "./mobile-gate";
+describe("plan gate (FEATURE_DISABLED) precedes RBAC (PERMISSION_DENIED) on /mobile routes", () => {
+  const mk = (url: string, deferredPerms?: string[], headers: Record<string, string> = {}) => ({ method: "GET", originalUrl: url, url, headers, user: { orgId: "o", role: "TECH" }, deferredPerms });
+  const ctx = (r: object) => ({ getType: () => "http", switchToHttp: () => ({ getRequest: () => r }) }) as never;
+  const guard = (enabled: boolean) => new MobileClientGuard({ verify: async () => undefined } as never, { assertEnabled: async () => { if (!enabled) throw Object.assign(new Error("x"), { code: "FEATURE_DISABLED" }); } } as never, { forRole: async () => new Set<string>() } as never);
+  it("gates /mobile/* and app-identified requests, not the exempt ones", () => {
+    assert.equal(isMobilePlanGated(mk("/api/v1/mobile/summary")), true);
+    assert.equal(isMobilePlanGated(mk("/api/v1/mobile/pharmacy/orders?x=1")), true);
+    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorly-work/1" })), true);
+    assert.equal(isMobilePlanGated(mk("/api/v1/orders")), false);
+    assert.equal(isMobilePlanGated(mk("/api/v1/mobile/alerts")), false);
+  });
+  it("non-entitled: FEATURE_DISABLED first; entitled: PERMISSION_DENIED; no perm needed: passes", async () => {
+    await assert.rejects(() => guard(false).canActivate(ctx(mk("/api/v1/mobile/inbox", ["rx.read"]))), (e: { code?: string }) => e.code === "FEATURE_DISABLED");
+    await assert.rejects(() => guard(true).canActivate(ctx(mk("/api/v1/mobile/inbox", ["rx.read"]))), (e: { code?: string }) => e.code === "PERMISSION_DENIED");
+    assert.equal(await guard(true).canActivate(ctx(mk("/api/v1/mobile/inbox"))), true);
+  });
+});

@@ -18,7 +18,7 @@ Adds to the demo tenant: ~500 drugs in total (categories, pack units, shelf loca
 **Standalone tenant** (no Kiorex client, mode STANDALONE): `solo.owner@demo.kiorly.local`, `solo.pharmacist@demo.kiorly.local`, `solo.manager@demo.kiorly.local`, `solo.assistant@demo.kiorly.local` - ~23 customers, ~18 Rx, ~53 sales, controlled rows. Use it to verify that nothing needs Kiorex.
 
 ## What exists
-343 catalogue drugs (~100 base + ~215 generated, names are fictional) with prices · lots with expiry spread 12…700 days: **near-expiry** (49 within 30 d), **expired** (3, `DMEXP*`), **quarantined** (3), **recalled** (1, notice `DEMO-RECALL-001`) · 5 suppliers (3 new `(DEMO)`), POs: draft, sent, received, partially received, cancelled · Rx queue (received / validated / rejected / dispensed; patients `…(DEMO)`) · dispensing history with pharmacist sign-off · ~45 POS sales over 30 days (8 today) · Kiorex orders `kx_ph_demo_3…7`: new, ready, dispensed x2, rejected (mirror the Kiorex orders of the same id).
+259 shared catalogue rows (44 base + 215 generated, names are fictional) with prices · lots with expiry spread 12…700 days: **near-expiry** (49 within 30 d), **expired** (3, `DMEXP*`), **quarantined** (3), **recalled** (1, notice `DEMO-RECALL-001`) · 5 suppliers (3 new `(DEMO)`), POs: draft, sent, received, partially received, cancelled · Rx queue (received / validated / rejected / dispensed; patients `…(DEMO)`) · dispensing history with pharmacist sign-off · ~45 POS sales over 30 days (8 today) · Kiorex orders `kx_ph_demo_3…7`: new, ready, dispensed x2, rejected (mirror the Kiorex orders of the same id).
 ## Where to click
 Dashboard KPIs · Inventory (filter blocked / expiring) · Receiving · Purchasing · Prescriptions · Point of sale · Kiorex orders · Reports.
 
