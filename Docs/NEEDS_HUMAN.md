@@ -61,8 +61,8 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 | Kiorex machine API + inbound webhooks | `IntegrationClient` rows (create via `POST /api/v1/kiorex-orders/integration/clients`; secret shown once), `INTEGRATION_KEK` | Real client credentials per environment and a managed KEK; IP allow-list; nonce store shared across instances |
 | Flag control plane | `FLAGS_POLL_ENABLED=true`, `KIOREX_FLAGS_URL`, `KIOREX_PRODUCT_KEY`, `KIOREX_PRODUCT_SECRET`, `KIOREX_FLAGS_WEBHOOK_SECRET` | `pharmacy.*` registered in the Kiorex registry (NH-PH-016); push URL `/api/v1/feature-flags/kiorex/changed` |
 | Patient consent verification | `ConsentVerifier`, `CONSENT_MODE=real` | Token format, lifetime and introspection endpoint (NH-PH-013) |
-| PSP: card / InstaPay / Fawry / wallet | `PspAdapter`, `PSP_MODE=real` | Merchant accounts + API keys (Paymob/Fawry/InstaPay), webhook signing, refund API, settlement reports (NH-PH-014) |
-| WhatsApp / SMS / email | `NotificationsService`, `MESSAGING_MODE=real` | Approved Meta templates EN+AR, sender IDs, opt-in policy (NH-PH-012) |
+| PSP: card / InstaPay / Fawry / wallet | `PspAdapter`, `PAYMENT_MODE=real` (wired incl. pay-by-link, refund, webhook; see [PROVIDERS.md](./PROVIDERS.md); adapt `mapping/payment.mapping.ts`) | Merchant accounts + API keys (Paymob/Fawry/InstaPay), webhook signing, refund API, settlement reports (NH-PH-014) |
+| WhatsApp / SMS / email / push | `NotificationsService`, `SMS_MODE` / `EMAIL_MODE` / `WHATSAPP_MODE` / `PUSH_MODE` = `real` (wired; see [PROVIDERS.md](./PROVIDERS.md)) | Approved Meta templates EN+AR, sender IDs, opt-in policy (NH-PH-012) |
 | Forecasting AI | `ForecastAi`, `AI_MODE=real` | OpenAI-EU key via the AI gateway, PHI redaction (only unit counts leave today), governance sign-off (KX-11) |
 | Object storage (Rx scans) | `StorageAdapter` (local disk today, `STORAGE_DIR`) | S3 bucket + KMS via OpenTofu (ADR-028); virus scan; retention policy |
 | Identity | `AUTH_MODE=oidc` | Kiorex Passport client for Pharmacy, redirect URIs, back-channel logout URL (NH-PH-031) |

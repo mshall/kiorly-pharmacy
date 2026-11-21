@@ -2,6 +2,9 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { Prisma, StaffRole } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { adapterMode } from "../../platform/adapters/adapter-mode";
+import { ProviderError, type FetchLike } from "../../providers/http";
+import { providerConfig } from "../../providers/provider-env";
+import { sendPush } from "../../providers/push-provider";
 import { MobileEntitlementService } from "./mobile-entitlement.service";
 
 export type PushKind = "GENERAL" | "SAFETY" | "CLINICAL" | "OPS";
@@ -29,13 +32,15 @@ export function renderPush(t: PushTemplate, vars: Record<string, string | number
 }
 
 /**
- * Push sender. PUSH_MODE=mock (default): the in-app inbox row (PushMessage) is the dev inbox and delivery to each registered device
- * is simulated (deliveredAt set). Real Expo push is wired in the provider go-live pass. Never throws into business flows.
+ * Push sender. PUSH_MODE=mock|real (default mock): the in-app inbox row (PushMessage) is the dev inbox and delivery to each registered device
+ * is simulated (deliveredAt set). Real: Expo-compatible gateway (PUSH_API_URL / PUSH_API_KEY). Never throws into business flows.
  * SAFETY messages are sent for every plan (ADR-025); everything else only when the org holds mobile_staff_app.
  */
 @Injectable()
 export class PushService {
   private readonly log = new Logger(PushService.name);
+  /** Test seam for the real push gateway. */
+  static fetchImpl?: FetchLike;
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(MobileEntitlementService) private readonly ent: MobileEntitlementService) {}
 
   async send(i: PushInput): Promise<{ delivered: number }> {
@@ -47,10 +52,16 @@ export class PushService {
       });
       if (!users.length) return { delivered: 0 };
       const mode = adapterMode("PUSH");
+      if (mode === "real" && !providerConfig("PUSH").apiUrl) throw new ProviderError("NOT_CONFIGURED", "PUSH_API_URL is not set (PUSH_MODE=real)");
       const now = new Date();
       await this.prisma.pushMessage.createMany({
-        data: users.map((u) => ({ orgId: i.orgId, userId: u.id, kind: i.kind, title: i.title, titleAr: i.titleAr, body: i.body, bodyAr: i.bodyAr, data: (i.data ?? {}) as Prisma.InputJsonValue, provider: mode === "real" ? "expo" : "mock", deliveredAt: mode === "real" ? null : now })),
+        data: users.map((u) => ({ orgId: i.orgId, userId: u.id, kind: i.kind, title: i.title, titleAr: i.titleAr, body: i.body, bodyAr: i.bodyAr, data: (i.data ?? {}) as Prisma.InputJsonValue, provider: mode === "real" ? "push" : "mock", deliveredAt: mode === "real" ? null : now })),
       });
+      if (mode === "real") {
+        // The inbox rows above are the in-app inbox; hand the same message to the push gateway for every registered device.
+        const tokens = (await this.prisma.mobileDevice.findMany({ where: { orgId: i.orgId, status: "ACTIVE", userId: { in: users.map((u) => u.id) }, pushToken: { not: null } }, select: { pushToken: true } })).map((d) => d.pushToken!);
+        if (tokens.length) await sendPush(tokens.map((to) => ({ to, title: i.title, body: i.body, data: i.data })), process.env, PushService.fetchImpl);
+      }
       if (mode === "mock") {
         const devices = await this.prisma.mobileDevice.count({ where: { orgId: i.orgId, status: "ACTIVE", userId: { in: users.map((u) => u.id) }, pushToken: { not: null } } });
         this.log.debug(`[mock push] ${i.kind} "${i.title}" -> ${users.length} inbox(es), ${devices} device(s)`);

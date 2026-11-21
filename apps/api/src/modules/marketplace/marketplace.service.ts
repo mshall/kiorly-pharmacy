@@ -230,6 +230,13 @@ export class MarketplaceService implements OnModuleInit {
       }, tx);
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "order.ready", entityType: "KiorexOrder", entityId: id } });
     });
+    // Tell the customer (WhatsApp; no clinical detail). A provider failure is recorded on the notification and never fails the order.
+    if (order.customerPhone) {
+      const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: user.orgId } });
+      const locale = ((tenant.settings ?? {}) as { defaultLocale?: "ar" | "en" }).defaultLocale ?? "ar";
+      const method = order.deliveryMethod === "DELIVERY" ? (locale === "ar" ? "التوصيل" : "delivery") : locale === "ar" ? "الاستلام" : "pickup";
+      await this.notify.send({ orgId: user.orgId, channel: "WHATSAPP", recipient: order.customerPhone, template: "order.ready", locale, vars: { pharmacy: tenant.name, order: order.externalOrderId, method }, refType: "KiorexOrder", refId: order.id }).catch(() => undefined);
+    }
     return this.get(user.orgId, id);
   }
 

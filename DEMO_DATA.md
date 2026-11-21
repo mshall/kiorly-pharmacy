@@ -91,11 +91,29 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 
 ## 7. Known limitations and inconsistencies found
 
-* Mock providers: Kiorex messaging, SMS, push and PSP are mocked; the Kiorex link uses the dev HMAC client (`kx_dev_pharmacy_client`, DEV ONLY).
+* Mock providers: WhatsApp / SMS / email / push / PSP are mocked by default (real mode is config-only, see section 8); the Kiorex link uses the dev HMAC client (`kx_dev_pharmacy_client`, DEV ONLY).
 * Fixed 21 Nov 2026: `RecallNotice` was empty while lot `DM00013` was RECALLED (a test cleanup / `--reset` removed the notice, the append-only lot stayed). `seed:demo` now re-creates the `DEMO-RECALL-001` notice idempotently; re-run it after any wipe.
 * Fixed 21 Nov 2026: the older docs said "343 drugs / 5 suppliers". The seed gives 259 shared catalogue rows and 5 suppliers (the live 32 suppliers and 524 tenant drugs include e2e leftovers). `kx_ph_demo_3` is not a "new" order any more: the SLA job expired it, so it is EXPIRED here (`SLA_EXPIRED`) and REJECTED in Kiorex (reason `SLA_EXPIRED`); both docs say so.
 * The Demo tenant carries test leftovers (`E2E Till Branch (test)`, hundreds of `kx-e2e-*`/`kx_ph_mwo*` Kiorex orders), so Orders counts are far above the 5 demo orders.
 * No tax-authority integration exists; VAT is a plain configurable line on receipts.
+
+## 8. Provider flows in mock mode, and the Provider go-live checklist
+
+**Try every provider flow (mock, DEV ONLY).** As `owner@...` (settings.write): `POST /api/v1/dev/providers/demo/run` sends an order-ready and a refill-reminder WhatsApp, a receipt email and a receipt SMS to dummy recipients (`+201000000001..3`, `customer.demo@example.test`), delivers each receipt through the signed webhook path, then runs pay-by-link success -> refund and a failing link on a credit customer (a `Demo Credit Customer (DEMO)` with a 120 balance is created when no account has a balance; paid 1.00 then refunded 1.00, so the balance is unchanged). `GET /api/v1/dev/providers/messages` is the view of everything "sent" (rendered body, QUEUED -> SENT -> DELIVERED); `POST /api/v1/dev/providers/simulate/webhook {"kind":"payment","type":"payment.failed","providerRef":"mocklink_..."}` replays any single callback. All of it is 404 in production. Manual paths: Kiorex order -> accept -> sign-off -> **Ready** (WhatsApp `order.ready` to the order's customer phone); Refills -> run reminders; a sale -> `POST /pos/sales/:id/receipt/send {"channel":"EMAIL","to":"you@example.test"}`; a credit customer -> `POST /pos/customers/:id/pay-link {"sendVia":{"channel":"SMS"}}` -> simulate `payment.succeeded` -> `POST /pos/pay-links/:id/refund`. Recipients ending `-fail` are rejected by the mock (a FAILED message with `REJECTED: ...`); `message.failed` can also be simulated. Details: [Docs/PROVIDERS.md](Docs/PROVIDERS.md).
+
+### Provider go-live checklist (no code change: env/secrets only; staging first)
+
+Add these to the secrets manager / task definition of the Pharmacy API. Nothing else is needed per kind; the app refuses to start if a real MODE is missing something (it names the variable). Run `prisma migrate deploy` first (migration `20261122090000_0017_provider_go_live`: `PayLink`, `ProviderWebhookEvent`, notification delivery columns).
+
+| Kind | Set | Secrets / values to add | Provider-side to-do |
+|---|---|---|---|
+| SMS | `SMS_MODE=real` | `SMS_API_URL`, `SMS_API_KEY`, `SMS_WEBHOOK_SECRET`, `SMS_SENDER_ID` | Register the sender id; point delivery receipts at `https://<pharmacy-api>/api/v1/webhooks/providers/sms` |
+| Email | `EMAIL_MODE=real` | `EMAIL_API_URL`, `EMAIL_API_KEY`, `EMAIL_WEBHOOK_SECRET`, `EMAIL_FROM` | Verify the sending domain (SPF/DKIM); webhook `.../webhooks/providers/email` |
+| WhatsApp | `WHATSAPP_MODE=real` | `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_WEBHOOK_SECRET`, `WHATSAPP_SENDER_ID` | Meta-approved EN + AR templates named like the template keys (`order.ready`, `rx.refill_reminder`, `receipt.email`, `paylink.send`, `paylink.receipt`, `expiry.alert`, `shift.variance`, `recall.notice`, `po.send`, `rfq.send`, `order.inbox`; NH-PH-012); webhook `.../webhooks/providers/whatsapp` |
+| Payment | `PAYMENT_MODE=real` | `PAYMENT_API_URL`, `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET` (optional `PAYMENT_CURRENCY`) | Merchant account (NH-PH-014); webhook `.../webhooks/providers/payment`; reconcile `PayLink` vs the settlement report |
+| Push (Kiorly Work) | `PUSH_MODE=real` | `PUSH_API_URL` (Expo: `https://exp.host/--/api/v2/push/send`), optional `PUSH_API_KEY` | Expo project / credentials in the mobile build |
+
+Then: (1) if the vendor's payload or signature differs from the generic shape, edit only `src/providers/mapping/<kind>.mapping.ts`; (2) in a non-production environment `GET /api/v1/dev/providers/status` shows each kind's mode and whether its credentials are set (booleans only); (3) send one real message to your own phone and one 1.00 EGP pay link, check the `Notification` goes SENT -> DELIVERED and the `PayLink` goes PAID; (4) `PROVIDER_DEV_TOOLS=false` (already off when `NODE_ENV=production`).
 
 ---
 Verified: 2026-11-21 (seed scripts, `kiorly_pharmacy` database via SELECT, web dev port start-up check on 5192).

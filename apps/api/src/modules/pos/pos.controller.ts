@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumberString, IsObject, IsOptional, IsString, Min, MinLength, ValidateNested } from "class-validator";
@@ -12,6 +12,7 @@ import { CustomersService } from "./customers.service";
 import { PromotionsService, PROMO_KINDS } from "./promotions.service";
 import { HeldCartsService } from "./held-carts.service";
 import { CashService } from "./cash.service";
+import { PayLinksService } from "./paylinks.service";
 import { UomService } from "../inventory/uom.service";
 import { resolveBranchId, branchFilter } from "../../common/branch-scope";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -96,6 +97,10 @@ class OpenShiftDto { @IsOptional() @IsString() branchId?: string; @IsNumberStrin
 class CloseShiftDto { @IsNumberString() countedCash!: string; }
 class CustomerDto { @IsString() @MinLength(2) displayName!: string; @IsOptional() @IsString() phone?: string; @IsNumberString() creditLimit!: string; }
 class LimitDto { @IsNumberString() creditLimit!: string; }
+class SendViaDto { @IsIn(["SMS", "EMAIL", "WHATSAPP"]) channel!: "SMS" | "EMAIL" | "WHATSAPP"; @IsOptional() @IsString() @MinLength(3) to?: string; }
+class PayLinkDto { @IsOptional() @IsNumberString() amount?: string; @IsOptional() @IsInt() @Min(1) expiresInHours?: number; @IsOptional() @IsObject() @ValidateNested() @Type(() => SendViaDto) sendVia?: SendViaDto; }
+class PayLinkRefundDto { @IsOptional() @IsNumberString() amount?: string; @IsOptional() @IsString() reason?: string; }
+class ReceiptSendDto { @IsIn(["SMS", "EMAIL", "WHATSAPP"]) channel!: "SMS" | "EMAIL" | "WHATSAPP"; @IsOptional() @IsString() @MinLength(3) to?: string; }
 class CustPayDto { @IsNumberString() amount!: string; @IsOptional() @IsString() branchId?: string; }
 
 @ApiTags("pos")
@@ -110,6 +115,7 @@ export class PosController {
     @Inject(PromotionsService) private readonly promos: PromotionsService,
     @Inject(HeldCartsService) private readonly held: HeldCartsService,
     @Inject(CashService) private readonly cash: CashService,
+    @Inject(PayLinksService) private readonly payLinks: PayLinksService,
     @Inject(UomService) private readonly uoms: UomService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
@@ -184,6 +190,14 @@ export class PosController {
   custGet(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.customers.get(u.orgId, id); }
   @Post("customers/:id/limit") @Perm("pos.refund_approve")
   custLimit(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: LimitDto) { return this.customers.setLimit(u, id, d.creditLimit); }
+  @Post("customers/:id/pay-link") @Perm("customer.credit")
+  payLink(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: PayLinkDto, @Headers("idempotency-key") key?: string) { return this.payLinks.create(u, id, d, key); }
+  @Get("customers/:id/pay-links") @Perm("customer.credit")
+  payLinksFor(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.payLinks.list(u.orgId, id); }
+  @Post("pay-links/:id/refund") @Perm("pos.refund_approve")
+  refundPayLink(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: PayLinkRefundDto) { return this.payLinks.refund(u, id, d); }
+  @Post("sales/:id/receipt/send") @Perm("pos.sell")
+  sendReceipt(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: ReceiptSendDto) { return this.payLinks.sendReceipt(u, id, d); }
   @Post("customers/:id/payments") @Perm("customer.credit")
   async custPay(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: CustPayDto) { return this.customers.pay(u, id, d.amount, await resolveBranchId(this.prisma, u, d.branchId)); }
 

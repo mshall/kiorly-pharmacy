@@ -7,8 +7,9 @@ import { CustomersService } from "./customers.service";
 import { PromotionsService } from "./promotions.service";
 import { HeldCartsService } from "./held-carts.service";
 import { CashService } from "./cash.service";
+import { PayLinksService } from "./paylinks.service";
 import { InventoryModule } from "../inventory/inventory.module";
 import { CatalogueModule } from "../catalogue/catalogue.module";
 
-@Module({ imports: [InventoryModule, CatalogueModule], controllers: [PosController], providers: [PosService, SalesService, ShiftsService, CustomersService, PromotionsService, HeldCartsService, CashService], exports: [SalesService, PosService, CashService, ShiftsService] })
+@Module({ imports: [InventoryModule, CatalogueModule], controllers: [PosController], providers: [PosService, SalesService, ShiftsService, CustomersService, PromotionsService, HeldCartsService, CashService, PayLinksService], exports: [SalesService, PosService, CashService, ShiftsService, PayLinksService] })
 export class PosModule {}

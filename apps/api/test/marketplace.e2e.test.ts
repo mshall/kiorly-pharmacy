@@ -90,6 +90,10 @@ describe("Kiorex orders (KPMKT01-05, KPINV07)", () => {
     await t.http.post(`/api/v1/dispensings/${acc.body.dispensing.id}/signoff`).set(pharm()).send({});
     const ready = await t.http.post(`/api/v1/kiorex-orders/${o.id}/ready`).set(pharm());
     assert.equal(ready.body.status, "READY");
+    const readyMsg = await t.prisma.notification.findMany({ where: { orgId: f.orgId, template: "order.ready", refId: o.id } });
+    assert.equal(readyMsg.length, 1, "the customer is told the order is ready");
+    assert.deepEqual([readyMsg[0]!.channel, readyMsg[0]!.recipient, readyMsg[0]!.status], ["WHATSAPP", "01012345678", "SENT"]);
+    assert.ok(readyMsg[0]!.body.includes(orderId));
     const done = await t.http.post(`/api/v1/dispensings/${acc.body.dispensing.id}/complete`).set(pharm()).send({ idempotencyKey: `idem-${randomUUID()}` });
     assert.equal(done.status, 201, JSON.stringify(done.body));
     assert.equal(done.body.sale.payments[0].method, "KIOREX_PREPAID");

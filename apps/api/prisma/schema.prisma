@@ -234,6 +234,7 @@ enum NotificationChannel {
 enum NotificationStatus {
   QUEUED
   SENT
+  DELIVERED
   FAILED
 }
 
@@ -1300,8 +1301,13 @@ model Notification {
   provider  String              @default("mock")
   createdAt DateTime            @default(now())
   sentAt    DateTime?
+  /// Provider message id (delivery-receipt webhook correlation).
+  providerMessageId String?
+  error             String?
+  deliveredAt       DateTime?
 
   @@index([orgId, createdAt])
+  @@index([providerMessageId])
 }
 
 /// pharmacy.insurer_claims: basic claim data model (cash/self-pay is the default; no tax reporting).
@@ -1884,4 +1890,54 @@ model ControlledCountersign {
 
   @@unique([orgId, discrepancyId, witnessId])
   @@index([orgId, discrepancyId])
+}
+
+enum PayLinkStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  REFUND_PENDING
+  REFUNDED
+}
+
+/// Pay-by-link for a customer's credit balance (PAYMENT_MODE=mock|real). Status is driven by the signed PSP webhook; a paid link books ONE PAYMENT credit entry.
+model PayLink {
+  id             String        @id @default(cuid())
+  orgId          String
+  accountId      String
+  amount         Decimal       @db.Decimal(14, 2)
+  currency       String        @default("EGP")
+  status         PayLinkStatus @default(PENDING)
+  /// Provider-side id of the link / charge (webhook correlation).
+  providerRef    String?
+  payUrl         String?
+  idempotencyKey String
+  /// CustomerCreditEntry booked when the link was paid.
+  entryId        String?
+  failureReason  String?
+  refundedAmount Decimal       @default(0) @db.Decimal(14, 2)
+  /// Provider refund id while a refund is in flight.
+  refundRef      String?
+  refundAmount   Decimal?      @db.Decimal(14, 2)
+  expiresAt      DateTime?
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([orgId, idempotencyKey])
+  @@index([providerRef])
+  @@index([refundRef])
+  @@index([orgId, accountId])
+}
+
+/// Webhook dedupe: a replayed provider event (same kind + event id) is a no-op.
+model ProviderWebhookEvent {
+  id         String   @id @default(cuid())
+  kind       String
+  eventId    String
+  type       String
+  receivedAt DateTime @default(now())
+
+  @@unique([kind, eventId])
 }
