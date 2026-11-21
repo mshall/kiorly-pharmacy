@@ -26,6 +26,13 @@ export function cleanNote(v: unknown): string | null {
   return t ? t.slice(0, UPGRADE_NOTE_MAX) : null;
 }
 
+export const OPEN_REQUESTS_MAX = 10;
+export interface OpenUpgradeRequest { id: string; featureKey: string; requesterRole: string; requesterName: string; requestedAt: string; note?: string }
+/** Pure: shape open requests for the owner's Home card. Display name only (no contact data); unknown people show as their role. */
+export function shapeOpenRequests(rows: Array<{ id: string; featureKey: string; role: string; note: string | null; createdAt: Date; who: string }>, names: Map<string, string>): OpenUpgradeRequest[] {
+  return rows.slice(0, OPEN_REQUESTS_MAX).map((r) => ({ id: r.id, featureKey: r.featureKey, requesterRole: r.role, requesterName: names.get(r.who) ?? r.role, requestedAt: r.createdAt.toISOString(), ...(r.note ? { note: r.note } : {}) }));
+}
+
 export interface UpgradeRequestResult { id: string; status: "REQUESTED" | "ALREADY_ENTITLED"; featureKey: string; requestedAt: string | null; deduped: boolean; notified: number }
 
 /**
@@ -66,7 +73,17 @@ export class MobileUpgradeService {
   async bootstrapBlock(u: AuthUser, lockedModules: string[]) {
     const isAdmin = u.role === "OWNER";
     const mine = await this.prisma.mobileUpgradeRequest.findFirst({ where: { orgId: u.orgId, userId: u.userId, createdAt: { gt: new Date(Date.now() - UPGRADE_DEDUPE_MS) } }, orderBy: { createdAt: "desc" } });
-    const open = isAdmin ? await this.prisma.mobileUpgradeRequest.count({ where: { orgId: u.orgId, status: "OPEN" } }) : null;
-    return { lockedModules, myRequest: mine ? { featureKey: mine.featureKey, requestedAt: mine.createdAt.toISOString() } : null, openRequests: open, canApprove: isAdmin };
+    const open = isAdmin ? await this.prisma.mobileUpgradeRequest.count({ where: { orgId: u.orgId, status: "OPEN", userId: { not: u.userId } } }) : null;
+    const openItems = isAdmin ? await this.openItems(u.orgId, u.userId) : [];
+    return { lockedModules, myRequest: mine ? { featureKey: mine.featureKey, requestedAt: mine.createdAt.toISOString() } : null, openRequests: open, openRequestItems: openItems, canApprove: isAdmin };
+  }
+
+  /** Newest open requests with the requester's display name (owner bootstrap only). */
+  private async openItems(orgId: string, self: string): Promise<OpenUpgradeRequest[]> {
+    const rows = await this.prisma.mobileUpgradeRequest.findMany({ where: { orgId, status: "OPEN", userId: { not: self } }, orderBy: { createdAt: "desc" }, take: OPEN_REQUESTS_MAX });
+    if (!rows.length) return [];
+    const ids = [...new Set(rows.map((r) => r.userId))];
+    const people = await this.prisma.staffUser.findMany({ where: { id: { in: ids } }, select: { id: true, displayName: true } });
+    return shapeOpenRequests(rows.map((r) => ({ id: r.id, featureKey: r.featureKey, role: r.role, note: r.note, createdAt: r.createdAt, who: r.userId })), new Map(people.map((p) => [p.id, p.displayName])));
   }
 }

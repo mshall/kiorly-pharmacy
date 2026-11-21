@@ -59,7 +59,7 @@ The local access token has no server session to revoke; revocation takes effect 
 
 ### Upgrade request (Basic orgs, exempt from FEATURE_DISABLED like alerts)
 - `POST /mobile/upgrade-request` `{featureKey?, note?}` -> `{id, status:"REQUESTED"|"ALREADY_ENTITLED", featureKey, requestedAt, deduped, notified}`. `featureKey` = a module key or `general` (400 otherwise); `note` <= 500 chars. Records requester, role, org, feature, note, time (`MobileUpgradeRequest`); a repeat by the same user for the same feature within **24h** returns the original (`deduped:true`, no second notification). Notifies the OWNER staff via the mock push inbox (`upgrade.request`, kind OPS; the only non-safety push that skips the plan check) and audits `mobile.upgrade_requested`. `ALREADY_ENTITLED` = nothing recorded.
-- `GET /mobile/bootstrap` also returns `upgrade` on non-entitled orgs only (`null` on Pro): `{lockedModules:[key], myRequest:{featureKey,requestedAt}|null, openRequests:number|null, canApprove:boolean}`. `lockedModules` = the modules THIS role would get on Pro, so the app renders only role-relevant locked tiles.
+- `GET /mobile/bootstrap` also returns `upgrade` on non-entitled orgs only (`null` on Pro): `{lockedModules:[key], myRequest:{featureKey,requestedAt}|null, openRequests:number|null, openRequestItems:[{id,featureKey,requesterRole,requesterName,requestedAt,note?}] (newest 10 open requests from other people, approvers only, display name only; [] otherwise), canApprove:boolean}`. `lockedModules` = the modules THIS role would get on Pro, so the app renders only role-relevant locked tiles.
 
 
 ### Pharmacy read models (`/mobile/pharmacy/*`, new, permission-checked)
