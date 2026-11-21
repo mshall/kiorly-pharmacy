@@ -8,6 +8,8 @@ export type PushKind = "GENERAL" | "SAFETY" | "CLINICAL" | "OPS";
 export interface PushInput {
   orgId: string; kind: PushKind; title: string; titleAr: string; body: string; bodyAr: string; data?: Record<string, unknown>;
   userIds?: string[]; roles?: StaffRole[]; branchId?: string | null;
+  /** Upgrade requests go to the owner of a Basic org, so the plan check is skipped (OPS only; never set for business pushes). */
+  allowUnentitled?: boolean;
 }
 
 /** Bilingual templates (rendered the same way in mock and real mode). */
@@ -16,6 +18,7 @@ export const PUSH_TEMPLATES = {
   "order.received": { kind: "OPS", en: ["New Kiorex order", "Order {order} arrived. Respond within {minutes} minutes."], ar: ["طلب كيوريكس جديد", "وصل الطلب {order}. يرجى الرد خلال {minutes} دقيقة."] },
   "controlled.discrepancy": { kind: "SAFETY", en: ["Controlled-drug discrepancy", "{drug}: expected {expected}, counted {counted}. Countersign required."], ar: ["فرق في دواء مراقب", "{drug}: المتوقع {expected} والمعدود {counted}. مطلوب توقيع شاهد."] },
   "stock.expiry": { kind: "OPS", en: ["Expiry alert", "{drug} lot {lot} expires in {days} days ({qty} on hand)."], ar: ["تنبيه صلاحية", "{drug} تشغيلة {lot} تنتهي خلال {days} يوم (الكمية {qty})."] },
+  "upgrade.request": { kind: "OPS", en: ["Staff asked to upgrade Kiorly Work", "A team member asked for the Kiorly Work staff app (Pro plan). Review your plan in Settings."], ar: ["طلب موظف ترقية كيورلي ورك", "طلب أحد أعضاء الفريق تطبيق كيورلي ورك للموظفين (باقة Pro). راجع باقتك من الإعدادات."] },
   "push.test": { kind: "GENERAL", en: ["Kiorly Work test", "Push notifications are working on this device."], ar: ["اختبار كيورلي ورك", "الإشعارات تعمل على هذا الجهاز."] },
 } as const;
 export type PushTemplate = keyof typeof PUSH_TEMPLATES;
@@ -37,7 +40,7 @@ export class PushService {
 
   async send(i: PushInput): Promise<{ delivered: number }> {
     try {
-      if (i.kind !== "SAFETY" && !(await this.ent.evaluate(i.orgId)).enabled) return { delivered: 0 };
+      if (i.kind !== "SAFETY" && !i.allowUnentitled && !(await this.ent.evaluate(i.orgId)).enabled) return { delivered: 0 };
       const users = await this.prisma.staffUser.findMany({
         where: { orgId: i.orgId, active: true, ...(i.userIds ? { id: { in: i.userIds } } : {}), ...(i.roles ? { role: { in: i.roles } } : {}), ...(i.branchId ? { OR: [{ branchId: null }, { branchId: i.branchId }] } : {}) },
         select: { id: true },

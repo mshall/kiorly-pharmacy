@@ -28,8 +28,8 @@ describe("Kiorly Work plan mapping (pure)", () => {
 });
 describe("client entitlement exemptions", () => {
   it("auth, bootstrap, alerts and device sign-out stay reachable without the entitlement", () => {
-    for (const [m, p] of [["POST", "/api/v1/auth/login"], ["GET", "/api/v1/auth/me"], ["GET", "/api/v1/mobile/bootstrap"], ["GET", "/api/v1/mobile/alerts?status=all"], ["POST", "/api/v1/mobile/alerts/X:1/ack"], ["DELETE", "/api/v1/mobile/devices/abc"]] as const) assert.equal(isEntitlementExempt(m, p), true, `${m} ${p}`);
-    for (const [m, p] of [["GET", "/api/v1/mobile/devices"], ["POST", "/api/v1/mobile/devices"], ["GET", "/api/v1/mobile/inbox"], ["GET", "/api/v1/catalogue/drugs"], ["GET", "/api/v1/mobile/alertsx"]] as const) assert.equal(isEntitlementExempt(m, p), false, `${m} ${p}`);
+    for (const [m, p] of [["POST", "/api/v1/auth/login"], ["GET", "/api/v1/auth/me"], ["GET", "/api/v1/mobile/bootstrap"], ["GET", "/api/v1/mobile/alerts?status=all"], ["POST", "/api/v1/mobile/alerts/X:1/ack"], ["POST", "/api/v1/mobile/upgrade-request"], ["DELETE", "/api/v1/mobile/devices/abc"]] as const) assert.equal(isEntitlementExempt(m, p), true, `${m} ${p}`);
+    for (const [m, p] of [["GET", "/api/v1/mobile/devices"], ["POST", "/api/v1/mobile/devices"], ["GET", "/api/v1/mobile/inbox"], ["GET", "/api/v1/mobile/upgrade-request"], ["GET", "/api/v1/catalogue/drugs"], ["GET", "/api/v1/mobile/alertsx"]] as const) assert.equal(isEntitlementExempt(m, p), false, `${m} ${p}`);
   });
 });
 describe("push templates", () => {

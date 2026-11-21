@@ -26,6 +26,7 @@ Lot-accurate inventory, pharmacist-gated dispensing, a fast offline-tolerant POS
 </div>
 
 > **Synthetic data only.** Demo logins, URLs and reset steps: [Docs/TEST_DATA.md](Docs/TEST_DATA.md) (DEV ONLY, blocked in production).
+> **Demo data for manual testing** (personas, counts, click-path test scripts, role checklists): [DEMO_DATA.md](DEMO_DATA.md) (DEV ONLY).
 
 ---
 

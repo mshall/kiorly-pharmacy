@@ -61,9 +61,13 @@ export class MobilePharmacyService {
       FROM "ReorderPolicy" p JOIN "Drug" d ON d.id = p."drugId"
       WHERE p."orgId" = ${u.orgId} AND (${branchId}::text IS NULL OR p."branchId" = ${branchId})`;
     const lowItems = low.map((r) => ({ drugId: r.drugId, branchId: r.branchId, brandName: r.brandName, brandNameAr: r.brandNameAr, minQty: r.minQty, maxQty: r.maxQty, onHand: Number(r.onHand), suggestedOrder: Math.max(r.maxQty - Number(r.onHand), 0) })).filter((r) => r.onHand <= r.minQty).sort((a, b) => a.onHand - b.onHand);
+    // Blocked stock is shown whatever its expiry date: quarantined (cold-chain / QA hold) and recalled lots still on the shelf.
+    const blockedLots = await this.prisma.stockLot.findMany({ where: { orgId: u.orgId, qtyOnHand: { gt: 0 }, status: { in: ["QUARANTINE", "RECALLED"] }, ...(branchId ? { branchId } : {}) }, include: { drug: { select: { brandName: true, brandNameAr: true } } }, orderBy: [{ status: "desc" }, { expiryDate: "asc" }], take: 100 });
+    const quarantined = blockedLots.filter((l) => l.status === "QUARANTINE"), recalled = blockedLots.filter((l) => l.status === "RECALLED");
     const row = (l: (typeof lots)[number]) => ({ lotId: l.id, drugId: l.drugId, brandName: l.drug.brandName, brandNameAr: l.drug.brandNameAr, lotNumber: l.lotNumber, expiryDate: l.expiryDate, daysToExpiry: days(l), qtyOnHand: l.qtyOnHand, status: l.status, branchId: l.branchId });
     return {
       asOf: today, expiry: { expired: { lots: expired.length, units: sumQty(expired) }, within30: { lots: b30.length, units: sumQty(b30) }, within60: { lots: b60.length, units: sumQty(b60) }, within90: { lots: b90.length, units: sumQty(b90) }, items: lots.slice(0, 40).map(row) },
+      blocked: { quarantined: { lots: quarantined.length, units: sumQty(quarantined) }, recalled: { lots: recalled.length, units: sumQty(recalled) }, items: blockedLots.slice(0, 40).map((l) => ({ ...row(l as (typeof lots)[number]), blockedReason: l.blockedReason })) },
       lowStock: { count: lowItems.length, items: lowItems.slice(0, 40) },
     };
   }

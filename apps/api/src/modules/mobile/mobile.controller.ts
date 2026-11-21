@@ -11,6 +11,7 @@ import { forbidden } from "../../common/errors";
 import { MobileEntitlementService } from "./mobile-entitlement.service";
 import { MobileDevicesService } from "./mobile-devices.service";
 import { MobileAlertsService } from "./mobile-alerts.service";
+import { MobileUpgradeService } from "./mobile-upgrade.service";
 import { PushService, renderPush } from "./push.service";
 import { modulesFor } from "./mobile-plan";
 
@@ -22,6 +23,7 @@ class RegisterDeviceDto {
   @IsOptional() @IsString() @MaxLength(300) pushToken?: string;
 }
 class PushTokenDto { @IsString() @MinLength(3) @MaxLength(300) token!: string; @IsIn(["expo", "mock"]) provider!: "expo" | "mock"; }
+class UpgradeRequestDto { @IsOptional() @IsString() @MaxLength(80) featureKey?: string; @IsOptional() @IsString() @MaxLength(500) note?: string; }
 class AckDto { @IsOptional() @IsString() @MaxLength(500) note?: string; }
 
 const hdr = (req: { headers: Record<string, string | string[] | undefined> }, n: string) => { const v = req.headers[n]; return Array.isArray(v) ? v[0] : v; };
@@ -41,6 +43,7 @@ export class MobileController {
     @Inject(MobileDevicesService) private readonly devices: MobileDevicesService,
     @Inject(MobileAlertsService) private readonly alerts: MobileAlertsService,
     @Inject(PushService) private readonly push: PushService,
+    @Inject(MobileUpgradeService) private readonly upgrade: MobileUpgradeService,
   ) {}
 
   @Get("bootstrap")
@@ -52,16 +55,23 @@ export class MobileController {
     const settings = (tenant.settings ?? {}) as { defaultLocale?: string };
     const kiorexOrders = mode === "INTEGRATED" && this.flags.isEnabled("pharmacy.kiorex_orders", { orgId: u.orgId, market: u.market });
     const { plan, rawPlan, ...entitlement } = e;
+    const roleModules = modulesFor(perms, kiorexOrders);
     return {
       apiVersion: 1, product: "pharmacy" as const, serverTime: new Date().toISOString(),
       user: { id: u.userId, name: u.displayName, email: staff.email, role: u.role, roles: [u.role], locale: settings.defaultLocale ?? "ar", branchId: u.branchId, isPharmacist: !!u.pharmacistLicenceNo },
       org: { id: tenant.id, name: tenant.name, slug: tenant.externalOrgId, plan, rawPlan, mode },
       entitlement: { key: entitlement.key, enabled: entitlement.enabled, requiredPlan: entitlement.requiredPlan, reason: entitlement.reason },
       safetyAlertsOnly: !e.enabled,
-      modules: e.enabled ? modulesFor(perms, kiorexOrders) : [],
+      modules: e.enabled ? roleModules : [],
+      /** Basic orgs only: what this role would get on PRO (locked tiles), my latest upgrade request, open requests for the owner. */
+      upgrade: e.enabled ? null : await this.upgrade.bootstrapBlock(u, roleModules.filter((m) => m.enabled).map((m) => m.key)),
       device,
     };
   }
+
+  /** Exempt from FEATURE_DISABLED (a Basic org must be able to ask). Idempotent: a repeat for the same feature within 24h returns the original. */
+  @Post("upgrade-request") @HttpCode(200)
+  upgradeRequest(@CurrentUser() u: AuthUser, @Body() d: UpgradeRequestDto) { return this.upgrade.request(u, d); }
 
   // ------------------------------------------------------------------ devices
   @Post("devices")

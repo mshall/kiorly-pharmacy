@@ -33,6 +33,7 @@ export function modulesFor(perms: ReadonlySet<string>, kiorexOrders: boolean) {
     let enabled = m.perms.every((p) => perms.has(p));
     if (m.extra === "kiorex_orders" && !kiorexOrders) enabled = false;
     const screens = [...m.screens];
+    if (m.key === "pharmacy.rx" && perms.has("rx.validate")) screens.push("rx.validate");
     if (m.key === "pharmacy.rx" && perms.has("dispense.signoff")) screens.push("rx.override");
     return { key: m.key, enabled, screens: enabled ? screens : [] };
   });

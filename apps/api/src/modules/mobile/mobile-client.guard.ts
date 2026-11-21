@@ -8,6 +8,7 @@ export function isEntitlementExempt(method: string, path: string): boolean {
   const p = path.split("?")[0]!.replace(/\/+$/, "");
   if (/^\/api\/v1\/auth(\/|$)/.test(p) || p === "/api/v1/mobile/bootstrap") return true;
   if (/^\/api\/v1\/mobile\/alerts(\/|$)/.test(p)) return true;
+  if (method === "POST" && p === "/api/v1/mobile/upgrade-request") return true;
   return method === "DELETE" && /^\/api\/v1\/mobile\/devices\/[^/]+$/.test(p);
 }
 

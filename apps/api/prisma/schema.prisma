@@ -1842,6 +1842,25 @@ model PushMessage {
   @@index([orgId, createdAt])
 }
 
+/// Kiorly Work: a staff member asked their org owner to upgrade to a plan that includes `mobile_staff_app`. Allowed on Basic (not entitlement-gated).
+/// Repeat requests by the same user for the same feature within 24h are de-duplicated by the service.
+model MobileUpgradeRequest {
+  id            String   @id @default(cuid())
+  orgId         String
+  userId        String
+  role          String
+  /// A module key (e.g. pharmacy.rx) or "general".
+  featureKey    String
+  plan          String
+  note          String?
+  status        String   @default("OPEN")
+  notifiedCount Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([orgId, userId, featureKey, createdAt])
+  @@index([orgId, status, createdAt])
+}
+
 /// Acknowledgement of a derived safety alert (ADR-025: alerts are never gated by plan). alertKey = "<KIND>:<subjectId>".
 model MobileAlertAck {
   id       String   @id @default(cuid())

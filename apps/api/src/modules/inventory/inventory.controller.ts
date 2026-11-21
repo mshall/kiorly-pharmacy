@@ -15,6 +15,8 @@ import * as dto from "./inventory.dto";
 import { DomainError } from "../../common/errors";
 import type { LotStatus } from "../../generated/prisma/client";
 
+const LOT_STATUSES: readonly LotStatus[] = ["RECEIVED", "AVAILABLE", "RESERVED", "DISPENSED", "QUARANTINE", "EXPIRED", "RECALLED"];
+
 @ApiTags("inventory")
 @ApiBearerAuth()
 @Controller("inventory")
@@ -32,6 +34,7 @@ export class InventoryController {
   @Perm("inventory.read")
   lots(@CurrentUser() u: AuthUser, @Query() q: { branchId?: string; drugId?: string; status?: LotStatus; expiringWithinDays?: string; q?: string; includeEmpty?: string; page?: string; pageSize?: string }) {
     const { skip, take } = pageArgs(q, 200);
+    if (q.status && !LOT_STATUSES.includes(q.status)) throw new DomainError("INVALID_LOT_STATUS", `status must be one of ${LOT_STATUSES.join(", ")}`, 400);
     return this.inv.lots(u.orgId, { ...branchFilter(u, q.branchId), drugId: q.drugId, status: q.status, expiringWithinDays: q.expiringWithinDays ? Number(q.expiringWithinDays) : undefined, q: q.q, includeEmpty: q.includeEmpty === "true", skip, take });
   }
 
