@@ -15,6 +15,6 @@ export function isMobilePlanGated(req: { method: string; originalUrl?: string; u
   const url = req.originalUrl ?? req.url;
   const c = req.headers["x-kiorly-client"];
   const client = Array.isArray(c) ? c[0] : c;
-  const isApp = Boolean(client?.startsWith("kiorly-work")) || /^\/api\/v1\/mobile(\/|$|\?)/.test(url);
+  const isApp = Boolean(client && /^kiorly-(team|work)(\/|$)/.test(client)) || /^\/api\/v1\/mobile(\/|$|\?)/.test(url);
   return isApp && !isEntitlementExempt(req.method, url);
 }

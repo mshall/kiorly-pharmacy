@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { auth, bootApp, PASSWORD, receive, seedDrug, seedTenant, type Fixture, type TestApp } from "./helpers";
 import type { FlagSnapshot } from "../src/feature-flags/flag-snapshot";
 
-const CLIENT = { "X-Kiorly-Client": "kiorly-work/1.0.0" };
+const CLIENT = { "X-Kiorly-Client": "kiorly-team/1.0.0" };
 const snap = (flags: Array<{ key: string; values: object }>): FlagSnapshot => ({ product: "kiorly-pharmacy", version: Date.now(), generatedAt: new Date().toISOString(), flags: flags.map((f) => ({ class: "Module", scopes: ["global", "market", "org"], dependsOn: [], launchLocked: false, gateSatisfied: false, ...f })) as never });
 const uuid = () => `dev-${Math.random().toString(16).slice(2)}-${Date.now()}`;
 

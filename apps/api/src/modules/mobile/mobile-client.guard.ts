@@ -12,7 +12,7 @@ export { isEntitlementExempt };
 /**
  * Global guard (registered after AuthGuard). 1) Device-bound sessions: X-Kiorly-Device + X-Kiorly-Device-Token must match an ACTIVE device of the
  * caller, else 401 DEVICE_REVOKED (remote sign-out takes effect on the next request). 2) Client entitlement: requests from the Kiorly Team client
- * (X-Kiorly-Client: kiorly-work/<version>) or any /mobile/* route, on a tenant without mobile_staff_app get 403 FEATURE_DISABLED, except the exempt routes above.
+ * (X-Kiorly-Client: kiorly-team/<version>) or any /mobile/* route, on a tenant without mobile_staff_app get 403 FEATURE_DISABLED, except the exempt routes above.
  */
 @Injectable()
 export class MobileClientGuard implements CanActivate {

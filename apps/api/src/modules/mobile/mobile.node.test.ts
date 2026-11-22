@@ -49,7 +49,8 @@ describe("plan gate (FEATURE_DISABLED) precedes RBAC (PERMISSION_DENIED) on /mob
   it("gates /mobile/* and app-identified requests, not the exempt ones", () => {
     assert.equal(isMobilePlanGated(mk("/api/v1/mobile/summary")), true);
     assert.equal(isMobilePlanGated(mk("/api/v1/mobile/pharmacy/orders?x=1")), true);
-    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorly-work/1" })), true);
+    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorly-team/1" })), true);
+    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorly-work/1" })), true); // legacy client id
     assert.equal(isMobilePlanGated(mk("/api/v1/orders")), false);
     assert.equal(isMobilePlanGated(mk("/api/v1/mobile/alerts")), false);
   });
