@@ -46,9 +46,13 @@ async function main() {
       const reporter = await prisma.staffUser.findUnique({ where: { email: t.reporter } });
       const witness = await prisma.staffUser.findUnique({ where: { email: t.witness } });
       if (!branch || !reporter || !witness) { console.log(`seed:mobile skip ${t.externalOrgId} (branch/staff missing)`); continue; }
-      const sk = `kiorly-work-demo:cd:${tenant.id}`; // stable idempotency key; kept from before the 23 Nov 2026 kiorly-team rename so existing demo DBs do not get a duplicate drug
+      const sk = `kiorly-team-demo:cd:${tenant.id}`; // stable idempotency key
+      // Demo DBs seeded before the 23 Nov 2026 rename hold the drug under the old key: rewrite it in place so no duplicate drug is created.
+      const legacySk = `kiorly-work-demo:cd:${tenant.id}`;
+      if (!(await prisma.drug.findUnique({ where: { sourceKey: sk } }))) await prisma.drug.updateMany({ where: { sourceKey: legacySk }, data: { sourceKey: sk } });
       const drug = (await prisma.drug.findUnique({ where: { sourceKey: sk } })) ?? (await prisma.drug.create({ data: { orgId: tenant.id, sourceKey: sk, brandName: "Morphicure 10 mg (DEMO)", brandNameAr: "مورفيكيور 10 ملجم (تجريبي)", activeIngredient: "morphine sulfate", strength: "10 mg", dosageForm: "ampoule", packSize: "10", rxOnly: true, controlledSchedule: "SCHEDULE_2", gtin: `62290009${tenant.id.slice(-6).replace(/\D/g, "0").padEnd(6, "0")}`.slice(0, 14) } }));
-      const lotNo = "KW-CD-001";
+      const lotNo = "KT-CD-001";
+      await prisma.stockLot.updateMany({ where: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, lotNumber: "KW-CD-001" }, data: { lotNumber: lotNo } }); // pre-rename demo lots
       if (!(await prisma.stockLot.findFirst({ where: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, lotNumber: lotNo } }))) {
         await prisma.stockLot.create({ data: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, lotNumber: lotNo, expiryDate: new Date(marketToday().getTime() + 300 * DAY), status: "AVAILABLE", qtyOnHand: 38, unitCost: "120.00" } });
       }
@@ -59,12 +63,13 @@ async function main() {
         const signed = await prisma.controlledDiscrepancy.create({ data: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, expectedQty: 40, countedQty: 39, difference: -1, notes: "Kiorly Team demo: 1 ampoule, witnessed", reportedBy: reporter.id, createdAt: new Date(Date.now() - 3600_000) } });
         await prisma.controlledCountersign.create({ data: { orgId: tenant.id, discrepancyId: signed.id, witnessId: witness.id, note: "Counted together" } });
       }
+      await prisma.pushMessage.updateMany({ where: { orgId: tenant.id, title: "Welcome to Kiorly Team", titleAr: "مرحبا بك في كيورلي ورك" }, data: { titleAr: "مرحبا بك في كيورلي تيم" } }); // pre-rename Arabic title
       // inbox seed (idempotent by title)
       for (const u of await prisma.staffUser.findMany({ where: { orgId: tenant.id, active: true }, select: { id: true } })) {
         const has = await prisma.pushMessage.count({ where: { userId: u.id, title: "Welcome to Kiorly Team" } });
         if (has) continue;
         await prisma.pushMessage.createMany({ data: [
-          { orgId: tenant.id, userId: u.id, kind: "GENERAL", title: "Welcome to Kiorly Team", titleAr: "مرحبا بك في كيورلي ورك", body: "Your pharmacy in your pocket: verify prescriptions, scan stock, countersign controlled drugs.", bodyAr: "صيدليتك في جيبك: راجع الوصفات وامسح المخزون ووقّع على الأدوية المراقبة.", provider: "mock", deliveredAt: new Date(), data: { seed: true } },
+          { orgId: tenant.id, userId: u.id, kind: "GENERAL", title: "Welcome to Kiorly Team", titleAr: "مرحبا بك في كيورلي تيم", body: "Your pharmacy in your pocket: verify prescriptions, scan stock, countersign controlled drugs.", bodyAr: "صيدليتك في جيبك: راجع الوصفات وامسح المخزون ووقّع على الأدوية المراقبة.", provider: "mock", deliveredAt: new Date(), data: { seed: true } },
           { orgId: tenant.id, userId: u.id, kind: "SAFETY", title: "Controlled-drug discrepancy", titleAr: "فرق في دواء مراقب", body: "Morphicure 10 mg (DEMO): expected 40, counted 38. Countersign required.", bodyAr: "مورفيكيور 10 ملجم: المتوقع 40 والمعدود 38. مطلوب توقيع شاهد.", provider: "mock", deliveredAt: new Date(), data: { seed: true } },
         ] });
       }
