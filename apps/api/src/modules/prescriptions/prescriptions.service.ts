@@ -8,6 +8,7 @@ import { DomainError, notFound } from "../../common/errors";
 import type { AuthUser } from "../../auth/auth-user";
 import { ConsentVerifier } from "../../platform/adapters/consent.adapter";
 import { StorageAdapter } from "../../platform/adapters/storage.adapter";
+import { ConsentService } from "../../platform/adapters/consent.service";
 import { groupKey } from "../catalogue/normalize";
 import { PriceService } from "../catalogue/price.service";
 import { PrescribersService } from "./prescribers.service";
@@ -44,6 +45,7 @@ export class PrescriptionsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ConsentVerifier) private readonly consent: ConsentVerifier,
     @Inject(StorageAdapter) private readonly storage: StorageAdapter,
+    @Inject(ConsentService) private readonly consents: ConsentService,
     @Inject(PrescribersService) private readonly prescribers: PrescribersService,
     @Inject(PriceService) private readonly prices: PriceService,
     @Optional() @Inject(PushService) private readonly push?: PushService,
@@ -129,6 +131,7 @@ export class PrescriptionsService {
     if (dup) return { status: "duplicate", prescriptionId: dup.id };
 
     const consent = await this.consent.verify(ev.data.consentToken, { patientRef: ev.data.patientRef, clinicId: ev.data.clinicId });
+    if (!consent.valid && consent.reason === "REGISTRY_UNAVAILABLE") throw new DomainError("CONSENT_REGISTRY_UNAVAILABLE", "Consent registry unreachable: the e-Rx is not stored without verified consent; the clinic will retry", 503, { reason: consent.reason });
     if (!consent.valid) throw new DomainError("CONSENT_INVALID", `Patient consent token rejected: ${consent.reason}`, 422, { reason: consent.reason });
 
     try {
@@ -152,6 +155,7 @@ export class PrescriptionsService {
         await tx.auditLog.create({ data: { orgId, action: "rx.intake", entityType: "Prescription", entityId: created.id, meta: { source: "KIORLY_E_RX", eventId: ev.eventId, items: ev.data.items.length } } });
         return created;
       });
+      await this.consents.recordErxConsent(orgId, { patientRef: ev.data.patientRef, patientId: rx.patientId ?? undefined, token: ev.data.consentToken, expiresAt: consent.expiresAt });
       this.notifyRxWaiting(orgId, rx.id, branchId);
       return { status: "created", prescriptionId: rx.id };
     } catch (e) {
@@ -235,6 +239,14 @@ export class PrescriptionsService {
     const rx = await this.prisma.prescription.findFirst({ where: { id, orgId }, include: { lines: { include: { drug: true } }, patient: true } });
     if (!rx) throw notFound("Prescription", id);
     return rx;
+  }
+
+  /** Signed, expiring download URL for the scan / attachment of an Rx (never a public or permanent link). */
+  async scanUrl(orgId: string, id: string, ttlSec?: number) {
+    const rx = await this.get(orgId, id);
+    if (!rx.scanStorageKey) throw notFound("Prescription scan", id);
+    const u = this.storage.signedUrl(rx.scanStorageKey, ttlSec);
+    return { url: u.path, expiresAt: u.expiresAt };
   }
 
   /** KPRX02: prescriber, patient, dose and quantity validation. Pharmacist marks VALIDATED only when there are no ERROR issues. */

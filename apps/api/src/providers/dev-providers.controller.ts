@@ -10,8 +10,13 @@ import { ProviderEventsService } from "./provider-events.service";
 import { MOCK_WEBHOOK_SECRET, PROVIDER_KINDS, WEBHOOK_KINDS, devToolsEnabled, providerConfig, providerMode, webhookSecretFor, type ProviderKind } from "./provider-env";
 import type { CanonicalEventType } from "./provider-types";
 import { signWebhook } from "./webhook-signature";
+import { AiGateway } from "../platform/adapters/ai.gateway";
+import { ConsentService } from "../platform/adapters/consent.service";
+import { StorageAdapter } from "../platform/adapters/storage.adapter";
+import { CONSENT_PURPOSES } from "./provider-types";
+import { verifyDownload } from "./storage-policy";
 
-const EVENT_TYPES: CanonicalEventType[] = ["message.sent", "message.delivered", "message.read", "message.failed", "payment.succeeded", "payment.failed", "payment.expired", "refund.succeeded", "refund.failed"];
+const EVENT_TYPES: CanonicalEventType[] = ["message.sent", "message.delivered", "message.read", "message.failed", "payment.succeeded", "payment.failed", "payment.expired", "refund.succeeded", "refund.failed", "consent.granted", "consent.revoked", "consent.expired"];
 const on = () => { if (!devToolsEnabled()) throw new NotFoundException(); };
 
 /**
@@ -27,13 +32,16 @@ export class DevProvidersController {
     @Inject(NotificationsService) private readonly notify: NotificationsService,
     @Inject(PayLinksService) private readonly payLinks: PayLinksService,
     @Inject(ProviderEventsService) private readonly events: ProviderEventsService,
+    @Inject(ConsentService) private readonly consents: ConsentService,
+    @Inject(AiGateway) private readonly ai: AiGateway,
+    @Inject(StorageAdapter) private readonly storage: StorageAdapter,
   ) {}
 
   /** Modes and which credentials are set (booleans only, never values). */
   @Get("status") @Perm("settings.write")
   status() {
     on();
-    return PROVIDER_KINDS.map((k) => { const c = providerConfig(k); return { kind: k, mode: providerMode(k), apiUrlSet: !!c.apiUrl, apiKeySet: !!c.apiKey, webhookSecretSet: !!c.webhookSecret, senderIdSet: !!c.senderId }; });
+    return PROVIDER_KINDS.map((k) => { const c = providerConfig(k); return { kind: k, mode: providerMode(k), apiUrlSet: !!c.apiUrl, apiKeySet: !!c.apiKey, webhookSecretSet: !!c.webhookSecret, senderIdSet: !!c.senderId, ...(k === "AI" ? { modelSet: !!c.model } : {}) }; });
   }
 
   /** Everything "sent" by the (mock or real) messaging providers, newest first, with the rendered body. */
@@ -64,12 +72,55 @@ export class DevProvidersController {
     return { simulated: type, providerRef, ...result };
   }
 
+  /** Consent: grant MARKETING for a demo customer, check status, revoke (mock: the registry's signed `consent.revoked` callback; real: a local revoke synced to the registry), check status again. */
+  @Post("consent/demo") @Perm("settings.write")
+  async consentDemo(@CurrentUser() u: AuthUser) { on(); return this.runConsentDemo(u); }
+
+  private async runConsentDemo(u: AuthUser) {
+    let p = await this.prisma.patientRef.findFirst({ where: { orgId: u.orgId, displayName: "Demo Consent Customer (DEMO)" } });
+    if (!p) p = await this.prisma.patientRef.create({ data: { orgId: u.orgId, displayName: "Demo Consent Customer (DEMO)", phone: "+201000000005", consentMarketing: true, consentDataProcessing: true } });
+    await this.prisma.patientRef.update({ where: { id: p.id }, data: { consentMarketing: true } });
+    const granted = await this.consents.grant(u.orgId, { subjectRef: p.id, patientId: p.id, purpose: "MARKETING", source: "DEV_DEMO", actorId: u.userId });
+    const before = await this.consents.status(u.orgId, p.id, "MARKETING");
+    let revoke: unknown;
+    if (providerMode("CONSENT") === "mock") revoke = await this.simulateEvent("CONSENT", "consent.revoked", granted.providerRef!, { error: "patient withdrew consent (demo)" });
+    else { await this.consents.revoke(u.orgId, granted.id, "demo revoke", u.userId); revoke = { via: "local revoke synced to the registry" }; }
+    const after = await this.consents.status(u.orgId, p.id, "MARKETING");
+    const patient = await this.prisma.patientRef.findUniqueOrThrow({ where: { id: p.id }, select: { consentMarketing: true } });
+    return { purposes: CONSENT_PURPOSES, customerId: p.id, consentId: granted.id, providerRef: granted.providerRef, validAfterGrant: before.valid, revoke, validAfterRevoke: after.valid, customerMarketingFlag: patient.consentMarketing, record: after.history[0] };
+  }
+
+  /** AI: sends a sample prompt containing fake PHI through the gateway; returns the redacted prompt that left the building, the labelled answer, token usage. Body: { prompt?, names? }. */
+  @Post("ai/sample") @Perm("settings.write")
+  async aiSample(@CurrentUser() u: AuthUser, @Body() b: { prompt?: string; names?: string[] } = {}) {
+    on();
+    return this.ai.assist({
+      orgId: u.orgId, actorId: u.userId, task: "dev.sample", names: b.names ?? ["Mona Hassan"],
+      prompt: b.prompt ?? "Patient Mona Hassan (phone +201001234567, email mona.demo@example.test, DOB 1984-03-02, MRN 884213) asks whether metformin 500 mg can be taken with ibuprofen. Summarise key counselling points.",
+    });
+  }
+
+  /** Storage: put a tiny PNG, read it back, mint a signed URL, prove a tampered / expired signature is rejected. Mock = local disk, real = the object gateway. */
+  @Post("storage/roundtrip") @Perm("settings.write")
+  async storageRoundtrip(@CurrentUser() u: AuthUser) {
+    on();
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    const put = await this.storage.putDataUrl(`dev-demo/${u.orgId}/roundtrip-${randomUUID()}`, `data:image/png;base64,${png.toString("base64")}`);
+    const got = await this.storage.get(put.key);
+    const url = this.storage.signedUrl(put.key, 60);
+    const q = new URL(`http://x${url.path}`).searchParams;
+    const tampered = verifyDownload(put.key, q.get("exp")!, "0".repeat(64));
+    const expired = verifyDownload(put.key, q.get("exp")!, q.get("sig")!, process.env, Date.now() + 3_600_000);
+    return { key: put.key, bytes: put.bytes, contentType: put.contentType, readBack: { bytes: got?.bytes.length ?? null, identical: !!got && got.bytes.equals(png), contentType: got?.contentType }, signedUrl: url.path, expiresAt: url.expiresAt, tamperedSignature: tampered, afterExpiry: expired };
+  }
+
   /**
    * Runs every demo flow in mock mode: pharmacy order-ready (WhatsApp), refill reminder (WhatsApp), receipt email, delivery receipts for each;
-   * then (unless { payments: false }) pay-by-link success -> refund and a failing link on the first customer account with a balance (one is created when none exists).
+   * then (unless { payments: false }) pay-by-link success -> refund and a failing link on the first customer account with a balance (one is created when none exists),
+   * then consent grant/revoke, an AI sample with the redacted prompt, and a storage put/get round trip (each skippable with { consent|ai|storage: false }).
    */
   @Post("demo/run") @Perm("settings.write")
-  async demo(@CurrentUser() u: AuthUser, @Body() b: { payments?: boolean } = {}) {
+  async demo(@CurrentUser() u: AuthUser, @Body() b: { payments?: boolean; consent?: boolean; ai?: boolean; storage?: boolean } = {}) {
     on();
     const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: u.orgId } });
     const sends: { flow: string; channel: "WHATSAPP" | "SMS" | "EMAIL"; to: string; template: string; vars: Record<string, string | number> }[] = [
@@ -100,6 +151,10 @@ export class DevProvidersController {
       payments.failure = { linkId: bad.link.id, result: await this.simulateEvent("PAYMENT", "payment.failed", bad.link.providerRef!, { error: "card_declined" }) };
       payments.account = acc.id;
     }
-    return { messages, payments };
+    const extras: Record<string, unknown> = {};
+    if (b.consent !== false) extras.consent = await this.runConsentDemo(u);
+    if (b.ai !== false) extras.ai = await this.aiSample(u);
+    if (b.storage !== false) extras.storage = await this.storageRoundtrip(u);
+    return { messages, payments, ...extras };
   }
 }

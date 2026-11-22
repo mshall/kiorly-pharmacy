@@ -6,6 +6,7 @@ import { DomainError, conflict, notFound } from "../../common/errors";
 import { D, money } from "../../common/money";
 import type { AuthUser } from "../../auth/auth-user";
 import { TenantModeService } from "../../tenancy/tenant-mode.service";
+import { ConsentService } from "../../platform/adapters/consent.service";
 import { adjustPoints, loyaltyConfig, pointsValue } from "../../common/loyalty";
 
 export interface CustomerInput {
@@ -27,7 +28,7 @@ const nidHash = (orgId: string, nid: string) => createHmac("sha256", process.env
 /** Customer registry (works with no Kiorly / Kiorex at all). PatientRef is the single person record shared by Rx, dispensing, POS, loyalty and credit. */
 @Injectable()
 export class CustomerRegistryService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(TenantModeService) private readonly modes: TenantModeService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(TenantModeService) private readonly modes: TenantModeService, @Inject(ConsentService) private readonly consents: ConsentService) {}
 
   private audit(tx: Prisma.TransactionClient | PrismaService, u: AuthUser, action: string, id: string, meta?: Prisma.InputJsonValue) {
     return tx.auditLog.create({ data: { orgId: u.orgId, actorId: u.userId, action, entityType: "Customer", entityId: id, meta } });
@@ -173,6 +174,7 @@ export class CustomerRegistryService {
     await this.mustGet(u.orgId, id);
     const p = await this.prisma.patientRef.update({ where: { id }, data: { consentDataProcessing: d.dataProcessing, consentMarketing: d.marketing, consentRecordedAt: new Date(), consentRecordedBy: u.userId } });
     await this.audit(this.prisma, u, "customer.consent", id, { dataProcessing: d.dataProcessing, marketing: d.marketing });
+    await this.consents.syncCustomerConsent(u.orgId, id, p.externalId ?? id, { DATA_PROCESSING: d.dataProcessing, MARKETING: d.marketing }, u.userId);
     return this.view(p);
   }
 

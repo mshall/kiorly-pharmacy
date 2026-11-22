@@ -29,6 +29,11 @@ export async function startFakeProvider(override?: (r: RecordedRequest, n: numbe
       else if (p === "/charges") reply = { status: 200, body: { id: `${idPrefix}_ch_${n}`, status: rec.body?.cardToken === "tok_decline" ? "declined" : "captured", declineReason: rec.body?.cardToken === "tok_decline" ? "do_not_honor" : undefined } };
       else if (p === "/pay-links") reply = { status: 201, body: { id: `${idPrefix}_pl_${n}`, payUrl: `https://pay.fake.test/${n}`, status: "pending" } };
       else if (p === "/refunds") reply = { status: 200, body: { id: `${idPrefix}_rf_${n}`, status: "pending" } };
+      else if (p === "/consents" && rec.method === "POST") reply = { status: 201, body: { id: `${idPrefix}_cs_${n}`, status: "active", expiresAt: rec.body?.expiresAt } };
+      else if (p === "/consents" && rec.method === "GET") reply = { status: 200, body: { data: [{ id: `${idPrefix}_cs_1`, status: "active", grantedAt: new Date().toISOString() }] } };
+      else if (/^\/consents\/[^/]+\/revoke$/.test(p)) reply = { status: 200, body: { id: decodeURIComponent(p.split("/")[2]!), status: "revoked" } };
+      else if (p === "/consents/introspect") reply = { status: 200, body: { active: !String(rec.body?.token ?? "").startsWith("ct_revoked"), reason: String(rec.body?.token ?? "").startsWith("ct_revoked") ? "revoked" : undefined, expiresAt: new Date(Date.now() + 86_400_000).toISOString() } };
+      else if (p === "/chat/completions") reply = { status: 200, body: { id: `${idPrefix}_ai_${n}`, model: rec.body?.model ?? "fake-model", choices: [{ message: { role: "assistant", content: `Echo: ${String(rec.body?.messages?.at(-1)?.content ?? "").slice(0, 100)}` } }], usage: { prompt_tokens: 40, completion_tokens: 12 } } };
       else if (p === "/") reply = { status: 200, body: { data: (Array.isArray(rec.body) ? rec.body : []).map(() => ({ status: "ok", id: "t" })) } };
       else reply = { status: 404, body: { error: "not found" } };
     }

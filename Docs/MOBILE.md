@@ -21,7 +21,7 @@ Kiorly Work is the single Expo staff app (`kiorly-work` repo) with Clinic, Pharm
 - **Not a safety control (ADR-025).** Safety alerts (section 6) are never gated.
 
 ## 4. Client enforcement
-When `X-Kiorly-Client` starts with `kiorly-work` (or the path is under `/mobile/`) and the org lacks the entitlement, every route returns `403 { code:"FEATURE_DISABLED", key:"mobile_staff_app", scope:"org" }` **except** `POST /mobile/upgrade-request`, `/auth/*`, `GET /mobile/bootstrap`, `/mobile/alerts*` and `DELETE /mobile/devices/:id`. The web app (no client header) is never affected. **Precedence:** the plan gate answers before RBAC: `AuthGuard` defers `@Perm` on plan-gated routes and `MobileClientGuard` enforces it after the entitlement check, so a Lite user lacking the permission gets `FEATURE_DISABLED`, never `PERMISSION_DENIED`.
+When `X-Kiorly-Client` starts with `kiorly-work` (or the path is under `/mobile/`) and the org lacks the entitlement, every route returns `403 { code:"FEATURE_DISABLED", key:"mobile_staff_app", scope:"org" }` **except** `POST /mobile/upgrade-request`, `/auth/*`, `GET /mobile/bootstrap`, `/mobile/alerts*`, the witness countersign flow (`GET /mobile/pharmacy/controlled/pending-witness`, `POST /mobile/pharmacy/controlled/countersign`; safety, ADR-025; RBAC still applies) and `DELETE /mobile/devices/:id`. The web app (no client header) is never affected. **Precedence:** the plan gate answers before RBAC: `AuthGuard` defers `@Perm` on plan-gated routes and `MobileClientGuard` enforces it after the entitlement check, so a Lite user lacking the permission gets `FEATURE_DISABLED`, never `PERMISSION_DENIED`.
 
 ## 5. `/mobile/*` endpoints (new)
 ### GET `/mobile/bootstrap` (any authenticated staff, every plan)

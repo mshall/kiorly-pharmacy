@@ -49,7 +49,8 @@ export interface RefundResult { providerRef: string; status: "SUCCEEDED" | "PEND
 /** What every webhook is normalised to, whatever the vendor sends. */
 export type CanonicalEventType =
   | "message.sent" | "message.delivered" | "message.read" | "message.failed"
-  | "payment.succeeded" | "payment.failed" | "payment.expired" | "refund.succeeded" | "refund.failed";
+  | "payment.succeeded" | "payment.failed" | "payment.expired" | "refund.succeeded" | "refund.failed"
+  | "consent.granted" | "consent.revoked" | "consent.expired";
 export interface CanonicalEvent {
   /** Provider event id: the dedupe key (a replayed event is a no-op). */
   eventId: string;
@@ -62,3 +63,17 @@ export interface CanonicalEvent {
   currency?: string;
   reference?: string;
 }
+
+/** Consent registry (patient/customer consent, KPRX01 consent_enforcement). Same shapes in Clinic, Pharmacy and Lab. */
+export type ConsentPurpose = "DATA_PROCESSING" | "MARKETING" | "DATA_SHARING" | "CONTROLLED_DRUG" | "ERX_DISPENSE";
+export const CONSENT_PURPOSES: ConsentPurpose[] = ["DATA_PROCESSING", "MARKETING", "DATA_SHARING", "CONTROLLED_DRUG", "ERX_DISPENSE"];
+export interface ConsentGrantRequest { subjectRef: string; purpose: ConsentPurpose; expiresAt?: string; /** Our correlation id (record id). */ reference: string; idempotencyKey: string; evidence?: { source: string; capturedBy?: string } }
+export interface ConsentGrantResult { providerRef: string; status: "ACTIVE"; expiresAt?: string }
+export interface ConsentQueryResult { subjectRef: string; purpose: ConsentPurpose; /** Newest first. */ consents: Array<{ providerRef: string; status: "ACTIVE" | "REVOKED" | "EXPIRED"; grantedAt?: string; expiresAt?: string; revokedAt?: string }> }
+export interface ConsentRevokeRequest { providerRef: string; reason?: string; idempotencyKey: string }
+export interface ConsentRevokeResult { providerRef: string; status: "REVOKED" }
+export interface ConsentIntrospection { valid: boolean; reason?: "MISSING" | "MALFORMED" | "REVOKED" | "EXPIRED"; expiresAt?: string }
+
+/** AI gateway (LLM). Prompts reaching a provider are ALWAYS PHI-redacted first (src/providers/phi-redaction.ts). */
+export interface AiRequest { system?: string; prompt: string; maxOutputTokens: number; temperature?: number; idempotencyKey: string }
+export interface AiResult { text: string; model: string; providerRef?: string; usage: { inputTokens: number; outputTokens: number } }

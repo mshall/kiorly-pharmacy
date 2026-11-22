@@ -5,7 +5,7 @@ import { ProviderEventsService } from "./provider-events.service";
 import { WEBHOOK_KINDS, type ProviderKind } from "./provider-env";
 import { SIGNATURE_HEADER } from "./webhook-signature";
 
-/** Public, HMAC-authenticated callbacks: POST /api/v1/webhooks/providers/{sms|email|whatsapp|payment} (header X-Kiorex-Signature: t=<unix>,v1=<hmac>). */
+/** Public, HMAC-authenticated callbacks: POST /api/v1/webhooks/providers/{sms|email|whatsapp|payment|consent} (header X-Kiorex-Signature: t=<unix>,v1=<hmac>). */
 @ApiTags("provider-webhooks")
 @Controller("webhooks/providers")
 export class ProviderWebhooksController {

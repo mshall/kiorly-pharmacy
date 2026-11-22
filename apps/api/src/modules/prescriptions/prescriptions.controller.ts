@@ -94,6 +94,10 @@ export class PrescriptionsController {
   @Post("manual") @Perm("rx.intake")
   async manual(@CurrentUser() u: AuthUser, @Body() d: ManualRxDto) { return this.svc.intakePaper(u, { ...d, source: "MANUAL_ENTRY", branchId: await resolveBranchId(this.prisma, u, d.branchId) }); }
 
+  /** Short-lived signed URL (GET /api/v1/files?key&exp&sig) for the Rx scan; `?ttl=` seconds (10..3600). */
+  @Get(":id/scan-url") @Perm("rx.read")
+  scanUrl(@CurrentUser() u: AuthUser, @Param("id") id: string, @Query("ttl") ttl?: string) { return this.svc.scanUrl(u.orgId, id, ttl ? Number(ttl) : undefined); }
+
   @Get("verification-queue") @Perm("rx.read")
   queue(@CurrentUser() u: AuthUser, @Query("branchId") branchId?: string) { return this.svc.verificationQueue(u.orgId, branchFilter(u, branchId).branchId); }
 

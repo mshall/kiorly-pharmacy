@@ -3,6 +3,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { PayLinksService } from "../modules/pos/paylinks.service";
 import { messageProvider } from "./messaging-provider";
 import { paymentProvider } from "./payment-provider";
+import { consentRegistry } from "./consent-provider";
+import { ConsentService } from "../platform/adapters/consent.service";
 import { webhookSecretFor, type ProviderKind } from "./provider-env";
 import type { CanonicalEvent, MessageChannelKind } from "./provider-types";
 import { verifyWebhookSignature } from "./webhook-signature";
@@ -10,13 +12,13 @@ import { verifyWebhookSignature } from "./webhook-signature";
 const RANK: Record<string, number> = { QUEUED: 0, SENT: 1, DELIVERED: 2 };
 
 /**
- * Provider callbacks (delivery receipts, payment status). One entry point for the public webhook AND the dev simulator:
+ * Provider callbacks (delivery receipts, payment status, consent revocations). One entry point for the public webhook AND the dev simulator:
  * verify HMAC -> parse (mapping layer) -> dedupe by event id -> apply. Persisted state: Notification (message status) and PayLink / customer credit entries.
  */
 @Injectable()
 export class ProviderEventsService {
   private readonly log = new Logger(ProviderEventsService.name);
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PayLinksService) private readonly payLinks: PayLinksService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PayLinksService) private readonly payLinks: PayLinksService, @Inject(ConsentService) private readonly consents: ConsentService) {}
 
   async ingest(kind: ProviderKind, rawBody: string, signature: string | undefined) {
     const secret = webhookSecretFor(kind);
@@ -27,7 +29,7 @@ export class ProviderEventsService {
     try { json = JSON.parse(rawBody); } catch { throw new BadRequestException({ code: "INVALID_JSON" }); }
     let events: CanonicalEvent[];
     try {
-      events = kind === "PAYMENT" ? paymentProvider(process.env).parseWebhook(json) : messageProvider(kind as MessageChannelKind, process.env).parseWebhook(json);
+      events = kind === "CONSENT" ? consentRegistry(process.env).parseWebhook(json) : kind === "PAYMENT" ? paymentProvider(process.env).parseWebhook(json) : messageProvider(kind as MessageChannelKind, process.env).parseWebhook(json);
     } catch { throw new BadRequestException({ code: "INVALID_WEBHOOK_EVENT" }); }
     let applied = 0, duplicates = 0, unmatched = 0;
     for (const e of events) {
@@ -54,6 +56,7 @@ export class ProviderEventsService {
       case "payment.expired": return this.payLinks.onNotPaid(e.providerRef, "EXPIRED");
       case "refund.succeeded": return this.payLinks.onRefundSucceeded(e.providerRef);
       case "refund.failed": return this.payLinks.onRefundFailed(e.providerRef, e.error);
+      case "consent.granted": case "consent.revoked": case "consent.expired": return this.consents.onEvent(e);
     }
   }
 

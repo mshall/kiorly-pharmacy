@@ -34,7 +34,7 @@ export class ForecastingService {
     const nm = new Map(drugs.map((d) => [d.id, d.brandName]));
     const out: DemandRow[] = [];
     for (const [drugId, daily] of series) {
-      const f = await this.ai.forecast({ drugId, label: nm.get(drugId) ?? drugId, daily }, horizonDays);
+      const f = await this.ai.forecast({ drugId, label: nm.get(drugId) ?? drugId, daily }, horizonDays, orgId);
       out.push({ drugId, brandName: nm.get(drugId) ?? drugId, avgDailyDemand: f.avgDailyDemand, expectedDemand: f.expectedDemand, method: f.method, explanation: f.explanation, daily });
     }
     return out.sort((a, b) => b.avgDailyDemand - a.avgDailyDemand);

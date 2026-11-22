@@ -8,15 +8,17 @@
  *   SMS_SENDER_ID, EMAIL_FROM, WHATSAPP_SENDER_ID   sender identities
  *   <KIND>_TIMEOUT_MS / _MAX_RETRIES / _BACKOFF_MS  optional tuning
  *
- * KIND is one of SMS, EMAIL, WHATSAPP, PAYMENT (and PUSH / STORAGE where the repo has those adapters).
+ * KIND is one of SMS, EMAIL, WHATSAPP, PAYMENT, PUSH, STORAGE, CONSENT, AI. Extras: AI_MODEL (required for AI real), AI_MAX_INPUT_TOKENS / AI_MAX_OUTPUT_TOKENS / AI_DAILY_TOKEN_BUDGET,
+ *   STORAGE_DIR (mock local root), STORAGE_SIGNING_SECRET (download-URL HMAC; defaults to a key derived from STORAGE_API_KEY), STORAGE_MAX_BYTES, STORAGE_URL_TTL_SEC.
  * Legacy switches still work as the default: MESSAGING_MODE -> SMS/EMAIL/WHATSAPP, PSP_MODE -> PAYMENT.
  * The only per-vendor code lives in `mapping/<kind>.mapping.ts`.
  */
-export type ProviderKind = "SMS" | "EMAIL" | "WHATSAPP" | "PAYMENT" | "PUSH" | "STORAGE";
+export type ProviderKind = "SMS" | "EMAIL" | "WHATSAPP" | "PAYMENT" | "PUSH" | "STORAGE" | "CONSENT" | "AI";
 export type ProviderMode = "mock" | "real";
-export const PROVIDER_KINDS: ProviderKind[] = ["SMS", "EMAIL", "WHATSAPP", "PAYMENT", "PUSH", "STORAGE"];
+export const PROVIDER_KINDS: ProviderKind[] = ["SMS", "EMAIL", "WHATSAPP", "PAYMENT", "PUSH", "STORAGE", "CONSENT", "AI"];
 /** Kinds whose provider calls us back (HMAC-signed webhooks). */
-export const WEBHOOK_KINDS: ProviderKind[] = ["SMS", "EMAIL", "WHATSAPP", "PAYMENT"];
+export const WEBHOOK_KINDS: ProviderKind[] = ["SMS", "EMAIL", "WHATSAPP", "PAYMENT", "CONSENT"];
+/** Kinds that need no HMAC secret in real mode (outbound only). */
 
 type Env = Record<string, string | undefined>;
 
@@ -27,6 +29,8 @@ const LEGACY_MODE: Record<ProviderKind, string[]> = {
   PAYMENT: ["PSP_MODE"],
   PUSH: ["MOBILE_PUSH_MODE", "PUSH_MODE"],
   STORAGE: [],
+  CONSENT: [],
+  AI: [],
 };
 const SENDER_VAR: Partial<Record<ProviderKind, string>> = { SMS: "SMS_SENDER_ID", EMAIL: "EMAIL_FROM", WHATSAPP: "WHATSAPP_SENDER_ID" };
 /** Secret used ONLY for the dev webhook simulator in mock mode outside production. Not a credential. */
@@ -39,6 +43,8 @@ export interface ProviderConfig {
   apiKey?: string;
   webhookSecret?: string;
   senderId?: string;
+  /** AI only. */
+  model?: string;
   timeoutMs: number;
   maxRetries: number;
   backoffMs: number;
@@ -63,6 +69,7 @@ export function providerConfig(kind: ProviderKind, env: Env = process.env): Prov
     apiKey: clean(env[`${kind}_API_KEY`]) ?? clean(env[`${kind}_API_TOKEN`]),
     webhookSecret: clean(env[`${kind}_WEBHOOK_SECRET`]),
     senderId: SENDER_VAR[kind] ? clean(env[SENDER_VAR[kind]!]) : undefined,
+    model: kind === "AI" ? clean(env.AI_MODEL) : undefined,
     timeoutMs: int(env[`${kind}_TIMEOUT_MS`], 8000),
     maxRetries: int(env[`${kind}_MAX_RETRIES`], 2),
     backoffMs: int(env[`${kind}_BACKOFF_MS`], 300),
@@ -99,6 +106,7 @@ export function validateProviderConfig(env: Env = process.env, kinds: ProviderKi
       } catch { problems.push(`${kind}_API_URL is not a valid URL`); }
     }
     if (kind !== "PUSH") need(`${kind}_API_KEY`, c.apiKey);
+    if (kind === "AI") need("AI_MODEL", c.model);
     if (WEBHOOK_KINDS.includes(kind)) need(`${kind}_WEBHOOK_SECRET`, c.webhookSecret);
     if (SENDER_VAR[kind]) need(SENDER_VAR[kind]!, c.senderId);
   }

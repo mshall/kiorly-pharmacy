@@ -1941,3 +1941,42 @@ model ProviderWebhookEvent {
 
   @@unique([kind, eventId])
 }
+
+enum ConsentStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+/// Patient / customer consent captured locally and mirrored to the external consent registry (CONSENT_MODE=mock|real).
+/// Revocations arrive by the signed webhook (consent.revoked) or locally; a revoke also expires the e-Rx consent (Prescription.consentExpiresAt) tied to the token.
+model ConsentRecord {
+  id           String        @id @default(cuid())
+  orgId        String
+  /// Local customer (PatientRef) when known.
+  patientId    String?
+  /// Pseudonymous patient reference (Kiorex/Kiorly patient ref or local customer id). Never a name.
+  subjectRef   String
+  /// DATA_PROCESSING | MARKETING | DATA_SHARING | CONTROLLED_DRUG | ERX_DISPENSE
+  purpose      String
+  status       ConsentStatus @default(ACTIVE)
+  /// CUSTOMER_REGISTRY | ERX | API | DEV_DEMO
+  source       String
+  /// Id of the consent at the registry (webhook correlation).
+  providerRef  String?
+  /// SHA-256 of the e-Rx consent token (never the token).
+  tokenHash    String?
+  grantedAt    DateTime      @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokeReason String?
+  /// Last registry sync problem (error code only); null when in sync.
+  syncError    String?
+  createdBy    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([orgId, subjectRef, purpose])
+  @@index([providerRef])
+  @@index([tokenHash])
+}
