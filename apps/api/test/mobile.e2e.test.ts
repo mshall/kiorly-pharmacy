@@ -7,7 +7,7 @@ const CLIENT = { "X-Kiorly-Client": "kiorly-work/1.0.0" };
 const snap = (flags: Array<{ key: string; values: object }>): FlagSnapshot => ({ product: "kiorly-pharmacy", version: Date.now(), generatedAt: new Date().toISOString(), flags: flags.map((f) => ({ class: "Module", scopes: ["global", "market", "org"], dependsOn: [], launchLocked: false, gateSatisfied: false, ...f })) as never });
 const uuid = () => `dev-${Math.random().toString(16).slice(2)}-${Date.now()}`;
 
-describe("Kiorly Work mobile API (mobile_staff_app entitlement, devices, inbox, safety alerts)", () => {
+describe("Kiorly Team mobile API (mobile_staff_app entitlement, devices, inbox, safety alerts)", () => {
   let t: TestApp, pro: Fixture, lite: Fixture, ent: Fixture, chain: Fixture;
   before(async () => {
     t = await bootApp();

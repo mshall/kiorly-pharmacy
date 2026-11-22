@@ -29,7 +29,7 @@ class AckDto { @IsOptional() @IsString() @MaxLength(500) note?: string; }
 const hdr = (req: { headers: Record<string, string | string[] | undefined> }, n: string) => { const v = req.headers[n]; return Array.isArray(v) ? v[0] : v; };
 const ALERT_ACK_ROLES = ["OWNER", "BRANCH_MANAGER", "PHARMACIST", "CHAIN_OPS"];
 
-/** Kiorly Work (mobile staff app) API: bootstrap, devices, inbox/push, safety alerts. See Docs/MOBILE.md. */
+/** Kiorly Team (mobile staff app) API: bootstrap, devices, inbox/push, safety alerts. See Docs/MOBILE.md. */
 @ApiTags("mobile")
 @ApiBearerAuth()
 @Controller("mobile")

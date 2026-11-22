@@ -16,7 +16,7 @@ cd kiorly-pharmacy/apps/api
 npm run seed                # base tenant "Kiorly Demo Pharmacy" (org_demo_kiorly, the tenant Kiorex's dev client is bound to)
 npm run seed:demo           # idempotent, NEW records only on top of the base tenant
 npm run seed:suite          # ~500 drugs, ~150 customers, Rx in every state, ~360 sales, solo tenant (re-runnable)
-npm run seed:mobile         # Kiorly Work tenants per plan (Solo PRO, Corner BASIC) + alerts
+npm run seed:mobile         # Kiorly Team tenants per plan (Solo PRO, Corner BASIC) + alerts
 npm run seed:all            # all four (scripts/seed-all.sh at the workspace root runs seed:demo and seed:mobile in the right order)
 npm run seed:demo -- --reset   # best-effort removal of demo sales/Rx/POs/Kiorex orders
 ```
@@ -39,21 +39,21 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 | `assistant@demo.kiorly.local` | Asma Assistant | ASSISTANT | same | Maadi | 14 (POS, receiving, count, Rx intake; no validate, no controlled) |
 | `chain@demo.kiorly.local` | Chain Ops | CHAIN_OPS | same | both | 18 (catalogue, price, transfers, suppliers, PO, reports, forecast, audit; no Rx, no POS, no stock receiving) |
 | `solo.owner@`, `solo.pharmacist@`, `solo.manager@`, `solo.cashier@`, `solo.assistant@demo.kiorly.local` | Dr. Solo Owner etc. | OWNER / PHARMACIST / BRANCH_MANAGER / CASHIER / ASSISTANT | **Kiorly Solo Pharmacy (DEMO)** (PRO, STANDALONE, Zamalek branch `SOLO`) | Zamalek | as above per role; no Kiorex orders |
-| `owner.basic@`, `pharmacist.basic@`, `cashier.basic@demo.kiorly.local` | Dr. Basic Owner etc. | OWNER / PHARMACIST / CASHIER | **Kiorly Corner Pharmacy (DEMO, Lite)** (LITE = BASIC, STANDALONE, Corner branch `CORNER`) | Corner | web works; Kiorly Work shows the upgrade screen (`PLAN_BELOW_PRO`) |
+| `owner.basic@`, `pharmacist.basic@`, `cashier.basic@demo.kiorly.local` | Dr. Basic Owner etc. | OWNER / PHARMACIST / CASHIER | **Kiorly Corner Pharmacy (DEMO, Lite)** (LITE = BASIC, STANDALONE, Corner branch `CORNER`) | Corner | web works; Kiorly Team shows the upgrade screen (`PLAN_BELOW_PRO`) |
 
 ## 4. What data exists (snapshot 21 Nov 2026) and where to click
 
 | Data | Detail | Where to click |
 |---|---|---|
 | Branches | Demo: Maadi `MAIN`, Nasr City `NASR` (+ an `E2E Till Branch (test)` left by a test); Solo: Zamalek `SOLO`; Lite: Corner `CORNER` | branch switcher |
-| Catalogue | **259 shared catalogue rows** (44 base + 215 generated `demo-eg:*`, fictional names) plus 1 Demo-tenant drug from the Kiorly Work seed. The Demo tenant also holds 523 tenant-owned `E2E-Med-*` rows left by e2e runs (524 tenant rows, 785 in the table on 21 Nov), so any total above 260 is e2e noise | Catalogue |
+| Catalogue | **259 shared catalogue rows** (44 base + 215 generated `demo-eg:*`, fictional names) plus 1 Demo-tenant drug from the Kiorly Team seed. The Demo tenant also holds 523 tenant-owned `E2E-Med-*` rows left by e2e runs (524 tenant rows, 785 in the table on 21 Nov), so any total above 260 is e2e noise | Catalogue |
 | **Stock lots (Demo tenant)** | ~900 AVAILABLE; **near-expiry** (<= 30 d with stock): 58; **expired** x4 (`DMEXP0..2`, `EXPIRED-DEMO`); **quarantined** x4 (incl. `L00089`, `DM00007`, `DM00008`); **recalled** (`DM00013`, notice source `DEMO-RECALL-001`, plus lots recalled by tests); the matching **RecallNotice** (`source = DEMO-RECALL-001`, ACTIVE, lot `DM00013`) is re-created by `seed:demo` whenever it is missing (the Recalls list also shows 9 `E2E` notices from tests) | Inventory (filter blocked / expiring), Safety, Reports -> expiry |
 | Prescriptions (Demo, 121) | RECEIVED 14, VALIDATING 1, VALIDATED 12, REJECTED 36, PARTIALLY_DISPENSED 1, DISPENSED 54, CANCELLED 1, EXPIRED 1, TRANSFERRED_OUT 1 (patients named "... (DEMO)") | Prescriptions queue (`/rx`) |
 | POS | 384 sales in the Demo tenant (~45 in the last 30 days, 8 today in the base demo), split payments, returns, exchanges, coupons, shifts and cash movements | Point of sale (`/pos`), Reports, Finance |
 | Purchasing | POs DRAFT 2, SENT 1, PARTIALLY_RECEIVED 1, RECEIVED 2, CANCELLED 1; **5 seeded suppliers** (3 marked "(DEMO)" + Delta Medical Supplies + Nile Pharma Distribution; the Demo tenant shows 32 because of 27 `E2E Supplier ...` leftovers) | Purchasing, Receiving |
 | Customers | ~150 (families, allergies, loyalty tiers, credit accounts, duplicate pairs to merge) | Customers |
 | Kiorex orders | mirrors of Kiorex orders `kx_ph_demo_3..7`: `3` Karim EXPIRED here (the "new" order aged past its SLA; Kiorex shows it REJECTED), `4` Nourhan READY, `5` Mahmoud and `6` Mariam DISPENSED, `7` Omar REJECTED. `kx_ph_demo_1` (Hoda, PENDING_PAYMENT), `2` (Samir, PAID) and `8` (Dalia, CANCELLED) exist only in Kiorex. Many more `kx-e2e-*` / `kx_ph_mwo*` rows are e2e leftovers | Orders (`/orders`) |
-| **Controlled drug discrepancy** | "Morphicure 10 mg (DEMO)": register expected **40**, counted **38** (difference -2), CRITICAL, awaiting a witness (8 OPEN across the three tenants, one per tenant plus test rows) | Controlled (`/controlled`), Safety; Kiorly Work Controlled -> countersign |
+| **Controlled drug discrepancy** | "Morphicure 10 mg (DEMO)": register expected **40**, counted **38** (difference -2), CRITICAL, awaiting a witness (8 OPEN across the three tenants, one per tenant plus test rows) | Controlled (`/controlled`), Safety; Kiorly Team Controlled -> countersign |
 | Insurer claims | 8 (one overdue: CLAIMS_OVERDUE alert) | Finance / claims |
 | Alerts | NEAR_EXPIRY, LOW_STOCK, EXPIRED_STOCK (CRITICAL), RX_WAITING, REFILLS_DUE, CLAIMS_OVERDUE, CONTROLLED_DISCREPANCY | Dashboard, Notifications |
 | Solo tenant | ~23 customers, 18 Rx, 53 sales, 90 lots, controlled rows | log in as `solo.*` |
@@ -71,9 +71,9 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 
 **PH5. Kiorex orders.** 1) Kiorex patient web as Nourhan (`+201000001004`, order `kx_ph_demo_4` is READY) or place a new order (see ../kiorex-platform/DEMO_DATA.md K6). 2) `pharmacist@` -> Orders: accept, mark READY, then dispense (DISPENSED) or reject with a reason. *Expected:* the patient sees each state; `kx_ph_demo_4` is READY, `5`/`6` DISPENSED, `7` REJECTED, `3` EXPIRED.
 
-**PH6. Controlled discrepancy with a witness.** 1) `pharmacist@` -> Controlled: the Morphicure discrepancy (expected 40 counted 38) is OPEN. 2) The reporter cannot countersign their own report. 3) Log in as `manager@` (or `pharmacist2@`) and countersign. *Expected:* discrepancy closes with a witness and an audit entry. (Mobile route: Kiorly Work -> Controlled -> countersign.)
+**PH6. Controlled discrepancy with a witness.** 1) `pharmacist@` -> Controlled: the Morphicure discrepancy (expected 40 counted 38) is OPEN. 2) The reporter cannot countersign their own report. 3) Log in as `manager@` (or `pharmacist2@`) and countersign. *Expected:* discrepancy closes with a witness and an audit entry. (Mobile route: Kiorly Team -> Controlled -> countersign.)
 
-**PH7. Edition walkthroughs.** 1) `solo.owner@`: STANDALONE tenant, no Kiorex client (the mobile bootstrap also reports the orders module OFF); Rx, POS, inventory and purchasing all work without Kiorex. 2) `owner.basic@`: the web app works but Kiorly Work shows the upgrade screen and only the safety-alert inbox (see [../kiorly-work/DEMO_DATA.md](../kiorly-work/DEMO_DATA.md)). 3) `chain@`: switch between Maadi and Nasr City, transfers between branches.
+**PH7. Edition walkthroughs.** 1) `solo.owner@`: STANDALONE tenant, no Kiorex client (the mobile bootstrap also reports the orders module OFF); Rx, POS, inventory and purchasing all work without Kiorex. 2) `owner.basic@`: the web app works but Kiorly Team shows the upgrade screen and only the safety-alert inbox (see [../kiorly-work/DEMO_DATA.md](../kiorly-work/DEMO_DATA.md)). 3) `chain@`: switch between Maadi and Nasr City, transfers between branches.
 
 **PH8. Outage / flag.** In the Kiorex ops console switch `pharmacy.kiorex_orders` OFF (super admin) -> the Orders list shows 403 FEATURE_DISABLED within about 2 s (fast flag polling in the demo stack); safety alerts keep working.
 
@@ -87,7 +87,7 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 | Cashier | POS, shift, cash drawer, customers, dispense create/complete | validate Rx, controlled, inventory adjust, receiving, reports |
 | Assistant | POS, receiving, count, Rx intake | validate/sign off, controlled, orders |
 | Chain ops | catalogue, price, transfers, suppliers, PO, reports, forecast, audit | Rx, POS, receiving |
-| Lite (BASIC) users | the web app; in the app only the safety inbox | Kiorly Work modules (403 FEATURE_DISABLED `mobile_staff_app`) |
+| Lite (BASIC) users | the web app; in the app only the safety inbox | Kiorly Team modules (403 FEATURE_DISABLED `mobile_staff_app`) |
 
 ## 7. Known limitations and inconsistencies found
 
@@ -114,7 +114,7 @@ Add these to the secrets manager / task definition of the Pharmacy API. Nothing 
 | Consent registry | `CONSENT_MODE=real` | `CONSENT_API_URL`, `CONSENT_API_KEY`, `CONSENT_WEBHOOK_SECRET` | Registry sends `consent.revoked|expired|granted` to `.../webhooks/providers/consent`; confirm the `/consents` + `/consents/introspect` contract (NH-PH-013), else edit `mapping/consent.mapping.ts` |
 | AI gateway | `AI_MODE=real` | `AI_API_URL` (OpenAI-compatible base, e.g. the EU endpoint), `AI_API_KEY`, `AI_MODEL` (optional `AI_MAX_INPUT_TOKENS`, `AI_MAX_OUTPUT_TOKENS`, `AI_DAILY_TOKEN_BUDGET`, `AI_COST_PER_1K_TOKENS_USD`) | DPA / data-residency sign-off; `POST /dev/providers/ai/sample` in staging shows the redacted prompt |
 | Object storage | `STORAGE_MODE=real` | `STORAGE_API_URL`, `STORAGE_API_KEY` (optional `STORAGE_SIGNING_SECRET`, `STORAGE_MAX_BYTES`, `STORAGE_URL_TTL_SEC`) | Private bucket behind the PUT/GET gateway; copy existing `.data/` files into it (same keys) |
-| Push (Kiorly Work) | `PUSH_MODE=real` | `PUSH_API_URL` (Expo: `https://exp.host/--/api/v2/push/send`), optional `PUSH_API_KEY` | Expo project / credentials in the mobile build |
+| Push (Kiorly Team) | `PUSH_MODE=real` | `PUSH_API_URL` (Expo: `https://exp.host/--/api/v2/push/send`), optional `PUSH_API_KEY` | Expo project / credentials in the mobile build |
 
 Then: (1) if the vendor's payload or signature differs from the generic shape, edit only `src/providers/mapping/<kind>.mapping.ts`; (2) in a non-production environment `GET /api/v1/dev/providers/status` shows each kind's mode and whether its credentials are set (booleans only); (3) send one real message to your own phone and one 1.00 EGP pay link, check the `Notification` goes SENT -> DELIVERED and the `PayLink` goes PAID; (4) `PROVIDER_DEV_TOOLS=false` (already off when `NODE_ENV=production`).
 

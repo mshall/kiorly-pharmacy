@@ -9,7 +9,7 @@ import { MobilePharmacyService } from "./mobile-pharmacy.service";
 
 class CountersignDto { @IsString() @MinLength(1) discrepancyId!: string; @IsOptional() @IsString() @MaxLength(500) note?: string; }
 
-/** Kiorly Work pharmacy read models (only what the existing REST API lacks). Everything else the app calls is listed in Docs/MOBILE.md. */
+/** Kiorly Team pharmacy read models (only what the existing REST API lacks). Everything else the app calls is listed in Docs/MOBILE.md. */
 @ApiTags("mobile")
 @ApiBearerAuth()
 @Controller("mobile/pharmacy")

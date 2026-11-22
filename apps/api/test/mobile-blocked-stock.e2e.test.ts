@@ -4,7 +4,7 @@ import { auth, bootApp, receive, seedDrug, seedTenant, type Fixture, type TestAp
 
 const CLIENT = { "X-Kiorly-Client": "kiorly-work/1.0.0" };
 
-/** Blocked stock on the Kiorly Work expiry screen and the recalled-lot safety alert (found while proving the staff app end to end). */
+/** Blocked stock on the Kiorly Team expiry screen and the recalled-lot safety alert (found while proving the staff app end to end). */
 describe("mobile: quarantined / recalled stock and recalled-lot alerts", () => {
   let t: TestApp, f: Fixture;
   before(async () => { t = await bootApp(); f = await seedTenant(t, { edition: "PRO" }); });

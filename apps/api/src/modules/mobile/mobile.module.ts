@@ -13,7 +13,7 @@ import { CatalogueModule } from "../catalogue/catalogue.module";
 import { InventoryModule } from "../inventory/inventory.module";
 import { PosModule } from "../pos/pos.module";
 
-/** Kiorly Work (mobile staff app) backend. Import AFTER AuthModule so its global guard runs after authentication. */
+/** Kiorly Team (mobile staff app) backend. Import AFTER AuthModule so its global guard runs after authentication. */
 @Global()
 @Module({
   imports: [CatalogueModule, InventoryModule, PosModule],

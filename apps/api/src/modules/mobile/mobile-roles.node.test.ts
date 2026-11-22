@@ -6,8 +6,8 @@ import { modulesFor } from "./mobile-plan";
 const keys = (role: keyof typeof ROLE_PERMISSIONS, kiorexOrders = true) => modulesFor(ROLE_PERMISSIONS[role], kiorexOrders).filter((m) => m.enabled).map((m) => m.key.replace("pharmacy.", "")).sort();
 const screens = (role: keyof typeof ROLE_PERMISSIONS) => modulesFor(ROLE_PERMISSIONS[role], true).find((m) => m.key === "pharmacy.rx")!.screens;
 
-/** The module set each built-in role gets in Kiorly Work (default permissions; tenants can override non-locked ones). Pins the role matrix proven end to end by e2e 17. */
-describe("Kiorly Work pharmacy: modules per role (default RBAC)", () => {
+/** The module set each built-in role gets in Kiorly Team (default permissions; tenants can override non-locked ones). Pins the role matrix proven end to end by e2e 17. */
+describe("Kiorly Team pharmacy: modules per role (default RBAC)", () => {
   it("owner, pharmacist and branch manager get every module", () => {
     const all = ["barcode", "controlled", "customers", "expiry", "orders", "receiving", "rx", "search", "shift", "stockcount"];
     for (const r of ["OWNER", "PHARMACIST", "BRANCH_MANAGER"] as const) assert.deepEqual(keys(r), all, r);

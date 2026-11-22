@@ -51,7 +51,7 @@ export class PrescriptionsService {
     @Optional() @Inject(PushService) private readonly push?: PushService,
   ) {}
 
-  /** Kiorly Work: mock push to pharmacists/managers (fire-and-forget; never affects intake). */
+  /** Kiorly Team: mock push to pharmacists/managers (fire-and-forget; never affects intake). */
   private notifyRxWaiting(orgId: string, rxId: string, branchId?: string | null) {
     void this.push?.sendTemplate(orgId, "rx.awaiting", {}, { roles: ["PHARMACIST", "OWNER", "BRANCH_MANAGER"], branchId }, { rxId });
   }

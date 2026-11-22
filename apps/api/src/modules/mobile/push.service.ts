@@ -21,8 +21,8 @@ export const PUSH_TEMPLATES = {
   "order.received": { kind: "OPS", en: ["New Kiorex order", "Order {order} arrived. Respond within {minutes} minutes."], ar: ["طلب كيوريكس جديد", "وصل الطلب {order}. يرجى الرد خلال {minutes} دقيقة."] },
   "controlled.discrepancy": { kind: "SAFETY", en: ["Controlled-drug discrepancy", "{drug}: expected {expected}, counted {counted}. Countersign required."], ar: ["فرق في دواء مراقب", "{drug}: المتوقع {expected} والمعدود {counted}. مطلوب توقيع شاهد."] },
   "stock.expiry": { kind: "OPS", en: ["Expiry alert", "{drug} lot {lot} expires in {days} days ({qty} on hand)."], ar: ["تنبيه صلاحية", "{drug} تشغيلة {lot} تنتهي خلال {days} يوم (الكمية {qty})."] },
-  "upgrade.request": { kind: "OPS", en: ["Staff asked to upgrade Kiorly Work", "A team member asked for the Kiorly Work staff app (Pro plan). Review your plan in Settings."], ar: ["طلب موظف ترقية كيورلي ورك", "طلب أحد أعضاء الفريق تطبيق كيورلي ورك للموظفين (باقة Pro). راجع باقتك من الإعدادات."] },
-  "push.test": { kind: "GENERAL", en: ["Kiorly Work test", "Push notifications are working on this device."], ar: ["اختبار كيورلي ورك", "الإشعارات تعمل على هذا الجهاز."] },
+  "upgrade.request": { kind: "OPS", en: ["Staff asked to upgrade Kiorly Team", "A team member asked for the Kiorly Team staff app (Pro plan). Review your plan in Settings."], ar: ["طلب موظف ترقية كيورلي ورك", "طلب أحد أعضاء الفريق تطبيق كيورلي ورك للموظفين (باقة Pro). راجع باقتك من الإعدادات."] },
+  "push.test": { kind: "GENERAL", en: ["Kiorly Team test", "Push notifications are working on this device."], ar: ["اختبار كيورلي ورك", "الإشعارات تعمل على هذا الجهاز."] },
 } as const;
 export type PushTemplate = keyof typeof PUSH_TEMPLATES;
 const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_m, k: string) => String(v[k] ?? `{${k}}`));

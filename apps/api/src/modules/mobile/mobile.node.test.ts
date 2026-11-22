@@ -6,7 +6,7 @@ import { renderPush, PUSH_TEMPLATES } from "./push.service";
 import { isKnownFlagKey } from "../../feature-flags/feature-flag-keys";
 import { isSafetyControlKey } from "../../feature-flags/safety-controls";
 
-describe("Kiorly Work plan mapping (pure)", () => {
+describe("Kiorly Team plan mapping (pure)", () => {
   it("LITE=BASIC, PRO=PRO, CHAIN/ENTERPRISE=ENTERPRISE; mobile from PRO upward; suspended loses it", () => {
     assert.deepEqual(["LITE", "PRO", "CHAIN", "ENTERPRISE"].map(normalisePlan), ["BASIC", "PRO", "ENTERPRISE", "ENTERPRISE"]);
     assert.deepEqual(["LITE", "PRO", "CHAIN", "ENTERPRISE"].map((e) => planIncludesMobile(e)), [false, true, true, true]);

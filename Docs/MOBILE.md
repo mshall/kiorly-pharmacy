@@ -1,6 +1,6 @@
-# Kiorly Work (mobile staff app): Pharmacy backend contract
+# Kiorly Team (mobile staff app): Pharmacy backend contract
 
-Kiorly Work is the single Expo staff app (`kiorly-work` repo) with Clinic, Pharmacy and Lab modules. This file is the **Pharmacy** half of the contract: auth, the `mobile_staff_app` entitlement, the `/mobile/*` endpoints, and the **app API map** (every existing endpoint each mobile feature calls). Base URL: `http://localhost:3100/api/v1` locally. Errors use the standard `{ statusCode, code, message }` shape.
+Kiorly Team is the single Expo staff app (`kiorly-work` repo) with Clinic, Pharmacy and Lab modules. This file is the **Pharmacy** half of the contract: auth, the `mobile_staff_app` entitlement, the `/mobile/*` endpoints, and the **app API map** (every existing endpoint each mobile feature calls). Base URL: `http://localhost:3100/api/v1` locally. Errors use the standard `{ statusCode, code, message }` shape.
 
 ## 1. Auth (decision)
 - **Local/dev and demo:** `POST /auth/login` `{email,password}` -> `{ "accessToken": "<HS256 JWT, 10 h>" }` (`AUTH_MODE=local`, the default). There is **no refresh token**; the app re-logs in (the device-bound session below is what makes remote sign-out work).
@@ -122,7 +122,7 @@ Example queue item: `{"id":"cmwoswmnf01fas3bh8dz44jhj","status":"RECEIVED","prio
 Safe to queue offline: stock-count lines (`PUT /inventory/counts/:id/lines`, last write wins per lot), alert acks (idempotent), countersign (idempotent), inbox read marks. POS sales have their own conflict API (`POST /pos/sync`, `GET /pos/sync/conflicts`). Never queue Rx override/sign-off or receipts without `idempotencyKey`.
 
 ## 7. Demo logins
-See `Docs/TEST_DATA.md` "Kiorly Work mobile". Seed: `npm run seed:mobile -w api` (included in `seed:all`; guarded by the demo-seed guard).
+See `Docs/TEST_DATA.md` "Kiorly Team mobile". Seed: `npm run seed:mobile -w api` (included in `seed:all`; guarded by the demo-seed guard).
 
 ## 8. Tests
 `apps/api/test/mobile.e2e.test.ts` (17 API tests: entitlement per plan + flag override, bootstrap per role, device lifecycle and revoked guard, client enforcement, inbox/push mock and hooks, safety alerts incl. BASIC org, ack/countersign, recall alert, barcode / expiry / shift / search) and `src/modules/mobile/mobile.node.test.ts` (plan mapping, exemptions, templates). Run `npm test -w api` (needs Postgres on 5433).
