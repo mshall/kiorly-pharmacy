@@ -46,7 +46,7 @@ async function main() {
       const reporter = await prisma.staffUser.findUnique({ where: { email: t.reporter } });
       const witness = await prisma.staffUser.findUnique({ where: { email: t.witness } });
       if (!branch || !reporter || !witness) { console.log(`seed:mobile skip ${t.externalOrgId} (branch/staff missing)`); continue; }
-      const sk = `kiorly-team-demo:cd:${tenant.id}`;
+      const sk = `kiorly-work-demo:cd:${tenant.id}`; // stable idempotency key; kept from before the 23 Nov 2026 kiorly-team rename so existing demo DBs do not get a duplicate drug
       const drug = (await prisma.drug.findUnique({ where: { sourceKey: sk } })) ?? (await prisma.drug.create({ data: { orgId: tenant.id, sourceKey: sk, brandName: "Morphicure 10 mg (DEMO)", brandNameAr: "مورفيكيور 10 ملجم (تجريبي)", activeIngredient: "morphine sulfate", strength: "10 mg", dosageForm: "ampoule", packSize: "10", rxOnly: true, controlledSchedule: "SCHEDULE_2", gtin: `62290009${tenant.id.slice(-6).replace(/\D/g, "0").padEnd(6, "0")}`.slice(0, 14) } }));
       const lotNo = "KW-CD-001";
       if (!(await prisma.stockLot.findFirst({ where: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, lotNumber: lotNo } }))) {
