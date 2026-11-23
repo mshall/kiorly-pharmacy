@@ -53,6 +53,17 @@ export class KiorexConnectService {
     return { legacy, status, progress: legacy ? 100 : progressPct(steps), canRequest: !legacy && canRequest(steps, status), steps, kiorex: d?.kiorex ?? null, requestId: d?.request?.id ?? null, clientKey: d?.request?.clientKey ?? null, termsVersion: KIOREX_TERMS_VERSION, payoutLabel: d?.payoutLabel ?? null, terms: d?.terms ? { at: d.terms.at, version: d.terms.version } : null, licenceDocument: d?.licenceDocument ?? null, mode: ((t.settings ?? {}) as { mode?: string }).mode ?? (activeClients > 0 ? "INTEGRATED" : "STANDALONE") };
   }
 
+  /** Branch opt-in lives here too: the regular Kiorex-orders settings routes are 403 STANDALONE_MODE for a pharmacy that has not connected yet. */
+  async branches(orgId: string) {
+    const [branches, settings] = await Promise.all([this.prisma.branch.findMany({ where: { orgId, active: true }, orderBy: { createdAt: "asc" } }), this.prisma.branchMarketplaceSetting.findMany({ where: { orgId } })]);
+    return branches.map((b) => { const s = settings.find((x) => x.branchId === b.id); return { id: b.id, name: b.name, licenceNo: b.licenceNo, optedIn: s?.optedIn ?? false, openingHours: s?.openingHours ?? null, deliveryRadiusKm: s ? s.deliveryRadiusKm.toString() : "5", prepMinutes: s?.prepMinutes ?? 30, latitude: s?.latitude?.toString() ?? null, longitude: s?.longitude?.toString() ?? null }; });
+  }
+  async setBranch(u: AuthUser, branchId: string, d: { optedIn: boolean; deliveryRadiusKm?: string; openingHours?: Record<string, string[]>; prepMinutes?: number; latitude?: string; longitude?: string; licenceNo?: string }) {
+    if (d.licenceNo !== undefined) { const r = await this.prisma.branch.updateMany({ where: { id: branchId, orgId: u.orgId }, data: { licenceNo: d.licenceNo.trim() || null } }); if (!r.count) throw badRequest("BRANCH_NOT_FOUND", "Branch not found"); }
+    await this.market.putSetting(u, branchId, d);
+    return this.branches(u.orgId);
+  }
+
   async acceptTerms(u: AuthUser, version: string) {
     if (version !== KIOREX_TERMS_VERSION) throw badRequest("TERMS_VERSION_MISMATCH", "Reload the page: the terms changed");
     await this.save(u.orgId, (d) => ({ ...d, status: d.status === "STANDALONE" ? "CONSENTED" : d.status, terms: { at: new Date().toISOString(), userId: u.userId, version } }));

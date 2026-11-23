@@ -18,6 +18,32 @@ interface Connect { legacy: boolean; status: string; progress: number; canReques
 const ICON = { done: CheckCircle2, action_needed: AlertCircle, waiting_kiorex: Clock, blocked: Lock } as const;
 const TONE = { done: "text-emerald-600", action_needed: "text-amber-600", waiting_kiorex: "text-sky-600", blocked: "text-muted-foreground" } as const;
 const KEY = ["kiorex-connect"];
+interface BranchRow { id: string; name: string; licenceNo: string | null; optedIn: boolean; openingHours: Record<string, string[]> | null; deliveryRadiusKm: string; latitude: string | null; longitude: string | null }
+const STD_HOURS = Object.fromEntries(["sat", "sun", "mon", "tue", "wed", "thu"].map((d) => [d, ["09:00", "23:00"]]));
+
+/** Branch opt-in, hours, map pin and licence number: the regular Kiorex-orders settings are blocked while the pharmacy is standalone, so they are edited here. */
+function BranchEditor({ onSaved }: { onSaved: () => void }) {
+  const { t } = useTranslation();
+  const q = useQuery({ queryKey: ["kiorex-connect", "branches"], queryFn: () => api<BranchRow[]>("/kiorex-connect/branches") });
+  return <div className="mt-3 space-y-3" data-testid="connect-branches">{(q.data ?? []).map((b) => <BranchForm key={b.id} b={b} onSaved={onSaved} />)}<span className="sr-only">{t("kiorexConnect.branch.title")}</span></div>;
+}
+function BranchForm({ b, onSaved }: { b: BranchRow; onSaved: () => void }) {
+  const { t } = useTranslation(); const qc = useQueryClient();
+  const [f, setF] = useState({ optedIn: b.optedIn, licenceNo: b.licenceNo ?? "", radius: b.deliveryRadiusKm, lat: b.latitude ?? "", lng: b.longitude ?? "", hours: !!b.openingHours });
+  const save = useAction(() => api<BranchRow[]>(`/kiorex-connect/branches/${b.id}`, { method: "PUT", body: { optedIn: f.optedIn, licenceNo: f.licenceNo, deliveryRadiusKm: f.radius || undefined, latitude: f.lat || undefined, longitude: f.lng || undefined, ...(f.hours ? { openingHours: STD_HOURS } : {}) } }), [], { ok: t("kiorexConnect.branch.saved"), onDone: () => { void qc.invalidateQueries({ queryKey: ["kiorex-connect"] }); onSaved(); } });
+  return (
+    <div className="grid gap-2 rounded-xl border p-3 text-sm sm:grid-cols-2" data-testid={`connect-branch-${b.id}`}>
+      <b className="sm:col-span-2" dir="auto">{b.name}</b>
+      <label className="flex items-center gap-2 sm:col-span-2"><input type="checkbox" checked={f.optedIn} onChange={(e) => setF({ ...f, optedIn: e.target.checked })} data-testid="branch-optin" />{t("kiorexConnect.branch.optIn")}</label>
+      <Input aria-label={t("kiorexConnect.branch.licenceNo")} placeholder={t("kiorexConnect.branch.licenceNo")} value={f.licenceNo} onChange={(e) => setF({ ...f, licenceNo: e.target.value })} dir="ltr" />
+      <Input aria-label={t("kiorexConnect.branch.radius")} placeholder={t("kiorexConnect.branch.radius")} value={f.radius} onChange={(e) => setF({ ...f, radius: e.target.value })} dir="ltr" inputMode="decimal" />
+      <Input aria-label={t("kiorexConnect.branch.lat")} placeholder={t("kiorexConnect.branch.lat")} value={f.lat} onChange={(e) => setF({ ...f, lat: e.target.value })} dir="ltr" inputMode="decimal" />
+      <Input aria-label={t("kiorexConnect.branch.lng")} placeholder={t("kiorexConnect.branch.lng")} value={f.lng} onChange={(e) => setF({ ...f, lng: e.target.value })} dir="ltr" inputMode="decimal" />
+      <label className="flex items-center gap-2 sm:col-span-2"><input type="checkbox" checked={f.hours} onChange={(e) => setF({ ...f, hours: e.target.checked })} />{t("kiorexConnect.branch.hours")}</label>
+      <Button variant="outline" disabled={save.isPending} onClick={() => save.mutate(undefined)} data-testid="branch-save">{t("kiorexConnect.branch.save")}</Button>
+    </div>
+  );
+}
 
 /** Connect to Kiorex (ADR-040): checklist computed by the API from real state. Secrets from a rotation are shown once, from memory only. */
 export function KiorexConnect() {
@@ -54,9 +80,10 @@ export function KiorexConnect() {
                     {s.key === "catalogue" ? <p className="text-xs text-muted-foreground">{t("kiorexConnect.detail.priced", dt)}</p> : null}
                     {s.key === "hours_delivery" && Number(dt.missing) > 0 ? <p className="text-xs">{t("kiorexConnect.detail.missing", dt)}</p> : null}
                   </div>
-                  {s.link && s.status === "action_needed" && !["payout", "terms", "request"].includes(s.key) ? <Link className="rounded-md border px-3 py-1.5 text-sm" to={s.link}>{t("kiorexConnect.fix")}</Link> : null}
+                  {s.link && s.status === "action_needed" && !["payout", "terms", "request", "branch_optin", "hours_delivery", "licence"].includes(s.key) ? <Link className="rounded-md border px-3 py-1.5 text-sm" to={s.link}>{t("kiorexConnect.fix")}</Link> : null}
                   {s.key === "request" && (s.status === "action_needed" || s.status === "waiting_kiorex") ? <Button disabled={!d.canRequest || request.isPending} onClick={() => request.mutate(false)} data-testid="connect-request">{t("kiorexConnect.request")}</Button> : null}
                 </div>
+                {s.key === "branch_optin" || s.key === "hours_delivery" ? (s.key === "branch_optin" ? <BranchEditor onSaved={() => void qc.invalidateQueries({ queryKey: KEY })} /> : null) : null}
                 {s.key === "licence" && s.status !== "done" ? <div className="mt-3"><input ref={file} type="file" accept=".pdf,.png,.jpg,.jpeg" className="sr-only" data-testid="connect-licence-input" onChange={(e) => e.target.files?.[0] && upload.mutate(e.target.files[0])} /><Button variant="outline" onClick={() => file.current?.click()}>{t("kiorexConnect.licenceUpload.choose")}</Button></div> : null}
                 {s.key === "payout" ? <div className="mt-3 flex flex-wrap gap-2"><Input aria-label={t("kiorexConnect.payout.label")} placeholder={t("kiorexConnect.payout.label")} className="max-w-xs" value={label || d.payoutLabel || ""} onChange={(e) => setLabel(e.target.value)} data-testid="connect-payout" /><Button variant="outline" disabled={!label.trim() || payout.isPending} onClick={() => payout.mutate(label)}>{t("kiorexConnect.payout.save")}</Button></div> : null}
                 {s.key === "terms" ? (d.terms ? <p className="mt-2 text-sm text-emerald-700" data-testid="connect-terms-done">{t("kiorexConnect.terms.accepted")}</p> : <div className="mt-3"><p className="mb-2 text-sm">{t("kiorexConnect.terms.body", { version: d.termsVersion })}</p><Button variant="outline" disabled={terms.isPending} onClick={() => terms.mutate(d.termsVersion)} data-testid="connect-accept">{t("kiorexConnect.terms.accept")}</Button></div>) : null}
