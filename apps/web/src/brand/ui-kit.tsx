@@ -173,12 +173,12 @@ export function KiorlyMark({ size = 28, nurse }: { size?: number; nurse?: boolea
   );
 }
 
-/* ---- Theme (light / dark / system) for apps without their own theme store ---- */
+/* ---- Theme (light default; an explicit light / dark / system choice is persisted) for apps without their own theme store ---- */
 export type KxThemePref = "light" | "dark" | "system";
 const THEME_KEY = "kx-theme";
 export function readThemePref(): KxThemePref {
   try { const v = localStorage.getItem(THEME_KEY); if (v === "light" || v === "dark" || v === "system") return v; } catch { /* ignore */ }
-  return "system";
+  return "light"; // LIGHT is the default theme (founder, 24 Nov 2026); only an explicit Dark / System choice is stored and restored
 }
 export function applyThemePref(pref: KxThemePref): void {
   const dark = pref === "dark" || (pref === "system" && typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches);

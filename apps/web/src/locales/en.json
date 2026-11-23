@@ -79,6 +79,10 @@
     "signInLede": "Sign in to your pharmacy workspace.",
     "signUpLede": "Create your pharmacy workspace in a minute.",
     "passport": "Sign in with Kiorex Passport",
+    "method": "Sign-in method",
+    "methodPassport": "Kiorex Passport",
+    "methodPassword": "Password",
+    "passportHint": "Uses your verified phone number. Your owner links it to your staff account.",
     "passportOr": "or use your pharmacy e-mail and password",
     "passportBusy": "Signing you in with Kiorex Passport…",
     "passportFailed": "Kiorex Passport sign-in failed"

@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { demo, login } from "./helpers";
+import { demo, login, showPasswordForm } from "./helpers";
 
 async function audit(page: Page, name: string) {
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
@@ -14,6 +14,8 @@ for (const [lang, theme] of [["en", "light"], ["ar", "light"], ["en", "dark"], [
     await page.goto("/login");
     await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
     await audit(page, `login-${lang}`);
+    await showPasswordForm(page);
+    await audit(page, `login-password-${lang}`);
     await login(page, demo.owner, lang);
     await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
     for (const path of ["/", "/pos", "/catalogue", "/inventory", "/rx", "/orders", "/receiving", "/purchasing", "/reports", "/settings"]) {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
 import { completePassportSignIn } from "@/lib/passport";
+import { rememberSignInMethod } from "@/lib/sign-in-method";
 import { Pulse } from "@/brand/ui-kit";
 import { ErrorNote } from "@/components/ui";
 
@@ -18,7 +19,7 @@ export function AuthCallback() {
     ran.current = true;
     completePassportSignIn(window.location.search)
       .then((r) => adoptSession(r.accessToken))
-      .then(() => nav("/", { replace: true }))
+      .then(() => { rememberSignInMethod("passport"); nav("/", { replace: true }); })
       .catch(setErr);
   }, [adoptSession, nav]);
   return (

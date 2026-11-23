@@ -47,6 +47,7 @@ for (const [lang, dark] of modes) for (const [vp, w, h] of vps) {
   await page.goto(`${base}/login`, { waitUntil: "domcontentloaded" });
   await settle(page, 700);
   for (const v of views.filter((x) => x.anon && (!only || x.n.includes(only)))) await page.screenshot({ path: `${out}/${tag}-${v.n}-${suffix}.png` });
+  { const t = page.getByTestId("signin-method-password"); await t.waitFor({ state: "visible", timeout: 8000 }).then(() => t.click()).catch(() => {}); }
   await page.locator("input[type=email]").fill("owner@demo.kiorly.local");
   await page.locator("input[type=password]").fill("Demo@12345");
   await page.locator("button[type=submit]").click();

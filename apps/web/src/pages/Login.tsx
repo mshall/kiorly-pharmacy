@@ -10,6 +10,9 @@ import { KiorexLogo } from "@/brand/components";
 import { setLang } from "@/lib/i18n";
 import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
 import { currentNavigationType, wantsPassportAutostart } from "@/lib/kiorly-home";
+import { rememberSignInMethod } from "@/lib/sign-in-method";
+import { SignInMethodTabs } from "@/components/sign-in-method-tabs";
+import { useSignInMethod } from "@/components/use-sign-in-method";
 
 // DEV ONLY quick-pick test users. Keep the condition inline: Vite folds `import.meta.env.DEV` to false in production builds, which drops the
 // dynamic import and the whole ../dev folder (asserted by scripts/check-no-dev-test-users.mjs).
@@ -53,6 +56,8 @@ export function Login() {
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
   const { search } = useLocation();
   const passport = cfg.data?.passport ?? null;
+  // Two methods only: Kiorex Passport (default) and Password; the last method that signed this browser in is preselected. No Passport on the API: password only.
+  const sim = useSignInMethod(cfg.isPending ? undefined : passport !== null);
   // Kiorly Home sends `?sso=passport`: start "Sign in with Kiorex Passport" by itself (once per page load; the Passport SSO session makes it silent).
   const autostarted = useRef(false);
   useEffect(() => {
@@ -61,17 +66,20 @@ export function Login() {
   }, [signedIn, passport, search, i18n.language]);
   if (signedIn) return <Navigate to="/" replace />;
   const localLogin = cfg.data?.localLogin ?? true;
-  const signInWith = async (em: string, pw: string) => { setBusy(true); setErr(null); try { await login(em, pw); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
+  const method = localLogin ? sim.method : "passport"; // a Passport-only deployment has no Password option
+  const signInWith = async (em: string, pw: string) => { setBusy(true); setErr(null); try { await login(em, pw); rememberSignInMethod("password"); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
   const submit = async (e: FormEvent) => { e.preventDefault(); await signInWith(email, password); };
   return (
     <Shell title={t("auth.signIn")} subtitle={t("auth.signInLede")}>
-      {passport ? (
-        <div className="mb-6 space-y-3">
-          <Button type="button" size="lg" className="w-full" onClick={() => void startPassportSignIn(passport, i18n.language)}>{t("auth.passport")}</Button>
-          {localLogin ? <p className="text-center text-xs text-muted-foreground">{t("auth.passportOr")}</p> : null}
+      {!sim.ready ? <div role="status" aria-busy="true" aria-label={t("auth.signIn")} data-testid="signin-loading" className="h-40 animate-pulse rounded-xl bg-muted/60" /> : null}
+      {sim.ready && passport && localLogin ? <SignInMethodTabs className="mb-6" value={method} onChange={sim.choose} labels={{ group: t("auth.method"), passport: t("auth.methodPassport"), password: t("auth.methodPassword") }} /> : null}
+      {sim.ready && passport && method === "passport" ? (
+        <div role="tabpanel" id="signin-panel-passport" className="space-y-3" data-testid="signin-passport-panel">
+          <Button type="button" size="lg" className="w-full" data-testid="signin-passport" onClick={() => void startPassportSignIn(passport, i18n.language)}>{t("auth.passport")}</Button>
+          <p className="text-center text-xs text-muted-foreground">{t("auth.passportHint")}</p>
         </div>
       ) : null}
-      {localLogin ? <form onSubmit={submit} className="space-y-4">
+      {sim.ready && localLogin && (!passport || method === "password") ? <form onSubmit={submit} role={passport ? "tabpanel" : undefined} id="signin-panel-password" className="space-y-4" data-testid="signin-password-panel">
         <Field label={t("auth.email")}>{(id) => <Input id={id} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
         <Field label={t("auth.password")}>{(id) => <Input id={id} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
         <ErrorNote error={err} />

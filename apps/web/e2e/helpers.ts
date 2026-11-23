@@ -15,9 +15,21 @@ export async function apiLogin(request: APIRequestContext, email: string): Promi
   return (await r.json()).accessToken as string;
 }
 
+/**
+ * The login offers two methods (Kiorex Passport is the default, Password is behind the toggle). Open the password form when the toggle is there
+ * (when the API does not offer Passport the form is already showing).
+ */
+export async function showPasswordForm(page: Page): Promise<void> {
+  const tab = page.getByTestId("signin-method-password");
+  const email = page.locator('input[type="email"]');
+  await tab.or(email).first().waitFor({ state: "visible", timeout: 30_000 });
+  if (await tab.isVisible()) await tab.click();
+}
+
 export async function login(page: Page, email: string, lang: "en" | "ar" = "en") {
   await page.addInitScript((l) => { try { localStorage.setItem("kiorly.lang", l); } catch { /* ignore */ } }, lang);
   await page.goto("/login");
+  await showPasswordForm(page);
   await page.getByLabel(lang === "en" ? "Email" : "البريد الإلكتروني").fill(email);
   await page.getByLabel(lang === "en" ? "Password" : "كلمة المرور").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: lang === "en" ? "Sign in" : "تسجيل الدخول", exact: true }).click(); // exact: the page also offers "Sign in with Kiorex Passport"
