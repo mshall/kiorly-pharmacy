@@ -91,6 +91,6 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 | AI (OpenAI-compatible) | `AI_MODE=real` | `AI_API_URL` (EU endpoint), `AI_API_KEY` S, `AI_MODEL`, token budgets `AI_MAX_INPUT_TOKENS`, `AI_MAX_OUTPUT_TOKENS`, `AI_DAILY_TOKEN_BUDGET` | DPA, key, clinical sign-off (adapter already real, tested in `consent-ai-storage.node.test.ts`) |
 | Storage / Consent | `STORAGE_MODE=real`, `CONSENT_MODE=real` | `STORAGE_API_URL/KEY`, `CONSENT_API_URL/KEY/WEBHOOK_SECRET` | unchanged (see rows above in this file) |
 
-**Mobile (Kiorly staff app)**: Android channels `default|safety|clinical|ops` are created by the app and named per push kind by this API. Build/EAS details: `kiorly-team/Docs/NEEDS_HUMAN.md`.
+**Mobile (Kiorly staff app)**: Android channels `default|safety|clinical|ops` are created by the app and named per push kind by this API. Build/EAS details: `kiorly/Docs/NEEDS_HUMAN.md`.
 
 **Unverified against live vendors:** Paymob `transaction_inquiry` / `void_refund` payloads, Fawry `FawryPay.jsp` signature item order and status v2, Meta template layouts, SES SNS variations; exercise each in the vendor sandbox before production.

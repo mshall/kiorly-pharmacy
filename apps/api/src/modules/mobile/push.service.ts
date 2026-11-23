@@ -43,7 +43,7 @@ export class PushService {
   static fetchImpl?: FetchLike;
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(MobileEntitlementService) private readonly ent: MobileEntitlementService) {}
 
-  /** Android channel id (created by the app, see kiorly-team src/lib/notificationChannels.ts). */
+  /** Android channel id (created by the app, see kiorly src/lib/notificationChannels.ts). */
   static channelFor(kind: PushKind): string { return kind === "SAFETY" ? "safety" : kind === "CLINICAL" ? "clinical" : kind === "OPS" ? "ops" : "default"; }
 
   async send(i: PushInput): Promise<{ delivered: number }> {

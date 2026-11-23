@@ -46,7 +46,7 @@ async function main() {
       const reporter = await prisma.staffUser.findUnique({ where: { email: t.reporter } });
       const witness = await prisma.staffUser.findUnique({ where: { email: t.witness } });
       if (!branch || !reporter || !witness) { console.log(`seed:mobile skip ${t.externalOrgId} (branch/staff missing)`); continue; }
-      const sk = `kiorly-team-demo:cd:${tenant.id}`; // stable idempotency key
+      const sk = `kiorly-demo:cd:${tenant.id}`; // stable idempotency key
       // Demo DBs seeded before the 23 Nov 2026 rename hold the drug under the old key: rewrite it in place so no duplicate drug is created.
       const legacySk = `kiorly-work-demo:cd:${tenant.id}`;
       if (!(await prisma.drug.findUnique({ where: { sourceKey: sk } }))) await prisma.drug.updateMany({ where: { sourceKey: legacySk }, data: { sourceKey: sk } });

@@ -43,7 +43,7 @@ export function passportConfig(env: NodeJS.ProcessEnv = process.env): PassportCo
     issuer,
     jwksUrl: env.OIDC_JWKS_URL?.trim() || `${issuer}/jwks`,
     audiences: list(env.OIDC_AUDIENCE, ["kiorex-api", "kiorly-pharmacy"]),
-    allowedClients: list(env.OIDC_ALLOWED_CLIENTS, ["kiorly", "kiorly-team", webClientId]),
+    allowedClients: list(env.OIDC_ALLOWED_CLIENTS, ["kiorly", "kiorly", webClientId]),
     webClientId,
     phoneLink: env.OIDC_PHONE_LINK ? env.OIDC_PHONE_LINK === "true" : !prod,
     sessionMaxAgeSeconds: sessionMaxAge(env.OIDC_SESSION_MAX_AGE_SECONDS),

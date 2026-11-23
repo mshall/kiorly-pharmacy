@@ -73,7 +73,7 @@ Password for all: **`Demo@12345`** (DEV ONLY). All nine base-tenant logins and t
 
 **PH6. Controlled discrepancy with a witness.** 1) `pharmacist@` -> Controlled: the Morphicure discrepancy (expected 40 counted 38) is OPEN. 2) The reporter cannot countersign their own report. 3) Log in as `manager@` (or `pharmacist2@`) and countersign. *Expected:* discrepancy closes with a witness and an audit entry. (Mobile route: Kiorly -> Controlled -> countersign.)
 
-**PH7. Edition walkthroughs.** 1) `solo.owner@`: STANDALONE tenant, no Kiorex client (the mobile bootstrap also reports the orders module OFF); Rx, POS, inventory and purchasing all work without Kiorex. 2) `owner.basic@`: the web app works but Kiorly shows the upgrade screen and only the safety-alert inbox (see [../kiorly-team/DEMO_DATA.md](../kiorly-team/DEMO_DATA.md)). 3) `chain@`: switch between Maadi and Nasr City, transfers between branches.
+**PH7. Edition walkthroughs.** 1) `solo.owner@`: STANDALONE tenant, no Kiorex client (the mobile bootstrap also reports the orders module OFF); Rx, POS, inventory and purchasing all work without Kiorex. 2) `owner.basic@`: the web app works but Kiorly shows the upgrade screen and only the safety-alert inbox (see [../kiorly/DEMO_DATA.md](../kiorly/DEMO_DATA.md)). 3) `chain@`: switch between Maadi and Nasr City, transfers between branches.
 
 **PH8. Outage / flag.** In the Kiorex ops console switch `pharmacy.kiorex_orders` OFF (super admin) -> the Orders list shows 403 FEATURE_DISABLED within about 2 s (fast flag polling in the demo stack); safety alerts keep working.
 

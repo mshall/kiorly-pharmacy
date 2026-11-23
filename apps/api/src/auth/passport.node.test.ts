@@ -58,7 +58,7 @@ describe("TokenVerifier with Passport", () => {
   it("accepts a Passport access token from an allowed client and refuses other clients, audiences and issuers", async () => {
     dual();
     const v = new TokenVerifier();
-    const ok = await v.verify(await sign(claimsFor({ client_id: "kiorly-team" }), "kiorex-api"));
+    const ok = await v.verify(await sign(claimsFor({ client_id: "kiorly" }), "kiorex-api"));
     assert.equal(ok.passport, true); assert.equal(ok.sub, "SUB-1"); assert.equal(ok.mfa, false);
     assert.equal((await v.verify(await sign(claimsFor({ acr: "urn:kiorex:acr:mfa" }), "kiorex-api"))).mfa, true);
     await assert.rejects(v.verify(await sign(claimsFor({ client_id: "kiorex-web" }), "kiorex-api")));

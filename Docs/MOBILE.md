@@ -1,6 +1,6 @@
 # Kiorly (mobile staff app): Pharmacy backend contract
 
-Kiorly is the single Expo staff app (`kiorly-team` repo) with Clinic, Pharmacy and Lab modules. This file is the **Pharmacy** half of the contract: auth, the `mobile_staff_app` entitlement, the `/mobile/*` endpoints, and the **app API map** (every existing endpoint each mobile feature calls). Base URL: `http://localhost:3100/api/v1` locally. Errors use the standard `{ statusCode, code, message }` shape.
+Kiorly is the single Expo staff app (`kiorly` repo) with Clinic, Pharmacy and Lab modules. This file is the **Pharmacy** half of the contract: auth, the `mobile_staff_app` entitlement, the `/mobile/*` endpoints, and the **app API map** (every existing endpoint each mobile feature calls). Base URL: `http://localhost:3100/api/v1` locally. Errors use the standard `{ statusCode, code, message }` shape.
 
 ## 1. Auth (decision)
 - **Local/dev and demo:** `POST /auth/login` `{email,password}` -> `{ "accessToken": "<HS256 JWT, 10 h>" }` (`AUTH_MODE=local`, the default). There is **no refresh token**; the app re-logs in (the device-bound session below is what makes remote sign-out work).
