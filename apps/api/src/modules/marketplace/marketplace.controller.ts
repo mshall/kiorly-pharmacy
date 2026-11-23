@@ -23,6 +23,7 @@ class SettingDto {
 class ClientDto { @IsOptional() @IsString() kiorexBaseUrl?: string; @IsOptional() @IsString() @MinLength(8) webhookSecret?: string; }
 class AcceptLineDto { @IsString() lineId!: string; @IsInt() @Min(0) qtyAccepted!: number; }
 class AcceptDto { @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => AcceptLineDto) lines?: AcceptLineDto[]; }
+class OutForDeliveryDto { @IsOptional() @IsInt() @Min(1) @Max(1440) estimatedMinutes?: number; }
 class RejectDto { @IsString() @MinLength(3) reason!: string; @IsOptional() @IsString() reasonCode?: string; }
 
 /** Staff-facing order inbox (pharmacy.kiorex_orders: OFF => 403 FEATURE_DISABLED; data is never hidden or deleted). */
@@ -60,6 +61,9 @@ export class KiorexOrdersController {
 
   @Post(":id/ready") @Perm("orders.respond")
   ready(@CurrentUser() u: AuthUser, @Param("id") id: string) { return this.svc.markReady(u, id); }
+
+  @Post(":id/out-for-delivery") @Perm("orders.respond")
+  outForDelivery(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() d: OutForDeliveryDto) { return this.svc.markOutForDelivery(u, id, d); }
 
   @Post("jobs/expire-overdue") @Perm("orders.respond")
   expire(@CurrentUser() u: AuthUser) { return this.svc.expireOverdue(u.orgId); }

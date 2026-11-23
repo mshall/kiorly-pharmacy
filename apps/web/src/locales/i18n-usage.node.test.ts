@@ -33,7 +33,7 @@ describe("i18n usage", () => {
       outcome: ["PASS", "WARN", "BLOCK", "OVERRIDDEN_BY_PHARMACIST"],
       method: ["CASH", "CARD", "INSTAPAY", "FAWRY", "WALLET", "CUSTOMER_CREDIT", "KIOREX_PREPAID", "LOYALTY_POINTS"],
       saleStatus: ["OPEN", "COMPLETED", "VOIDED", "PARTIALLY_RETURNED", "RETURNED"],
-      ordStatus: ["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED", "REJECTED", "READY", "DISPENSED", "CANCELLED", "EXPIRED"],
+      ordStatus: ["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED", "REJECTED", "READY", "OUT_FOR_DELIVERY", "DISPENSED", "CANCELLED", "EXPIRED"],
       poStatus: ["DRAFT", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"],
       recallStatus: ["ACTIVE", "LIFTED"], countStatus: ["OPEN", "PENDING_APPROVAL", "APPROVED", "REJECTED"], ledger: ["INVOICE", "PAYMENT", "RETURN_CREDIT", "ADJUSTMENT"],
       "rep.names": ["sales-daily", "top-sellers", "stock-valuation", "expiry", "controlled-register", "supplier-balances", "vat-lines", "dispensing-log", "sales-by-cashier", "sales-by-hour", "payments-by-method", "returns", "discount-usage", "cash-close", "loyalty", "margin-by-product", "margin-by-category", "expenses", "price-changes", "near-expiry", "low-stock", "fast-slow-movers", "dead-stock", "stock-adjustments", "rx-volume", "pharmacist-performance", "safety-overrides", "refills-due", "supplier-aging", "cost-variance", "customer-receivables", "insurer-claims"], "rep.groups": ["SALES", "PROFIT", "STOCK", "CLINICAL", "PURCHASING", "RECEIVABLES"],
@@ -45,6 +45,6 @@ describe("i18n usage", () => {
   });
 
   it("backend error codes the UI should explain are translated", () => {
-    for (const c of ["LOT_BLOCKED", "RX_REQUIRED", "SIGNOFF_REQUIRED", "PHARMACIST_REQUIRED", "INSUFFICIENT_STOCK", "SHIFT_REQUIRED", "PERMISSION_DENIED", "SAFETY_BLOCK_UNRESOLVED", "CONTROLLED_ID_REQUIRED", "RX_VALIDATION_REQUIRED"]) assert.notEqual(get(`errors.codes.${c}`), undefined, c);
+    for (const c of ["LOT_BLOCKED", "RX_REQUIRED", "SIGNOFF_REQUIRED", "PHARMACIST_REQUIRED", "INSUFFICIENT_STOCK", "SHIFT_REQUIRED", "PERMISSION_DENIED", "SAFETY_BLOCK_UNRESOLVED", "CONTROLLED_ID_REQUIRED", "RX_VALIDATION_REQUIRED", "NOT_A_DELIVERY_ORDER"]) assert.notEqual(get(`errors.codes.${c}`), undefined, c);
   });
 });

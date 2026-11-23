@@ -78,13 +78,13 @@ export async function seedTenant(t: TestApp, opts: { edition?: Edition; market?:
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
-export interface DrugSeed { brandName?: string; activeIngredient?: string; strength?: string; dosageForm?: string; rxOnly?: boolean; controlledSchedule?: "NONE" | "SCHEDULE_1" | "SCHEDULE_2" | "SCHEDULE_3" | "SCHEDULE_4"; coldChain?: boolean; gtin?: string; price?: string }
+export interface DrugSeed { brandName?: string; brandNameAr?: string; activeIngredient?: string; strength?: string; dosageForm?: string; rxOnly?: boolean; controlledSchedule?: "NONE" | "SCHEDULE_1" | "SCHEDULE_2" | "SCHEDULE_3" | "SCHEDULE_4"; coldChain?: boolean; gtin?: string; price?: string }
 
 /** Tenant-local drug + price via the real API. */
 export async function seedDrug(t: TestApp, f: Fixture, d: DrugSeed = {}) {
   const tag = randomUUID().slice(0, 6);
   const res = await t.http.post("/api/v1/catalogue/drugs").set(auth(f.users.owner.token)).send({
-    brandName: d.brandName ?? `Drug-${tag}`, activeIngredient: d.activeIngredient ?? `ingredient-${tag}`, strength: d.strength ?? "500 mg", dosageForm: d.dosageForm ?? "tablet", packSize: "20",
+    brandName: d.brandName ?? `Drug-${tag}`, brandNameAr: d.brandNameAr, activeIngredient: d.activeIngredient ?? `ingredient-${tag}`, strength: d.strength ?? "500 mg", dosageForm: d.dosageForm ?? "tablet", packSize: "20",
     rxOnly: d.rxOnly, controlledSchedule: d.controlledSchedule, coldChain: d.coldChain, gtin: d.gtin, price: d.price ?? "50.00",
   });
   if (res.status !== 201) throw new Error(`seedDrug ${res.status} ${JSON.stringify(res.body)}`);

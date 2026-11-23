@@ -13,6 +13,7 @@ export const TEMPLATES: Record<string, { en: string; ar: string }> = {
   "rx.refill_reminder": { en: "Refill reminder from {pharmacy}: your prescription {rx} is due for refill on {date}. Reply or visit us to collect it.", ar: "تذكير من {pharmacy}: موعد إعادة صرف الروشتة {rx} بتاريخ {date}. تفضل بزيارتنا لاستلامها." },
   "rfq.send": { en: "Request for quotation {rfq} from Kiorly Pharmacy ({branch}). Items: {lines}. Please reply with your prices by {due}.", ar: "طلب عرض سعر {rfq} من كيورلي فارمسي ({branch}). الأصناف: {lines}. يرجى الرد بالأسعار قبل {due}." },
   "order.ready": { en: "{pharmacy}: your order {order} is ready for {method}. Thank you.", ar: "{pharmacy}: طلبك {order} جاهز لـ{method}. شكراً لك." },
+  "order.out_for_delivery": { en: "{pharmacy}: your order {order} is out for delivery. Thank you.", ar: "{pharmacy}: طلبك {order} في الطريق إليك. شكراً لك." },
   "receipt.email": { en: "{pharmacy}: receipt {receipt} on {date}. Total {total} {currency}. Thank you for your purchase.", ar: "{pharmacy}: إيصال {receipt} بتاريخ {date}. الإجمالي {total} {currency}. شكراً لشرائك." },
   "paylink.send": { en: "{pharmacy}: pay {amount} {currency} towards your account securely: {link}", ar: "{pharmacy}: ادفع {amount} {currency} لحسابك بأمان: {link}" },
   "paylink.receipt": { en: "{pharmacy}: we received your payment of {amount} {currency}. Remaining balance {balance} {currency}. Thank you.", ar: "{pharmacy}: استلمنا دفعتك بقيمة {amount} {currency}. الرصيد المتبقي {balance} {currency}. شكراً لك." },
@@ -23,6 +24,7 @@ export const TEMPLATES: Record<string, { en: string; ar: string }> = {
 export const SUBJECTS: Record<string, { en: string; ar: string }> = {
   "rx.refill_reminder": { en: "Prescription refill reminder", ar: "تذكير بإعادة صرف الروشتة" },
   "order.ready": { en: "Your order is ready", ar: "طلبك جاهز" },
+  "order.out_for_delivery": { en: "Your order is out for delivery", ar: "طلبك في الطريق إليك" },
   "receipt.email": { en: "Your receipt {receipt}", ar: "إيصالك {receipt}" },
   "paylink.send": { en: "Pay your account balance", ar: "سداد رصيد حسابك" },
   "paylink.receipt": { en: "Payment received", ar: "تم استلام الدفع" },

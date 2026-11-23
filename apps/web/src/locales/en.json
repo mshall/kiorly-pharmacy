@@ -110,6 +110,7 @@
       "PLAN_LIMIT": "Your plan limit has been reached.",
       "TEMPERATURE_REQUIRED": "Record the arrival temperature for cold-chain items.",
       "EXPIRED_AT_RECEIPT": "This lot is already expired and cannot be received.",
+      "NOT_A_DELIVERY_ORDER": "Only delivery orders can be sent out for delivery.",
       "LOT_EXPIRY_MISMATCH": "That lot number already exists with a different expiry date.",
       "CREDIT_LIMIT_EXCEEDED": "The customer's credit limit would be exceeded.",
       "NO_PRICE": "No price is set for this product.",
@@ -917,6 +918,7 @@
     "method": {
       "PICKUP": "Pickup",
       "DELIVERY": "Delivery"
+    "outForDelivery": "Out for delivery",
     },
     "deliverTo": "Deliver to",
     "prepaid": "Prepaid on Kiorex",
@@ -932,6 +934,7 @@
     "CANCELLED": "Cancelled",
     "EXPIRED": "Expired"
   },
+    "OUT_FOR_DELIVERY": "Out for delivery",
   "rep": {
     "title": "Reports",
     "report": "Report",

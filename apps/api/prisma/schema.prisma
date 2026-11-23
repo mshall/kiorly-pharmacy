@@ -204,6 +204,8 @@ enum KiorexOrderStatus {
   PARTIALLY_ACCEPTED
   REJECTED
   READY
+  /// 1.8.0: DELIVERY orders handed to the courier (READY -> OUT_FOR_DELIVERY -> DISPENSED).
+  OUT_FOR_DELIVERY
   DISPENSED
   CANCELLED
   EXPIRED
@@ -1232,6 +1234,8 @@ model KiorexOrder {
   dispensingId    String?
   /// Kiorex patient subject (opaque ref; also the Rx patient externalId). Never shown outside the order.
   patientRef      String?
+  /// 1.8.0: set when a DELIVERY order is handed to the courier (OrderOutForDelivery).
+  outForDeliveryAt DateTime?
   /// PICKUP | DELIVERY as chosen in Kiorex.
   deliveryMethod  String?
   /// Kiorex Pay payment reference (reconciliation only).

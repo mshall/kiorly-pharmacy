@@ -7,7 +7,7 @@ import { DomainError } from "../common/errors";
 
 export interface EnqueueInput {
   orgId: string;
-  type: "DispenseCompleted" | "OrderReady" | "OrderRejected";
+  type: "DispenseCompleted" | "OrderReady" | "OrderOutForDelivery" | "OrderRejected";
   aggregateId: string;
   data: Record<string, unknown>;
   /** Same (orgId, dedupeKey) enqueues once. */

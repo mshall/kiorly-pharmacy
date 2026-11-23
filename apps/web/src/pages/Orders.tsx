@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Check, ExternalLink, Package, Timer, X } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, Package, Timer, Truck, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Meter, Modal, PageHeader, Segmented } from "@/components/ui";
@@ -11,15 +11,17 @@ import { drugName, fmtMoney, fmtNum } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 import type { Order } from "@/lib/types";
 
-const TONE: Record<string, KTone> = { RECEIVED: "warn", ACCEPTED: "info", PARTIALLY_ACCEPTED: "info", READY: "good", DISPENSED: "neutral", REJECTED: "bad", CANCELLED: "bad", EXPIRED: "bad" };
+const TONE: Record<string, KTone> = { RECEIVED: "warn", ACCEPTED: "info", PARTIALLY_ACCEPTED: "info", READY: "good", OUT_FOR_DELIVERY: "info", DISPENSED: "neutral", REJECTED: "bad", CANCELLED: "bad", EXPIRED: "bad" };
 const FLOW = ["RECEIVED", "ACCEPTED", "READY", "DISPENSED"] as const;
+/** DELIVERY orders have one more step (1.8.0): the courier hand-over. */
+const DELIVERY_FLOW = ["RECEIVED", "ACCEPTED", "READY", "OUT_FOR_DELIVERY", "DISPENSED"] as const;
 const REASONS = ["outOfStock", "rxInvalid", "cannotDeliver", "other"] as const;
 /** Machine code sent to Kiorex with the free-text reason, so the patient sees a localised explanation. */
 const REASON_CODE: Record<string, string> = { outOfStock: "OUT_OF_STOCK", rxInvalid: "RX_INVALID", cannotDeliver: "CANNOT_DELIVER" };
 type View = "open" | "progress" | "closed" | "all";
 const shortId = (id: string) => (id.length > 14 ? `${id.slice(0, 6)}…${id.slice(-6)}` : id);
 const isOpen = (o: Order) => o.status === "RECEIVED";
-const isProgress = (o: Order) => ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY"].includes(o.status);
+const isProgress = (o: Order) => ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY", "OUT_FOR_DELIVERY"].includes(o.status);
 
 function useLeft(order: Order) {
   const base = order.slaRemainingSeconds ?? 0;
@@ -48,11 +50,12 @@ function Sla({ order }: { order: Order }) {
 }
 
 /** State timeline: New > Accepted > Ready > Dispensed, with rejected / cancelled / expired as a red terminal. */
-function Timeline({ status }: { status: string }) {
+function Timeline({ status, delivery }: { status: string; delivery?: boolean }) {
   const { t } = useTranslation();
+  const FL: readonly string[] = delivery ? DELIVERY_FLOW : FLOW;
   const dead = ["REJECTED", "CANCELLED", "EXPIRED"].includes(status);
-  const idx = status === "PARTIALLY_ACCEPTED" ? 1 : FLOW.indexOf(status as (typeof FLOW)[number]);
-  const steps = dead ? [t("ordStatus.RECEIVED"), t(`ordStatus.${status}`)] : FLOW.map((k) => (k === "ACCEPTED" && status === "PARTIALLY_ACCEPTED" ? t("ordStatus.PARTIALLY_ACCEPTED") : t(`ordStatus.${k}`)));
+  const idx = status === "PARTIALLY_ACCEPTED" ? 1 : FL.indexOf(status);
+  const steps = dead ? [t("ordStatus.RECEIVED"), t(`ordStatus.${status}`)] : FL.map((k) => (k === "ACCEPTED" && status === "PARTIALLY_ACCEPTED" ? t("ordStatus.PARTIALLY_ACCEPTED") : t(`ordStatus.${k}`)));
   const cur = dead ? 1 : idx;
   return (
     <ol className="mt-4 flex items-start" aria-label={t("ord.timeline")}>
@@ -74,7 +77,7 @@ function Timeline({ status }: { status: string }) {
   );
 }
 
-function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccept: (o: Order) => void; onReject: (o: Order) => void; onReady: (o: Order) => void; busy: boolean }) {
+function OrderCard({ o, onAccept, onReject, onReady, onOut, busy }: { o: Order; onAccept: (o: Order) => void; onReject: (o: Order) => void; onReady: (o: Order) => void; onOut: (o: Order) => void; busy: boolean }) {
   const { t } = useTranslation();
   const { can } = useAuth();
   const units = o.lines.reduce((a, l) => a + l.qtyRequested, 0);
@@ -85,7 +88,7 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
         <div className="flex flex-col items-end gap-1.5"><div className="flex gap-1.5">{o.deliveryMethod && <span data-testid="order-method"><Badge tone="neutral">{t(`ord.method.${o.deliveryMethod}`)}</Badge></span>}{o.hasRx && <Badge tone="info">Rx</Badge>}<StatusChip tone={TONE[o.status] ?? "neutral"}>{t(`ordStatus.${o.status}`)}</StatusChip></div><div className="kx-num text-lg font-semibold">{fmtMoney(o.orderValue)}</div></div>
       </header>
       {o.deliveryMethod === "DELIVERY" && (o.deliveryAddress || o.customerPhone) && <p className="mt-3 rounded-lg bg-muted/60 p-3 text-sm" data-testid="order-delivery"><span className="font-medium">{t("ord.deliverTo")}: </span><bdi>{o.deliveryAddress}</bdi>{o.customerPhone && <span className="ms-2 text-muted-foreground">{t("ord.phone")}: <bdi dir="ltr" className="kx-num">{o.customerPhone}</bdi></span>}</p>}
-      <Timeline status={o.status} />
+      <Timeline status={o.status} delivery={o.deliveryMethod === "DELIVERY"} />
       <Sla order={o} />
       <ul className="mt-4 divide-y divide-border/70 rounded-lg border border-border/70 text-sm">
         {o.lines.map((l) => {
@@ -102,7 +105,7 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
       {can("orders.respond") && (o.status === "RECEIVED" || isProgress(o)) && (
         <footer className="mt-4 flex flex-wrap gap-2 border-t border-border/70 pt-4">
           {o.status === "RECEIVED" && <><Button onClick={() => onAccept(o)} disabled={busy}><Check aria-hidden className="size-4" />{t("ord.accept")}</Button><Button variant="outline" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
-          {isProgress(o) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-medium shadow-kx-1 hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}<ArrowRight aria-hidden className="size-4 rtl:rotate-180" /></Link>}{o.status !== "READY" && <Button onClick={() => onReady(o)} disabled={busy}>{o.deliveryMethod === "DELIVERY" ? t("ord.readyDelivery") : t("ord.ready")}</Button>}<Button variant="ghost" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
+          {isProgress(o) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-medium shadow-kx-1 hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}<ArrowRight aria-hidden className="size-4 rtl:rotate-180" /></Link>}{o.status === "READY" && o.deliveryMethod === "DELIVERY" && <Button onClick={() => onOut(o)} disabled={busy} data-testid="out-for-delivery"><Truck aria-hidden className="size-4" />{t("ord.outForDelivery")}</Button>}{(o.status === "ACCEPTED" || o.status === "PARTIALLY_ACCEPTED") && <Button onClick={() => onReady(o)} disabled={busy}>{o.deliveryMethod === "DELIVERY" ? t("ord.readyDelivery") : t("ord.ready")}</Button>}<Button variant="ghost" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
         </footer>
       )}
     </article>
@@ -157,6 +160,7 @@ export function Orders() {
   const refresh = () => void qc.invalidateQueries({ queryKey: ["orders"] });
   const accept = useMutation({ mutationFn: (v: { id: string; lines: Array<{ lineId: string; qtyAccepted: number }> }) => api(`/kiorex-orders/${v.id}/accept`, { body: { lines: v.lines } }), onSuccess: () => { toast(t("common.saved")); setAcc(null); refresh(); } });
   const ready = useMutation({ mutationFn: (id: string) => api(`/kiorex-orders/${id}/ready`, { body: {} }), onSuccess: () => { toast(t("common.saved")); refresh(); } });
+  const outForDelivery = useMutation({ mutationFn: (id: string) => api(`/kiorex-orders/${id}/out-for-delivery`, { body: {} }), onSuccess: () => { toast(t("common.saved")); refresh(); } });
   const reject = useMutation({ mutationFn: () => api(`/kiorex-orders/${rej!.id}/reject`, { body: { reason, reasonCode } }), onSuccess: () => { setRej(null); setReason(""); setReasonCode("PHARMACY_REJECTED"); refresh(); } });
   if (res.error instanceof ApiError && res.error.featureDisabled) return <Card><p>{t("errors.featureDisabled", { key: "pharmacy.kiorex_orders" })}</p></Card>;
   const all = res.data ?? [];
@@ -166,7 +170,7 @@ export function Orders() {
   return (
     <>
       <PageHeader title={t("ord.title")} subtitle={t("ord.subtitle")} />
-      <ErrorNote error={res.error || ready.error} />
+      <ErrorNote error={res.error || ready.error || outForDelivery.error} />
       <div className="mb-5 grid grid-cols-3 gap-2 sm:gap-4">
         <StatCard label={t("ord.viewOpen")} value={fmtNum(counts.open)} tone={counts.open ? "warn" : "neutral"} hint={<span className="max-sm:hidden">{breached ? t("ord.breachedCount", { count: breached }) : t("ord.needsResponse")}</span>} />
         <StatCard label={t("ord.viewProgress")} value={fmtNum(counts.progress)} tone={counts.progress ? "info" : "neutral"} hint={<span className="max-sm:hidden">{t("ord.prepHint")}</span>} />
@@ -176,7 +180,7 @@ export function Orders() {
       {res.isLoading ? <div className="grid gap-4 lg:grid-cols-2">{[0, 1].map((i) => <div key={i} role="status" aria-busy className="space-y-3 rounded-xl border border-border/80 bg-card p-5"><Skeleton className="h-5 w-1/3" /><Skeleton className="h-10" /><Skeleton className="h-16" /></div>)}</div>
         : !shown.length ? <Empty hint={view === "open" ? t("ord.emptyHint") : undefined}>{all.length ? t("ord.emptyView") : t("ord.empty")}</Empty> : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {shown.slice(0, limit).map((o) => <OrderCard key={o.id} o={o} busy={accept.isPending || ready.isPending} onAccept={(x) => { accept.reset(); setAcc(x); }} onReject={setRej} onReady={(x) => ready.mutate(x.id)} />)}
+          {shown.slice(0, limit).map((o) => <OrderCard key={o.id} o={o} busy={accept.isPending || ready.isPending || outForDelivery.isPending} onAccept={(x) => { accept.reset(); setAcc(x); }} onReject={setRej} onReady={(x) => ready.mutate(x.id)} onOut={(x) => outForDelivery.mutate(x.id)} />)}
         </div>
       )}
       {shown.length > limit && <div className="mt-5 flex justify-center"><Button variant="outline" onClick={() => setLimit(limit + 12)}>{t("ord.showMore", { count: shown.length - limit })}</Button></div>}

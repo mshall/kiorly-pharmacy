@@ -320,6 +320,76 @@ describe("Kiorex orders (KPMKT01-05, KPINV07)", () => {
     assert.equal((ev.payload as { data: { partial: boolean } }).data.partial, true);
   });
 
+  it("1.8.0 OUT_FOR_DELIVERY: READY -> OUT_FOR_DELIVERY (delivery orders only) emits OrderOutForDelivery, notifies the patient, DispenseCompleted still completes", async () => {
+    const drug = await seedDrug(t, f, { price: "20.00" });
+    await receive(t, f, { drugId: drug.id, quantity: 10 });
+    const mk = async (method: "DELIVERY" | "PICKUP") => {
+      const orderId = `ofd-${randomUUID()}`;
+      const r = await machine("POST", "/marketplace/v1/orders", { orderId, branchId: f.branchId, customer: { name: "Mona", phone: "01012345678", address: "Maadi" }, prepaid: true, delivery: { method }, lines: [{ sku: drug.id, quantity: 2, unitPrice: "20.00" }] });
+      assert.equal(r.status, 201, JSON.stringify(r.body));
+      const o = await t.prisma.kiorexOrder.findFirstOrThrow({ where: { orgId: f.orgId, externalOrderId: orderId } });
+      const acc = await t.http.post(`/api/v1/kiorex-orders/${o.id}/accept`).set(pharm()).send({});
+      assert.equal(acc.status, 201, JSON.stringify(acc.body));
+      await t.http.post(`/api/v1/dispensings/${acc.body.dispensing.id}/signoff`).set(pharm()).send({});
+      return { o, orderId, dispId: acc.body.dispensing.id as string };
+    };
+    const del = await mk("DELIVERY");
+    const out = (id: string, body: object = {}) => t.http.post(`/api/v1/kiorex-orders/${id}/out-for-delivery`).set(pharm()).send(body);
+    assert.equal((await out(del.o.id)).status, 409, "must be READY first");
+    assert.equal((await t.http.post(`/api/v1/kiorex-orders/${del.o.id}/ready`).set(pharm())).body.status, "READY");
+    const sent = await out(del.o.id, { estimatedMinutes: 45 });
+    assert.equal(sent.status, 201, JSON.stringify(sent.body));
+    assert.equal(sent.body.status, "OUT_FOR_DELIVERY");
+    assert.ok(sent.body.outForDeliveryAt);
+    assert.equal((await out(del.o.id)).body.status, "OUT_FOR_DELIVERY", "idempotent");
+    assert.equal(await t.prisma.outboxEvent.count({ where: { orgId: f.orgId, aggregateId: del.orderId, type: "OrderOutForDelivery" } }), 1, "exactly one event");
+    const ev = await t.prisma.outboxEvent.findFirstOrThrow({ where: { orgId: f.orgId, aggregateId: del.orderId, type: "OrderOutForDelivery" } });
+    assert.equal(validateEvent("OrderOutForDelivery", ev.payload).valid, true);
+    const d = (ev.payload as { data: Record<string, unknown> }).data;
+    assert.equal(d.estimatedDeliveryMinutes, 45);
+    assert.deepEqual(d.dispatchedBy, { userId: f.users.pharmacist.id });
+    assert.equal(JSON.stringify(ev.payload).includes("Maadi"), false, "no address / PHI in the event");
+    const msg = await t.prisma.notification.findMany({ where: { orgId: f.orgId, template: "order.out_for_delivery", refId: del.o.id } });
+    assert.equal(msg.length, 1);
+    assert.ok(msg[0]!.body.includes(del.orderId));
+    const done = await t.http.post(`/api/v1/dispensings/${del.dispId}/complete`).set(pharm()).send({ idempotencyKey: `idem-${randomUUID()}` });
+    assert.equal(done.status, 201, JSON.stringify(done.body));
+    assert.equal((await t.prisma.kiorexOrder.findUniqueOrThrow({ where: { id: del.o.id } })).status, "DISPENSED");
+    const types = (await t.prisma.outboxEvent.findMany({ where: { orgId: f.orgId, aggregateId: del.orderId }, orderBy: { occurredAt: "asc" } })).map((e) => e.type);
+    assert.deepEqual(types, ["OrderReady", "OrderOutForDelivery", "DispenseCompleted"]);
+    const dc = await t.prisma.outboxEvent.findFirstOrThrow({ where: { orgId: f.orgId, aggregateId: del.orderId, type: "DispenseCompleted" } });
+    assert.deepEqual((dc.payload as { data: { lines: unknown } }).data.lines, [{ sku: drug.id, quantityRequested: 2, quantityDispensed: 2 }]);
+
+    // pickup orders can never go out for delivery
+    const pick = await mk("PICKUP");
+    await t.http.post(`/api/v1/kiorex-orders/${pick.o.id}/ready`).set(pharm());
+    const refused = await out(pick.o.id);
+    assert.equal(refused.status, 409);
+    assert.equal(refused.body.code, "NOT_A_DELIVERY_ORDER");
+  });
+
+  it("1.8.0 Arabic names: catalogue and quote carry nameAr/formAr (falling back to absent, never blank); search matches Arabic and English", async () => {
+    const ar = await seedDrug(t, f, { price: "12.00", brandName: "Panadolx", brandNameAr: "بنادولكس", dosageForm: "tablet" });
+    const noAr = await seedDrug(t, f, { price: "9.00", brandName: "Plainexo", dosageForm: "weird-form" });
+    await receive(t, f, { drugId: ar.id, quantity: 5 });
+    await receive(t, f, { drugId: noAr.id, quantity: 5 });
+    const byAr = await machine("GET", `/marketplace/v1/catalogue?q=${encodeURIComponent("بنادول")}&pharmacyId=${f.branchId}`);
+    const hit = byAr.body.items.find((x: { sku: string }) => x.sku === ar.id);
+    assert.ok(hit, "Arabic query finds the medicine");
+    assert.equal(hit.nameAr, "بنادولكس");
+    assert.equal(hit.formAr, "أقراص");
+    assert.equal(hit.name, "Panadolx", "English name is always present");
+    const byEn = await machine("GET", `/marketplace/v1/catalogue?q=Panadolx&pharmacyId=${f.branchId}`);
+    assert.ok(byEn.body.items.some((x: { sku: string }) => x.sku === ar.id), "English query still finds it");
+    const plain = (await machine("GET", `/marketplace/v1/catalogue?q=Plainexo&pharmacyId=${f.branchId}`)).body.items.find((x: { sku: string }) => x.sku === noAr.id);
+    assert.equal("nameAr" in plain, false, "absent when the pharmacy holds no Arabic name");
+    assert.equal("formAr" in plain, false, "unknown dosage form is never mistranslated");
+    const q = await machine("POST", "/marketplace/v1/catalogue/quote", { pharmacyId: f.branchId, items: [{ sku: ar.id, qty: 1 }, { sku: noAr.id, qty: 1 }] });
+    assert.equal(q.body.items[0].nameAr, "بنادولكس");
+    assert.equal(q.body.items[0].formAr, "أقراص");
+    assert.equal(q.body.items[1].nameAr, undefined);
+  });
+
   it("outbox signing round-trips with the contracts HMAC scheme and rejects tampering", () => {
     const body = JSON.stringify({ eventId: "e1", type: "OrderReady" });
     const s = signWebhook({ secret: "s", body, eventType: "OrderReady", eventId: "e1" });

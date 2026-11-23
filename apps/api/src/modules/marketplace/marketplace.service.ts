@@ -14,7 +14,7 @@ import { isKiorexExposable } from "../catalogue/kiorex-projection";
 import { NotificationsService } from "../../platform/adapters/notifications.service";
 import { DEFAULT_RX_VALIDITY_DAYS } from "../prescriptions/prescriptions.service";
 import { PriceService } from "../catalogue/price.service";
-import { projectDrugForKiorex } from "../catalogue/kiorex-projection";
+import { dosageFormAr, projectDrugForKiorex } from "../catalogue/kiorex-projection";
 import { seal } from "../../common/secret-box";
 import { randomBytes } from "node:crypto";
 
@@ -58,7 +58,7 @@ export class MarketplaceService implements OnModuleInit {
       const pharmacyId = await this.pharmacyId(tx, c.orgId);
       await this.outbox.enqueue({
         orgId: c.orgId, type: "DispenseCompleted", aggregateId: order.externalOrderId, dedupeKey: `DispenseCompleted:${order.id}`,
-        data: { orderId: order.externalOrderId, pharmacyId, branchId: c.branchId, dispensedAt: c.dispensedAt.toISOString(), pharmacistSignoff: { userId: c.pharmacistId, signedAt: c.signedOffAt.toISOString() }, partial: order.lines.some((l) => l.qtyAccepted < l.qtyRequested) }, // NOT order.status: markReady already moved PARTIALLY_ACCEPTED -> READY
+        data: { orderId: order.externalOrderId, pharmacyId, branchId: c.branchId, dispensedAt: c.dispensedAt.toISOString(), pharmacistSignoff: { userId: c.pharmacistId, signedAt: c.signedOffAt.toISOString() }, partial: order.lines.some((l) => l.qtyAccepted < l.qtyRequested), lines: order.lines.map((l) => ({ sku: l.drugId, quantityRequested: l.qtyRequested, quantityDispensed: Math.min(l.qtyAccepted, l.qtyRequested) })) }, // NOT order.status: markReady already moved PARTIALLY_ACCEPTED -> READY
       }, tx);
       // money path: idempotent settlement entry per fulfilled order (kernel seam)
       await this.settlement.recordFulfilledOrder({ orgId: c.orgId, orderRef: order.externalOrderId, orderValue: c.saleTotal });
@@ -205,7 +205,7 @@ export class MarketplaceService implements OnModuleInit {
   async reject(user: AuthUser, id: string, reason: string, reasonCode?: string) {
     const order = await this.prisma.kiorexOrder.findFirst({ where: { id, orgId: user.orgId } });
     if (!order) throw notFound("Order", id);
-    if (!["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED", "READY"].includes(order.status)) throw new DomainError("BAD_STATE", `Order is ${order.status}`, 409);
+    if (!["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED", "READY", "OUT_FOR_DELIVERY"].includes(order.status)) throw new DomainError("BAD_STATE", `Order is ${order.status}`, 409);
     if (order.dispensingId) await this.dispensing.cancel(user, order.dispensingId, `Order rejected: ${reason}`);
     await this.prisma.$transaction(async (tx) => {
       await tx.kiorexOrder.update({ where: { id }, data: { status: "REJECTED", rejectionReason: reason, rejectionCode: reasonCode, respondedAt: new Date(), respondedBy: user.userId } });
@@ -240,6 +240,34 @@ export class MarketplaceService implements OnModuleInit {
     return this.get(user.orgId, id);
   }
 
+  /**
+   * OUT_FOR_DELIVERY (1.8.0): a READY order with deliveryMethod DELIVERY is handed to the courier. Emits OrderOutForDelivery (Kiorex mirrors the state
+   * and notifies the patient); the dispense (DispenseCompleted) still completes the order on hand-over. Pickup orders can never take this step.
+   */
+  async markOutForDelivery(user: AuthUser, id: string, d: { estimatedMinutes?: number } = {}) {
+    const order = await this.prisma.kiorexOrder.findFirst({ where: { id, orgId: user.orgId } });
+    if (!order) throw notFound("Order", id);
+    if (order.deliveryMethod !== "DELIVERY") throw new DomainError("NOT_A_DELIVERY_ORDER", "Only delivery orders can be sent out for delivery", 409);
+    if (order.status === "OUT_FOR_DELIVERY") return this.get(user.orgId, id); // idempotent
+    if (order.status !== "READY") throw new DomainError("BAD_STATE", `Order is ${order.status}; it must be READY first`, 409);
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const moved = await tx.kiorexOrder.updateMany({ where: { id, orgId: user.orgId, status: "READY" }, data: { status: "OUT_FOR_DELIVERY", outForDeliveryAt: now } });
+      if (!moved.count) return;
+      await this.outbox.enqueue({
+        orgId: user.orgId, type: "OrderOutForDelivery", aggregateId: order.externalOrderId, dedupeKey: `OrderOutForDelivery:${order.id}`,
+        data: { orderId: order.externalOrderId, pharmacyId: await this.pharmacyId(tx, user.orgId), branchId: order.branchId, outForDeliveryAt: now.toISOString(), ...(d.estimatedMinutes ? { estimatedDeliveryMinutes: d.estimatedMinutes } : {}), dispatchedBy: { userId: user.userId } },
+      }, tx);
+      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "order.out_for_delivery", entityType: "KiorexOrder", entityId: id } });
+    });
+    if (order.customerPhone) {
+      const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: user.orgId } });
+      const locale = ((tenant.settings ?? {}) as { defaultLocale?: "ar" | "en" }).defaultLocale ?? "ar";
+      await this.notify.send({ orgId: user.orgId, channel: "WHATSAPP", recipient: order.customerPhone, template: "order.out_for_delivery", locale, vars: { pharmacy: tenant.name, order: order.externalOrderId }, refType: "KiorexOrder", refId: order.id }).catch(() => undefined);
+    }
+    return this.get(user.orgId, id);
+  }
+
   /** Kiorex cancels an order (HMAC). Releases the reservations. */
   async cancelByKiorex(orgId: string, externalOrderId: string) {
     const order = await this.prisma.kiorexOrder.findUnique({ where: { orgId_externalOrderId: { orgId, externalOrderId } } });
@@ -247,7 +275,7 @@ export class MarketplaceService implements OnModuleInit {
     if (order.status === "DISPENSED") throw new DomainError("ALREADY_DISPENSED", "Order already dispensed", 409);
     // idempotent: an order that already ended (rejected by us, expired, or cancelled before) is not flipped to CANCELLED
     if (["REJECTED", "EXPIRED", "CANCELLED"].includes(order.status)) return { status: order.status };
-    if (order.dispensingId && ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY"].includes(order.status)) {
+    if (order.dispensingId && ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY", "OUT_FOR_DELIVERY"].includes(order.status)) {
       const sys = await this.prisma.staffUser.findFirst({ where: { orgId, role: "OWNER" } });
       if (sys) await this.dispensing.cancel({ userId: sys.id, orgId, role: sys.role, displayName: sys.displayName, branchId: null, market: "EG", edition: "LITE", pharmacistLicenceNo: null, mfa: false }, order.dispensingId, "Cancelled by Kiorex");
     }
@@ -306,7 +334,7 @@ export class MarketplaceService implements OnModuleInit {
         const p = priced.get(d.id);
         const proj = projectDrugForKiorex(d);
         if (!p || !proj) continue; // unpriced items cannot be promised
-        items.push({ pharmacyId: s.branchId, sku: d.id, name: d.brandName, strength: d.strength, form: d.dosageForm, priceMinor: toMinor(p), rxRequired: d.rxOnly, controlled: false, available: (atp.get(d.id) ?? 0) > 0, availableQty: atp.get(d.id) ?? 0 });
+        items.push({ pharmacyId: s.branchId, sku: d.id, name: d.brandName, ...(d.brandNameAr ? { nameAr: d.brandNameAr } : {}), activeIngredient: d.activeIngredient, strength: d.strength, form: d.dosageForm, ...(dosageFormAr(d.dosageForm) ? { formAr: dosageFormAr(d.dosageForm) } : {}), priceMinor: toMinor(p), rxRequired: d.rxOnly, controlled: false, available: (atp.get(d.id) ?? 0) > 0, availableQty: atp.get(d.id) ?? 0 });
       }
     }
     return { items };
@@ -325,7 +353,7 @@ export class MarketplaceService implements OnModuleInit {
       if (!d) throw new DomainError("UNKNOWN_SKU", `Unknown sku ${i.sku}`, 422, { sku: i.sku });
       const controlled = d.controlledSchedule !== "NONE";
       const p = priced.get(d.id);
-      return { sku: d.id, name: d.brandName, qty: i.qty, unitPriceMinor: p ? toMinor(p) : 0, rxRequired: d.rxOnly, controlled, available: !controlled && !!p && d.active && (atp.get(d.id) ?? 0) >= i.qty };
+      return { sku: d.id, name: d.brandName, ...(d.brandNameAr ? { nameAr: d.brandNameAr } : {}), strength: d.strength, form: d.dosageForm, ...(dosageFormAr(d.dosageForm) ? { formAr: dosageFormAr(d.dosageForm) } : {}), qty: i.qty, unitPriceMinor: p ? toMinor(p) : 0, rxRequired: d.rxOnly, controlled, available: !controlled && !!p && d.active && (atp.get(d.id) ?? 0) >= i.qty };
     });
     const fee = Number(((tenant.settings ?? {}) as { kiorexDeliveryFeeMinor?: number }).kiorexDeliveryFeeMinor ?? 0);
     return { items, ...(b.delivery?.method === "DELIVERY" ? { delivery: { feeMinor: fee } } : {}) };

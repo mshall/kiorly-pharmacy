@@ -51,6 +51,15 @@ describe("event contracts (@kiorex/contracts)", () => {
     for (const r of db.rows) assert.equal(validateEvent(r.type as string, r.payload).valid, true);
   });
 
+  it("1.8.0 OrderOutForDelivery is accepted with its required fields, rejected without outForDeliveryAt, and DispenseCompleted accepts per-line fulfilment", async () => {
+    const db = fakeDb();
+    await svc().enqueue({ orgId: "o1", type: "OrderOutForDelivery", aggregateId: "ord_7", dedupeKey: "k7", data: { orderId: "ord_7", pharmacyId: "ph_1", branchId: "b1", outForDeliveryAt: "2027-03-05T12:30:00.000Z", estimatedDeliveryMinutes: 30, dispatchedBy: { userId: "usr_1" } } }, db as never);
+    await assert.rejects(svc().enqueue({ orgId: "o1", type: "OrderOutForDelivery", aggregateId: "ord_8", dedupeKey: "k8", data: { orderId: "ord_8", pharmacyId: "ph_1" } }, db as never), /does not match/);
+    await svc().enqueue({ orgId: "o1", type: "DispenseCompleted", aggregateId: "ord_9", dedupeKey: "k9", data: { orderId: "ord_9", pharmacyId: "ph_1", dispensedAt: "2027-03-05T12:30:00.000Z", pharmacistSignoff: signoff, partial: true, lines: [{ sku: "d1", quantityRequested: 3, quantityDispensed: 1 }] } }, db as never);
+    assert.equal(db.rows.length, 2);
+    for (const r of db.rows) assert.equal(validateEvent(r.type as string, r.payload).valid, true);
+  });
+
   it("webhook HMAC (X-Kiorly-* scheme): round trip, tamper and stale timestamp rejected", () => {
     const body = JSON.stringify({ eventId: "e1" });
     const s = signWebhook({ secret: "sec", body, timestamp: 1_800_000_000, eventType: "OrderReady", eventId: "e1" });
