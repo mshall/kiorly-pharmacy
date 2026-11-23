@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+import { ar, en } from "./kiorexConnect.strings";
+
+const flat = (o: Record<string, unknown>, p = ""): string[] => Object.entries(o).flatMap(([k, v]) => (typeof v === "object" && v ? flat(v as Record<string, unknown>, `${p}${k}.`) : [`${p}${k}`]));
+describe("pharmacy Connect to Kiorex wizard", () => {
+  it("AR and EN bundles match and every static key used by the page exists", () => {
+    assert.deepEqual(flat(en).sort(), flat(ar).sort());
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "KiorexConnect.tsx"), "utf8");
+    const keys = new Set(flat(en)); const used = [...src.matchAll(/\bt\(\s*["'`](kiorexConnect\.[a-zA-Z0-9_.]+)["'`]/g)].map((m) => m[1]!.replace("kiorexConnect.", ""));
+    assert.ok(used.length > 15); assert.deepEqual(used.filter((k) => !keys.has(k)), []);
+  });
+  it("uses logical layout and brand tokens only", () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "KiorexConnect.tsx"), "utf8");
+    assert.doesNotMatch(src, /#[0-9a-fA-F]{6}\b/); assert.doesNotMatch(src, /\b(ml|mr|pl|pr|text-left|text-right)-/);
+  });
+});
