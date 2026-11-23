@@ -1,5 +1,5 @@
 /**
- * Kiorly Team (mobile staff app) demo seed: one tenant per plan so the plan gate and the upgrade path are demonstrable (DEV ONLY).
+ * Kiorly (mobile staff app) demo seed: one tenant per plan so the plan gate and the upgrade path are demonstrable (DEV ONLY).
  *   ENTERPRISE  "Kiorly Demo Pharmacy" (CHAIN edition, org_demo_kiorly)     owner|pharmacist|cashier|manager@demo.kiorly.local
  *   PRO         "Kiorly Solo Pharmacy (DEMO)" (org_demo_solo)               solo.owner|pharmacist|manager|cashier|assistant@demo.kiorly.local
  *   BASIC       "Kiorly Corner Pharmacy (DEMO, Lite)" (org_demo_basic, LITE) owner.basic|pharmacist.basic|cashier.basic@demo.kiorly.local
@@ -18,7 +18,7 @@ const DEMO_PASSWORD = "Demo@12345";
 const DAY = 86_400_000;
 
 async function main() {
-  assertDemoSeedAllowed("Kiorly Pharmacy Kiorly Team (mobile) demo");
+  assertDemoSeedAllowed("Kiorly Pharmacy Kiorly (mobile) demo");
   loadEnv();
   const prisma = new PrismaClient({ adapter: createPgAdapter() });
   try {
@@ -59,23 +59,24 @@ async function main() {
       // open discrepancy awaiting a witness + one already countersigned
       const open = await prisma.controlledDiscrepancy.findMany({ where: { orgId: tenant.id, drugId: drug.id, status: "OPEN" }, orderBy: { createdAt: "asc" } });
       if (open.length === 0) {
-        await prisma.controlledDiscrepancy.create({ data: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, expectedQty: 40, countedQty: 38, difference: -2, notes: "Kiorly Team demo: 2 ampoules unaccounted at shift change", reportedBy: reporter.id } });
-        const signed = await prisma.controlledDiscrepancy.create({ data: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, expectedQty: 40, countedQty: 39, difference: -1, notes: "Kiorly Team demo: 1 ampoule, witnessed", reportedBy: reporter.id, createdAt: new Date(Date.now() - 3600_000) } });
+        await prisma.controlledDiscrepancy.create({ data: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, expectedQty: 40, countedQty: 38, difference: -2, notes: "Kiorly demo: 2 ampoules unaccounted at shift change", reportedBy: reporter.id } });
+        const signed = await prisma.controlledDiscrepancy.create({ data: { orgId: tenant.id, branchId: branch.id, drugId: drug.id, expectedQty: 40, countedQty: 39, difference: -1, notes: "Kiorly demo: 1 ampoule, witnessed", reportedBy: reporter.id, createdAt: new Date(Date.now() - 3600_000) } });
         await prisma.controlledCountersign.create({ data: { orgId: tenant.id, discrepancyId: signed.id, witnessId: witness.id, note: "Counted together" } });
       }
-      await prisma.pushMessage.updateMany({ where: { orgId: tenant.id, title: "Welcome to Kiorly Team", titleAr: "مرحبا بك في كيورلي ورك" }, data: { titleAr: "مرحبا بك في كيورلي تيم" } }); // pre-rename Arabic title
+      // pre-rename titles (Kiorly Team / Kiorly Work) -> the final name Kiorly, so a re-seed never adds a second welcome message
+      await prisma.pushMessage.updateMany({ where: { orgId: tenant.id, title: "Welcome to Kiorly Team" }, data: { title: "Welcome to Kiorly", titleAr: "مرحبا بك في كيورلي" } });
       // inbox seed (idempotent by title)
       for (const u of await prisma.staffUser.findMany({ where: { orgId: tenant.id, active: true }, select: { id: true } })) {
-        const has = await prisma.pushMessage.count({ where: { userId: u.id, title: "Welcome to Kiorly Team" } });
+        const has = await prisma.pushMessage.count({ where: { userId: u.id, title: "Welcome to Kiorly" } });
         if (has) continue;
         await prisma.pushMessage.createMany({ data: [
-          { orgId: tenant.id, userId: u.id, kind: "GENERAL", title: "Welcome to Kiorly Team", titleAr: "مرحبا بك في كيورلي تيم", body: "Your pharmacy in your pocket: verify prescriptions, scan stock, countersign controlled drugs.", bodyAr: "صيدليتك في جيبك: راجع الوصفات وامسح المخزون ووقّع على الأدوية المراقبة.", provider: "mock", deliveredAt: new Date(), data: { seed: true } },
+          { orgId: tenant.id, userId: u.id, kind: "GENERAL", title: "Welcome to Kiorly", titleAr: "مرحبا بك في كيورلي", body: "Your pharmacy in your pocket: verify prescriptions, scan stock, countersign controlled drugs.", bodyAr: "صيدليتك في جيبك: راجع الوصفات وامسح المخزون ووقّع على الأدوية المراقبة.", provider: "mock", deliveredAt: new Date(), data: { seed: true } },
           { orgId: tenant.id, userId: u.id, kind: "SAFETY", title: "Controlled-drug discrepancy", titleAr: "فرق في دواء مراقب", body: "Morphicure 10 mg (DEMO): expected 40, counted 38. Countersign required.", bodyAr: "مورفيكيور 10 ملجم: المتوقع 40 والمعدود 38. مطلوب توقيع شاهد.", provider: "mock", deliveredAt: new Date(), data: { seed: true } },
         ] });
       }
       console.log(`seed:mobile ok - ${tenant.name} (${tenant.edition})`);
     }
-    console.log(`Kiorly Team logins (password ${DEMO_PASSWORD}, DEV ONLY): ENTERPRISE owner@/pharmacist@/cashier@/manager@demo.kiorly.local - PRO solo.owner@/solo.pharmacist@/solo.manager@/solo.cashier@demo.kiorly.local - BASIC owner.basic@/pharmacist.basic@/cashier.basic@demo.kiorly.local`);
+    console.log(`Kiorly logins (password ${DEMO_PASSWORD}, DEV ONLY): ENTERPRISE owner@/pharmacist@/cashier@/manager@demo.kiorly.local - PRO solo.owner@/solo.pharmacist@/solo.manager@/solo.cashier@demo.kiorly.local - BASIC owner.basic@/pharmacist.basic@/cashier.basic@demo.kiorly.local`);
   } finally { await prisma.$disconnect(); }
 }
 void main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

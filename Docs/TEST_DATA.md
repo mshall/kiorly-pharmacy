@@ -35,7 +35,7 @@ Known limits: Kiorex's provider sync and the Nurse-lab push-back call Kiorly Cli
 ## Q10 notes
 No new pharmacy flows were added after the last data pass; the Kiorex-origin orders still mirror `kx_ph_demo_*`. The seed now accepts `DEMO_SUB_MAP_JSON` (real Kiorex/Cognito subs on AWS) and refuses unless `DEMO_SEED_ALLOWED=true` in a non-production environment (`src/common/demo-seed-guard.ts`; the npm scripts set the flag). `--reset` still cannot remove append-only stock rows (the 2 reported statements); the log noise about append-only deletes and the duplicate `SettlementEntry` on re-runs is expected and harmless.
 
-## Kiorly Team mobile (added 20 Nov 2026)
+## Kiorly mobile (added 20 Nov 2026)
 `npm run seed:mobile -w api` (also part of `seed:all`; idempotent, demo-seed guard applies; run after `seed` and `seed:suite`). One tenant per plan so the plan gate and the upgrade path are demonstrable. Password for all: `Demo@12345` (DEV ONLY). API http://localhost:3100/api/v1 (`POST /auth/login`).
 | Plan (edition) | Tenant | Logins |
 |---|---|---|

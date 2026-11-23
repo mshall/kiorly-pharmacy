@@ -2,9 +2,9 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { auth, bootApp, receive, seedDrug, seedTenant, type Fixture, type TestApp } from "./helpers";
 
-const CLIENT = { "X-Kiorly-Client": "kiorly-team/1.0.0" };
+const CLIENT = { "X-Kiorly-Client": "kiorly/1.0.0" };
 
-/** Blocked stock on the Kiorly Team expiry screen and the recalled-lot safety alert (found while proving the staff app end to end). */
+/** Blocked stock on the Kiorly expiry screen and the recalled-lot safety alert (found while proving the staff app end to end). */
 describe("mobile: quarantined / recalled stock and recalled-lot alerts", () => {
   let t: TestApp, f: Fixture;
   before(async () => { t = await bootApp(); f = await seedTenant(t, { edition: "PRO" }); });

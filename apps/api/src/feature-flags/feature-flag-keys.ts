@@ -14,8 +14,8 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   { key: "pharmacy.module", cls: "Module", dependsOn: [], launchLocked: false, offBehaviour: "No new sign-ups; existing tenants read-only with export" },
   { key: "pharmacy.kiorex_orders", cls: "Module", dependsOn: ["pharmacy.module"], launchLocked: false, offBehaviour: "Order inbox hidden; stock not exposed to Kiorex" },
   { key: "pharmacy.forecasting", cls: "AI", dependsOn: ["pharmacy.module"], launchLocked: false, offBehaviour: "Min/max reorder only" },
-  /** Kiorly Team staff app: commercial entitlement (PRO and above). NOT a safety control: safety alerts reach every plan (ADR-025). */
-  { key: "mobile_staff_app", cls: "Module", dependsOn: [], launchLocked: false, offBehaviour: "Kiorly Team shows the upgrade screen; the read-only safety-alert inbox stays available" },
+  /** Kiorly staff app: commercial entitlement (PRO and above). NOT a safety control: safety alerts reach every plan (ADR-025). */
+  { key: "mobile_staff_app", cls: "Module", dependsOn: [], launchLocked: false, offBehaviour: "Kiorly shows the upgrade screen; the read-only safety-alert inbox stays available" },
   { key: "pharmacy.insurer_claims", cls: "Module", dependsOn: ["pharmacy.module"], launchLocked: false, offBehaviour: "Cash/self-pay only" },
 ];
 

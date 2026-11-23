@@ -8,7 +8,7 @@ Every external provider sits behind a port with `<KIND>_MODE=mock|real` (default
 | Email | same | `EMAIL_MODE` | `.../email.mapping.ts` |
 | WhatsApp | same | `WHATSAPP_MODE` | `.../whatsapp.mapping.ts` |
 | Payment (PSP, pay-by-link, refund) | `src/platform/adapters/psp.adapter.ts` -> `src/providers/payment-provider.ts` | `PAYMENT_MODE` | `.../payment.mapping.ts` |
-| Push (Kiorly Team) | `src/modules/mobile/push.service.ts` -> `src/providers/push-provider.ts` | `PUSH_MODE` | n/a (Expo-compatible gateway) |
+| Push (Kiorly) | `src/modules/mobile/push.service.ts` -> `src/providers/push-provider.ts` | `PUSH_MODE` | n/a (Expo-compatible gateway) |
 | Consent registry | `src/platform/adapters/consent.adapter.ts` (token verify) + `consent.service.ts` (capture/query/revoke) -> `src/providers/consent-provider.ts` | `CONSENT_MODE` | `.../consent.mapping.ts` |
 | AI gateway | `src/platform/adapters/ai.gateway.ts` (+ `ai.adapter.ts` forecasting) -> `src/providers/ai-provider.ts`, `phi-redaction.ts` | `AI_MODE` | `.../ai.mapping.ts` |
 | Object storage | `src/platform/adapters/storage.adapter.ts` -> `src/providers/storage-provider.ts`, `storage-policy.ts` | `STORAGE_MODE` | `.../storage.mapping.ts` |

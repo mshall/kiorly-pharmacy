@@ -1,17 +1,17 @@
-# Kiorly Team (mobile staff app): Pharmacy backend contract
+# Kiorly (mobile staff app): Pharmacy backend contract
 
-Kiorly Team is the single Expo staff app (`kiorly-team` repo) with Clinic, Pharmacy and Lab modules. This file is the **Pharmacy** half of the contract: auth, the `mobile_staff_app` entitlement, the `/mobile/*` endpoints, and the **app API map** (every existing endpoint each mobile feature calls). Base URL: `http://localhost:3100/api/v1` locally. Errors use the standard `{ statusCode, code, message }` shape.
+Kiorly is the single Expo staff app (`kiorly-team` repo) with Clinic, Pharmacy and Lab modules. This file is the **Pharmacy** half of the contract: auth, the `mobile_staff_app` entitlement, the `/mobile/*` endpoints, and the **app API map** (every existing endpoint each mobile feature calls). Base URL: `http://localhost:3100/api/v1` locally. Errors use the standard `{ statusCode, code, message }` shape.
 
 ## 1. Auth (decision)
 - **Local/dev and demo:** `POST /auth/login` `{email,password}` -> `{ "accessToken": "<HS256 JWT, 10 h>" }` (`AUTH_MODE=local`, the default). There is **no refresh token**; the app re-logs in (the device-bound session below is what makes remote sign-out work).
-- **Production:** `AUTH_MODE=oidc`: tokens are RS256 JWTs from **Kiorex Passport** (issuer `OIDC_ISSUER`, audience `kiorly-pharmacy`, JWKS `…/jwks`, MFA claim `acr=urn:kiorex:acr:mfa` or `amr` contains `mfa`, required in production for OWNER / BRANCH_MANAGER / CHAIN_OPS / PHARMACIST). The product API already accepts those tokens; the app signs in with OIDC authorization-code + PKCE (`expo-auth-session`) against Passport and sends the access token as `Authorization: Bearer`. The Passport client for the staff app (`kiorly-team`, redirect `kiorlyteam://auth/callback`) is **NEEDS_HUMAN / not registered yet**, so locally the app uses product login.
+- **Production:** `AUTH_MODE=oidc`: tokens are RS256 JWTs from **Kiorex Passport** (issuer `OIDC_ISSUER`, audience `kiorly-pharmacy`, JWKS `…/jwks`, MFA claim `acr=urn:kiorex:acr:mfa` or `amr` contains `mfa`, required in production for OWNER / BRANCH_MANAGER / CHAIN_OPS / PHARMACIST). The product API already accepts those tokens; the app signs in with OIDC authorization-code + PKCE (`expo-auth-session`) against Passport and sends the access token as `Authorization: Bearer`. The Passport client for the staff app (`kiorly-team`, redirect `kiorly://auth/callback`) is **NEEDS_HUMAN / not registered yet**, so locally the app uses product login.
 - `GET /auth/me` returns `{ user, tenant{edition,market,mode,currency}, branches[], permissions[], flags{} }` (web-app oriented). The app should use `/mobile/bootstrap` instead.
 
 ## 2. Headers the app sends
 | Header | Value | Effect |
 |---|---|---|
 | `Authorization` | `Bearer <token>` | required everywhere except `/auth/login` |
-| `X-Kiorly-Client` | `kiorly-team/<appVersion>` | opts the request in to **client entitlement enforcement** (section 4) |
+| `X-Kiorly-Client` | `kiorly/<appVersion>` (legacy `kiorly-team/*` and `kiorly-work/*` are still accepted) | opts the request in to **client entitlement enforcement** (section 4) |
 | `X-Kiorly-Device` | server device `id` (client `deviceId` also accepted) | with the next header: device-bound session |
 | `X-Kiorly-Device-Token` | opaque token returned once by `POST /mobile/devices` | revoked / unknown / mismatched -> **401 `DEVICE_REVOKED`** on any route (remote sign-out) |
 
@@ -21,7 +21,7 @@ Kiorly Team is the single Expo staff app (`kiorly-team` repo) with Clinic, Pharm
 - **Not a safety control (ADR-025).** Safety alerts (section 6) are never gated.
 
 ## 4. Client enforcement
-When `X-Kiorly-Client` starts with `kiorly-team` (or the path is under `/mobile/`) and the org lacks the entitlement, every route returns `403 { code:"FEATURE_DISABLED", key:"mobile_staff_app", scope:"org" }` **except** `POST /mobile/upgrade-request`, `/auth/*`, `GET /mobile/bootstrap`, `/mobile/alerts*`, the witness countersign flow (`GET /mobile/pharmacy/controlled/pending-witness`, `POST /mobile/pharmacy/controlled/countersign`; safety, ADR-025; RBAC still applies) and `DELETE /mobile/devices/:id`. The web app (no client header) is never affected. **Precedence:** the plan gate answers before RBAC: `AuthGuard` defers `@Perm` on plan-gated routes and `MobileClientGuard` enforces it after the entitlement check, so a Lite user lacking the permission gets `FEATURE_DISABLED`, never `PERMISSION_DENIED`.
+When `X-Kiorly-Client` starts with `kiorly` (or the legacy `kiorly-team` / `kiorly-work`), or the path is under `/mobile/`) and the org lacks the entitlement, every route returns `403 { code:"FEATURE_DISABLED", key:"mobile_staff_app", scope:"org" }` **except** `POST /mobile/upgrade-request`, `/auth/*`, `GET /mobile/bootstrap`, `/mobile/alerts*`, the witness countersign flow (`GET /mobile/pharmacy/controlled/pending-witness`, `POST /mobile/pharmacy/controlled/countersign`; safety, ADR-025; RBAC still applies) and `DELETE /mobile/devices/:id`. The web app (no client header) is never affected. **Precedence:** the plan gate answers before RBAC: `AuthGuard` defers `@Perm` on plan-gated routes and `MobileClientGuard` enforces it after the entitlement check, so a Lite user lacking the permission gets `FEATURE_DISABLED`, never `PERMISSION_DENIED`.
 
 ## 5. `/mobile/*` endpoints (new)
 ### GET `/mobile/bootstrap` (any authenticated staff, every plan)
@@ -122,7 +122,7 @@ Example queue item: `{"id":"cmwoswmnf01fas3bh8dz44jhj","status":"RECEIVED","prio
 Safe to queue offline: stock-count lines (`PUT /inventory/counts/:id/lines`, last write wins per lot), alert acks (idempotent), countersign (idempotent), inbox read marks. POS sales have their own conflict API (`POST /pos/sync`, `GET /pos/sync/conflicts`). Never queue Rx override/sign-off or receipts without `idempotencyKey`.
 
 ## 7. Demo logins
-See `Docs/TEST_DATA.md` "Kiorly Team mobile". Seed: `npm run seed:mobile -w api` (included in `seed:all`; guarded by the demo-seed guard).
+See `Docs/TEST_DATA.md` "Kiorly mobile". Seed: `npm run seed:mobile -w api` (included in `seed:all`; guarded by the demo-seed guard).
 
 ## 8. Tests
 `apps/api/test/mobile.e2e.test.ts` (17 API tests: entitlement per plan + flag override, bootstrap per role, device lifecycle and revoked guard, client enforcement, inbox/push mock and hooks, safety alerts incl. BASIC org, ack/countersign, recall alert, barcode / expiry / shift / search) and `src/modules/mobile/mobile.node.test.ts` (plan mapping, exemptions, templates). Run `npm test -w api` (needs Postgres on 5433).

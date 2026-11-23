@@ -1799,9 +1799,9 @@ model Alert {
   @@index([orgId, resolvedAt, createdAt])
 }
 
-// ------------------------------------------------------------- Kiorly Team (mobile staff app) ----
+// ------------------------------------------------------------- Kiorly (mobile staff app) ----
 
-/// A staff phone/tablet registered for the Kiorly Team app. Device-bound token (opaque, only its sha256 is stored); revoking = remote sign-out.
+/// A staff phone/tablet registered for the Kiorly app. Device-bound token (opaque, only its sha256 is stored); revoking = remote sign-out.
 model MobileDevice {
   id           String    @id @default(cuid())
   orgId        String
@@ -1848,7 +1848,7 @@ model PushMessage {
   @@index([orgId, createdAt])
 }
 
-/// Kiorly Team: a staff member asked their org owner to upgrade to a plan that includes `mobile_staff_app`. Allowed on Basic (not entitlement-gated).
+/// Kiorly: a staff member asked their org owner to upgrade to a plan that includes `mobile_staff_app`. Allowed on Basic (not entitlement-gated).
 /// Repeat requests by the same user for the same feature within 24h are de-duplicated by the service.
 model MobileUpgradeRequest {
   id            String   @id @default(cuid())

@@ -31,6 +31,6 @@ export class MobileEntitlementService {
   /** Throws the standard 403 FEATURE_DISABLED {key, scope} when the org lacks the entitlement. */
   async assertEnabled(orgId: string): Promise<void> {
     const e = await this.evaluate(orgId);
-    if (!e.enabled) throw new ForbiddenException({ statusCode: 403, code: "FEATURE_DISABLED", key: "mobile_staff_app", scope: e.reason === "FLAG_OFF" ? e.scope : "org", message: "Kiorly Team is not included in your plan." });
+    if (!e.enabled) throw new ForbiddenException({ statusCode: 403, code: "FEATURE_DISABLED", key: "mobile_staff_app", scope: e.reason === "FLAG_OFF" ? e.scope : "org", message: "Kiorly is not included in your plan." });
   }
 }

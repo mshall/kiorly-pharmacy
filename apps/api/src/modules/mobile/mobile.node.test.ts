@@ -6,7 +6,7 @@ import { renderPush, PUSH_TEMPLATES } from "./push.service";
 import { isKnownFlagKey } from "../../feature-flags/feature-flag-keys";
 import { isSafetyControlKey } from "../../feature-flags/safety-controls";
 
-describe("Kiorly Team plan mapping (pure)", () => {
+describe("Kiorly plan mapping (pure)", () => {
   it("LITE=BASIC, PRO=PRO, CHAIN/ENTERPRISE=ENTERPRISE; mobile from PRO upward; suspended loses it", () => {
     assert.deepEqual(["LITE", "PRO", "CHAIN", "ENTERPRISE"].map(normalisePlan), ["BASIC", "PRO", "ENTERPRISE", "ENTERPRISE"]);
     assert.deepEqual(["LITE", "PRO", "CHAIN", "ENTERPRISE"].map((e) => planIncludesMobile(e)), [false, true, true, true]);
@@ -49,7 +49,9 @@ describe("plan gate (FEATURE_DISABLED) precedes RBAC (PERMISSION_DENIED) on /mob
   it("gates /mobile/* and app-identified requests, not the exempt ones", () => {
     assert.equal(isMobilePlanGated(mk("/api/v1/mobile/summary")), true);
     assert.equal(isMobilePlanGated(mk("/api/v1/mobile/pharmacy/orders?x=1")), true);
-    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorly-team/1" })), true);
+    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorly/1" })), true);
+    for (const legacy of ["kiorly-team/1", "kiorly-work/1"]) assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": legacy })), true, legacy); // legacy client names
+    assert.equal(isMobilePlanGated(mk("/api/v1/orders", undefined, { "x-kiorly-client": "kiorlyx/1" })), false);
     assert.equal(isMobilePlanGated(mk("/api/v1/orders")), false);
     assert.equal(isMobilePlanGated(mk("/api/v1/mobile/alerts")), false);
   });
