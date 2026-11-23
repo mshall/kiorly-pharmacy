@@ -68,6 +68,7 @@ export const PASSPORT_DEMO_STAFF: Record<string, number> = {
   "pharmacist@demo.kiorly.local": 2004, // Mostafa Reda (Passport org member, pharmacist)
   "owner@demo.kiorly.local": 2007,
   "cashier@demo.kiorly.local": 2008,
+  "manager@demo.kiorly.local": 2031, // Demo Multi-Workspace Owner (Kiorly Home picker: Clinic + Pharmacy + Lab)
 };
 
 export async function seed(): Promise<{ tenantId: string }> {

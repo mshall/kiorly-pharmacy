@@ -8,6 +8,7 @@ import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
 import { routeDeniedReason } from "@/lib/route-access";
 import { api } from "@/lib/api";
+import { homeUrlFromEnv, switchWorkspaceHref } from "@/lib/kiorly-home";
 import { KiorlyBrandLockup, KxControlPair, LanguageToggle, ThemeToggle } from "@/brand/ui-kit";
 import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
@@ -26,6 +27,7 @@ export function useOnline(): boolean {
 export function Layout() {
   const { t } = useTranslation();
   const { me, can, flag, logout, branchId, setBranchId } = useAuth();
+  const switchHref = switchWorkspaceHref(homeUrlFromEnv({ VITE_KIORLY_HOME_URL: import.meta.env.VITE_KIORLY_HOME_URL as string | undefined, DEV: import.meta.env.DEV }));
   const online = useOnline();
   const unreadQ = useQuery({ queryKey: ["alerts-count"], queryFn: () => api<{ unread: number; critical: number }>("/notifications/unread-count"), enabled: can("notifications.read"), refetchInterval: 60_000 });
   const queued = useQuery({ queryKey: ["offline-queue"], queryFn: () => listQueue().then((q) => q.length), refetchInterval: 5000 });
@@ -89,6 +91,7 @@ export function Layout() {
             {can("notifications.read") && <Link to="/notifications" aria-label={`${t("nav.notifications")}${unreadQ.data?.unread ? ` (${unreadQ.data.unread})` : ""}`} className="relative inline-flex size-8 items-center justify-center rounded-lg border border-input text-muted-foreground hover:bg-muted hover:text-foreground"><Bell aria-hidden className="size-4" />{!!unreadQ.data?.unread && <span className={cn("absolute -inset-e-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold text-white", unreadQ.data.critical ? "bg-[hsl(var(--danger-text))]" : "bg-primary")}>{unreadQ.data.unread > 99 ? "99+" : unreadQ.data.unread}</span>}</Link>}
             <span className="hidden text-sm sm:inline">{me?.user.displayName} · {me ? t(`roles.${me.user.role}`) : ""}</span>
             <KxControlPair><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} /><LanguageToggle onChange={setLang} /></KxControlPair>
+            {switchHref ? <a href={switchHref} data-testid="switch-workspace" className="inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline">{t("auth.switchWorkspace")}</a> : null}
             <Button variant="outline" size="sm" onClick={logout}>{t("auth.logout")}</Button>
           </div>
         </header>

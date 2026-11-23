@@ -67,6 +67,7 @@
     "signIn": "Sign in",
     "signUp": "Create account",
     "logout": "Sign out",
+    "switchWorkspace": "Switch workspace",
     "noAccount": "New pharmacy?",
     "heroTitle": "The calm pharmacy back-office",
     "heroBody": "Dispense safely, keep every lot in date and answer Kiorex orders on time - on one screen that works offline at the counter.",

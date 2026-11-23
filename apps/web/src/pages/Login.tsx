@@ -1,6 +1,6 @@
-import { lazy, Suspense, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -9,6 +9,7 @@ import { KiorlyBrandLockup, KiorlyFootText, KxControlPair, LanguageToggle, Pulse
 import { KiorexLogo } from "@/brand/components";
 import { setLang } from "@/lib/i18n";
 import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
+import { currentNavigationType, wantsPassportAutostart } from "@/lib/kiorly-home";
 
 // DEV ONLY quick-pick test users. Keep the condition inline: Vite folds `import.meta.env.DEV` to false in production builds, which drops the
 // dynamic import and the whole ../dev folder (asserted by scripts/check-no-dev-test-users.mjs).
@@ -50,8 +51,15 @@ export function Login() {
   const cfg = useQuery({ queryKey: ["auth-config"], queryFn: fetchAuthConfig, staleTime: 60_000 });
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
-  if (signedIn) return <Navigate to="/" replace />;
+  const { search } = useLocation();
   const passport = cfg.data?.passport ?? null;
+  // Kiorly Home sends `?sso=passport`: start "Sign in with Kiorex Passport" by itself (once per page load; the Passport SSO session makes it silent).
+  const autostarted = useRef(false);
+  useEffect(() => {
+    if (signedIn || !passport || autostarted.current || !wantsPassportAutostart(search, currentNavigationType())) return;
+    autostarted.current = true; void startPassportSignIn(passport, i18n.language);
+  }, [signedIn, passport, search, i18n.language]);
+  if (signedIn) return <Navigate to="/" replace />;
   const localLogin = cfg.data?.localLogin ?? true;
   const signInWith = async (em: string, pw: string) => { setBusy(true); setErr(null); try { await login(em, pw); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
   const submit = async (e: FormEvent) => { e.preventDefault(); await signInWith(email, password); };
