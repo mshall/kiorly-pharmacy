@@ -167,7 +167,7 @@ describe("real HTTP payment provider against a local fake server", () => {
 
 describe("push gateway and generic request helper", () => {
   it("push: mock accepts locally; real posts the message batch to PUSH_API_URL with the optional token", async () => {
-    assert.deepEqual(await sendPush([{ to: "t", title: "a", body: "b" }], {}), { accepted: 1 });
+    assert.deepEqual(await sendPush([{ to: "t", title: "a", body: "b" }], {}), { accepted: 1, invalid: [] });
     const fake = await startFakeProvider();
     try {
       const r = await sendPush([{ to: "ExponentPushToken[x]", title: "a", body: "b" }], { PUSH_MODE: "real", PUSH_API_URL: fake.url, PUSH_API_KEY: "expo_tok", PUSH_BACKOFF_MS: "5" });

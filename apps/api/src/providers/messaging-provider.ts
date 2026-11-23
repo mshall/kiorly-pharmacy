@@ -5,6 +5,7 @@ import type { CanonicalEvent, MessageChannelKind, MessageRequest, MessageResult 
 import { smsMapping } from "./mapping/sms.mapping";
 import { emailMapping } from "./mapping/email.mapping";
 import { whatsappMapping } from "./mapping/whatsapp.mapping";
+import { vendorAuthHeaders, vendorOf, vendorParseSend, vendorSend } from "./vendor-kit";
 
 /** Port: one provider per channel (SMS / EMAIL / WHATSAPP). */
 export interface MessageProvider {
@@ -45,6 +46,12 @@ export class HttpMessageProvider implements MessageProvider {
     this.name = kind.toLowerCase();
   }
   async send(req: MessageRequest): Promise<MessageResult> {
+    const vendor = vendorOf(this.kind);
+    if (vendor) { // native vendor (Meta WhatsApp / SES / Twilio), chosen by <KIND>_PROVIDER only
+      const w = vendorSend(vendor, { ...req, from: req.from ?? this.cfg.senderId }, this.cfg);
+      const r = await providerRequest(this.cfg, { path: w.path, body: w.body, form: w.form, sign: w.sign, idempotencyKey: req.idempotencyKey }, vendorAuthHeaders(vendor, this.cfg), this.fetchImpl);
+      return vendorParseSend(vendor, r.json);
+    }
     const m = MAPPINGS[this.kind];
     const res = await providerRequest(this.cfg, { path: m.sendPath, body: m.toRequest({ ...req, from: req.from ?? this.cfg.senderId }, this.cfg), idempotencyKey: req.idempotencyKey }, m.authHeaders(this.cfg), this.fetchImpl);
     return m.fromResponse(res.json);

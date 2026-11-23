@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { providerRequest, type FetchLike } from "./http";
+import { ProviderError, providerRequest, type FetchLike } from "./http";
 import { providerConfig, type ProviderConfig } from "./provider-env";
 import type { CanonicalEvent, ChargeRequest, ChargeResult, PayLinkRequest, PayLinkResult, RefundRequest, RefundResult } from "./provider-types";
 import { paymentMapping as M } from "./mapping/payment.mapping";
+import { fawryPayLink, fawryRefundBody, fawryStatusUrl, paymobRefundBody, paymobTransactionIdFromInquiry, vendorAuthHeaders, vendorOf, vendorPayLinkCall, vendorPayLinkResult } from "./vendor-kit";
 
 /** Port: payment service provider. */
 export interface PaymentProvider {
@@ -45,9 +46,33 @@ export class HttpPaymentProvider implements PaymentProvider {
   readonly name = "payment";
   constructor(private readonly cfg: ProviderConfig, private readonly fetchImpl?: FetchLike) {}
   private call(path: string, body: unknown, key: string) { return providerRequest(this.cfg, { path, body, idempotencyKey: key }, M.authHeaders(this.cfg), this.fetchImpl); }
-  async charge(r: ChargeRequest) { return M.chargeResult((await this.call(M.paths.charge, M.chargeBody(r), r.idempotencyKey)).json); }
-  async createPayLink(r: PayLinkRequest) { return M.payLinkResult((await this.call(M.paths.payLink, M.payLinkBody(r), r.idempotencyKey)).json); }
-  async refund(r: RefundRequest) { return M.refundResult((await this.call(M.paths.refund, M.refundBody(r), r.idempotencyKey)).json); }
+  private get vendor() { return vendorOf("PAYMENT"); }
+  async charge(r: ChargeRequest) {
+    if (this.vendor) throw new ProviderError("UNSUPPORTED", `${this.vendor} is a hosted-checkout PSP: use pay links (no direct card charge)`);
+    return M.chargeResult((await this.call(M.paths.charge, M.chargeBody(r), r.idempotencyKey)).json); }
+  async createPayLink(r: PayLinkRequest) {
+    const v = this.vendor;
+    if (v === "fawry") return fawryPayLink(r, this.cfg);
+    if (v === "paymob") { const c = vendorPayLinkCall(v, r); const res = await providerRequest(this.cfg, { path: c.path, body: c.body, idempotencyKey: c.idempotencyKey }, vendorAuthHeaders(v, this.cfg), this.fetchImpl); return vendorPayLinkResult(v, r, res.json, this.cfg); }
+    return M.payLinkResult((await this.call(M.paths.payLink, M.payLinkBody(r), r.idempotencyKey)).json); }
+  async refund(r: RefundRequest) {
+    const v = this.vendor; const minor = Math.round(Number(r.amount) * 100);
+    if (v === "paymob") { // refund needs the transaction id of the order
+      const auth = vendorAuthHeaders(v, this.cfg);
+      const inq = await providerRequest(this.cfg, { path: "/api/ecommerce/orders/transaction_inquiry", body: { order_id: r.providerRef } }, auth, this.fetchImpl);
+      const ref = await providerRequest(this.cfg, { path: "/api/acceptance/void_refund/refund", body: paymobRefundBody(paymobTransactionIdFromInquiry(inq.json), minor), idempotencyKey: r.idempotencyKey }, auth, this.fetchImpl);
+      if (ref.json?.id === undefined) throw new ProviderError("BAD_RESPONSE", "provider refund response has no id");
+      return { providerRef: String(ref.json.id), status: "SUCCEEDED" as const };
+    }
+    if (v === "fawry") {
+      const code = process.env.PAYMENT_MERCHANT_CODE ?? ""; const key = this.cfg.apiKey ?? "";
+      const st = await providerRequest(this.cfg, { method: "GET", path: "", absoluteUrl: fawryStatusUrl(this.cfg.apiUrl ?? "", code, key, r.providerRef) }, {}, this.fetchImpl);
+      if (!st.json?.fawryRefNumber) throw new ProviderError("BAD_RESPONSE", "provider status has no fawryRefNumber");
+      const rr = await providerRequest(this.cfg, { path: "/ECommerceWeb/Fawry/payments/refund", body: fawryRefundBody({ merchantCode: code, secureKey: key, fawryRefNumber: String(st.json.fawryRefNumber), amountMinor: minor, reason: r.reason ?? "refund" }), idempotencyKey: r.idempotencyKey }, {}, this.fetchImpl);
+      if (Number(rr.json?.statusCode) !== 200) throw new ProviderError("REJECTED", "provider rejected the refund");
+      return { providerRef: String(st.json.fawryRefNumber), status: "SUCCEEDED" as const };
+    }
+    return M.refundResult((await this.call(M.paths.refund, M.refundBody(r), r.idempotencyKey)).json); }
   parseWebhook(json: unknown): CanonicalEvent[] { return M.parseWebhook(json); }
 }
 

@@ -3,7 +3,7 @@ import type { Prisma, StaffRole } from "../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { adapterMode } from "../../platform/adapters/adapter-mode";
 import { ProviderError, type FetchLike } from "../../providers/http";
-import { providerConfig } from "../../providers/provider-env";
+import { validateProviderConfig } from "../../providers/provider-env";
 import { sendPush } from "../../providers/push-provider";
 import { MobileEntitlementService } from "./mobile-entitlement.service";
 
@@ -33,7 +33,7 @@ export function renderPush(t: PushTemplate, vars: Record<string, string | number
 
 /**
  * Push sender. PUSH_MODE=mock|real (default mock): the in-app inbox row (PushMessage) is the dev inbox and delivery to each registered device
- * is simulated (deliveredAt set). Real: Expo-compatible gateway (PUSH_API_URL / PUSH_API_KEY). Never throws into business flows.
+ * is simulated (deliveredAt set). Real: FCM HTTP v1 + Expo push service (PUSH_FCM_SERVICE_ACCOUNT_JSON / PUSH_EXPO_ENABLED), or a custom gateway (PUSH_API_URL). Never throws into business flows.
  * SAFETY messages are sent for every plan (ADR-025); everything else only when the org holds mobile_staff_app.
  */
 @Injectable()
@@ -42,6 +42,9 @@ export class PushService {
   /** Test seam for the real push gateway. */
   static fetchImpl?: FetchLike;
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(MobileEntitlementService) private readonly ent: MobileEntitlementService) {}
+
+  /** Android channel id (created by the app, see kiorly-team src/lib/notificationChannels.ts). */
+  static channelFor(kind: PushKind): string { return kind === "SAFETY" ? "safety" : kind === "CLINICAL" ? "clinical" : kind === "OPS" ? "ops" : "default"; }
 
   async send(i: PushInput): Promise<{ delivered: number }> {
     try {
@@ -52,15 +55,18 @@ export class PushService {
       });
       if (!users.length) return { delivered: 0 };
       const mode = adapterMode("PUSH");
-      if (mode === "real" && !providerConfig("PUSH").apiUrl) throw new ProviderError("NOT_CONFIGURED", "PUSH_API_URL is not set (PUSH_MODE=real)");
+      if (mode === "real" && validateProviderConfig(process.env, ["PUSH"]).length) throw new ProviderError("NOT_CONFIGURED", "push credentials are not set (PUSH_MODE=real: PUSH_FCM_SERVICE_ACCOUNT_JSON and/or PUSH_EXPO_ENABLED, or PUSH_API_URL)");
       const now = new Date();
       await this.prisma.pushMessage.createMany({
         data: users.map((u) => ({ orgId: i.orgId, userId: u.id, kind: i.kind, title: i.title, titleAr: i.titleAr, body: i.body, bodyAr: i.bodyAr, data: (i.data ?? {}) as Prisma.InputJsonValue, provider: mode === "real" ? "push" : "mock", deliveredAt: mode === "real" ? null : now })),
       });
       if (mode === "real") {
         // The inbox rows above are the in-app inbox; hand the same message to the push gateway for every registered device.
-        const tokens = (await this.prisma.mobileDevice.findMany({ where: { orgId: i.orgId, status: "ACTIVE", userId: { in: users.map((u) => u.id) }, pushToken: { not: null } }, select: { pushToken: true } })).map((d) => d.pushToken!);
-        if (tokens.length) await sendPush(tokens.map((to) => ({ to, title: i.title, body: i.body, data: i.data })), process.env, PushService.fetchImpl);
+        const tokens = (await this.prisma.mobileDevice.findMany({ where: { orgId: i.orgId, status: "ACTIVE", userId: { in: users.map((u) => u.id) }, pushToken: { not: null } }, select: { pushToken: true } })).map((d) => d.pushToken!).filter((t) => t && !t.startsWith("mock-"));
+        if (tokens.length) {
+          const r = await sendPush(tokens.map((to) => ({ to, title: i.title, body: i.body, data: i.data, channelId: PushService.channelFor(i.kind) })), process.env, PushService.fetchImpl);
+          if (r.invalid.length) await this.prisma.mobileDevice.updateMany({ where: { orgId: i.orgId, pushToken: { in: r.invalid } }, data: { pushToken: null, pushProvider: null } }); // dead token (uninstalled): stop pushing to it
+        }
       }
       if (mode === "mock") {
         const devices = await this.prisma.mobileDevice.count({ where: { orgId: i.orgId, status: "ACTIVE", userId: { in: users.map((u) => u.id) }, pushToken: { not: null } } });

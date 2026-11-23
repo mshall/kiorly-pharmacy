@@ -21,6 +21,12 @@ export interface ProviderRequest {
   rawBody?: Uint8Array;
   /** Response is not JSON (object download). */
   binary?: boolean;
+  /** application/x-www-form-urlencoded body (Twilio). */
+  form?: Record<string, string>;
+  /** Absolute URL (vendor hosts outside <KIND>_API_URL). */
+  absoluteUrl?: string;
+  /** Per-attempt signer (AWS SigV4): gets the final method / url / body string, returns extra headers. */
+  sign?: (r: { method: string; url: string; body: string }) => Record<string, string>;
 }
 export interface ProviderResponse { status: number; json: any; raw: Uint8Array }
 
@@ -42,18 +48,19 @@ export function mapStatus(status: number): ProviderError | null {
  * Honours Retry-After (capped at 10 s). Throws ProviderError.
  */
 export async function providerRequest(cfg: ProviderConfig, req: ProviderRequest, authHeaders: Record<string, string>, fetchImpl: FetchLike = fetch as unknown as FetchLike): Promise<ProviderResponse> {
-  if (!cfg.apiUrl) throw new ProviderError("NOT_CONFIGURED", `${cfg.kind}_API_URL is not set`);
-  const url = `${cfg.apiUrl}${req.path.startsWith("/") || req.path === "" ? req.path : `/${req.path}`}`;
-  const headers: Record<string, string> = { accept: "application/json", ...(req.rawBody ? {} : { "content-type": "application/json" }), ...authHeaders, ...req.headers };
+  if (!cfg.apiUrl && !req.absoluteUrl) throw new ProviderError("NOT_CONFIGURED", `${cfg.kind}_API_URL is not set`);
+  const url = req.absoluteUrl ?? `${cfg.apiUrl}${req.path.startsWith("/") || req.path === "" ? req.path : `/${req.path}`}`;
+  const headers: Record<string, string> = { accept: "application/json", ...(req.rawBody ? {} : { "content-type": req.form ? "application/x-www-form-urlencoded" : "application/json" }), ...authHeaders, ...req.headers };
   if (req.idempotencyKey) headers["idempotency-key"] = req.idempotencyKey;
-  const body = req.rawBody ?? (req.body === undefined ? undefined : JSON.stringify(req.body));
+  const body = req.rawBody ?? (req.form ? new URLSearchParams(req.form).toString() : req.body === undefined ? undefined : JSON.stringify(req.body));
   let last: ProviderError = new ProviderError("NETWORK", "no attempt made", undefined, true);
   for (let attempt = 0; attempt <= cfg.maxRetries; attempt++) {
     let retryAfterMs = 0;
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), cfg.timeoutMs);
     try {
-      const res = await fetchImpl(url, { method: req.method ?? "POST", headers, body, signal: ac.signal });
+      const signed = req.sign ? req.sign({ method: req.method ?? "POST", url, body: typeof body === "string" ? body : "" }) : {};
+      const res = await fetchImpl(url, { method: req.method ?? "POST", headers: { ...headers, ...signed }, body, signal: ac.signal });
       const raw = new Uint8Array(await res.arrayBuffer());
       const err = mapStatus(res.status);
       if (err) {

@@ -5,7 +5,8 @@ import { messageProvider } from "./messaging-provider";
 import { paymentProvider } from "./payment-provider";
 import { consentRegistry } from "./consent-provider";
 import { ConsentService } from "../platform/adapters/consent.service";
-import { webhookSecretFor, type ProviderKind } from "./provider-env";
+import { providerConfig, webhookSecretFor, type ProviderKind } from "./provider-env";
+import { VENDOR_WEBHOOKS, vendorOf } from "./vendor-kit";
 import type { CanonicalEvent, MessageChannelKind } from "./provider-types";
 import { verifyWebhookSignature } from "./webhook-signature";
 
@@ -20,17 +21,26 @@ export class ProviderEventsService {
   private readonly log = new Logger(ProviderEventsService.name);
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(PayLinksService) private readonly payLinks: PayLinksService, @Inject(ConsentService) private readonly consents: ConsentService) {}
 
-  async ingest(kind: ProviderKind, rawBody: string, signature: string | undefined) {
+  async ingest(kind: ProviderKind, rawBody: string, signature: string | undefined, ctx: { headers?: Record<string, unknown>; query?: Record<string, unknown> } = {}) {
     const secret = webhookSecretFor(kind);
     if (!secret) throw new ServiceUnavailableException({ code: "WEBHOOK_NOT_CONFIGURED", message: `${kind}_WEBHOOK_SECRET is not set` });
-    const v = verifyWebhookSignature(secret, rawBody, signature);
-    if (!v.ok) throw new UnauthorizedException({ code: "INVALID_WEBHOOK_SIGNATURE", message: v.reason, reason: v.reason });
-    let json: unknown;
-    try { json = JSON.parse(rawBody); } catch { throw new BadRequestException({ code: "INVALID_JSON" }); }
+    const vendor = providerConfig(kind).mode === "real" ? vendorOf(kind) : undefined;
     let events: CanonicalEvent[];
-    try {
-      events = kind === "CONSENT" ? consentRegistry(process.env).parseWebhook(json) : kind === "PAYMENT" ? paymentProvider(process.env).parseWebhook(json) : messageProvider(kind as MessageChannelKind, process.env).parseWebhook(json);
-    } catch { throw new BadRequestException({ code: "INVALID_WEBHOOK_EVENT" }); }
+    if (vendor) { // native vendor: its own signature scheme and body format (see vendor-kit.ts)
+      const hook = VENDOR_WEBHOOKS[vendor];
+      if (!hook.verify({ secret, rawBody, headers: ctx.headers ?? {}, query: ctx.query ?? {}, publicUrl: process.env[`${kind}_WEBHOOK_PUBLIC_URL`] })) throw new UnauthorizedException({ code: "INVALID_WEBHOOK_SIGNATURE", message: "MISMATCH", reason: "MISMATCH" });
+      const confirm = hook.confirmUrl?.(rawBody);
+      if (confirm) { await fetch(confirm).catch(() => undefined); return { accepted: 0, applied: 0, duplicates: 0, unmatched: 0 }; } // SNS subscription handshake
+      try { events = hook.parse(rawBody); } catch { throw new BadRequestException({ code: "INVALID_WEBHOOK_EVENT" }); }
+    } else {
+      const v = verifyWebhookSignature(secret, rawBody, signature);
+      if (!v.ok) throw new UnauthorizedException({ code: "INVALID_WEBHOOK_SIGNATURE", message: v.reason, reason: v.reason });
+      let json: unknown;
+      try { json = JSON.parse(rawBody); } catch { throw new BadRequestException({ code: "INVALID_JSON" }); }
+      try {
+        events = kind === "CONSENT" ? consentRegistry(process.env).parseWebhook(json) : kind === "PAYMENT" ? paymentProvider(process.env).parseWebhook(json) : messageProvider(kind as MessageChannelKind, process.env).parseWebhook(json);
+      } catch { throw new BadRequestException({ code: "INVALID_WEBHOOK_EVENT" }); }
+    }
     let applied = 0, duplicates = 0, unmatched = 0;
     for (const e of events) {
       try {

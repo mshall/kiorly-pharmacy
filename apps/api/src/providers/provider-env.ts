@@ -13,6 +13,9 @@
  * Legacy switches still work as the default: MESSAGING_MODE -> SMS/EMAIL/WHATSAPP, PSP_MODE -> PAYMENT.
  * The only per-vendor code lives in `mapping/<kind>.mapping.ts`.
  */
+import { derivedWebhookSecret, vendorApiUrl, vendorOf, vendorProblems } from "./vendor-kit";
+import { pushProblems } from "./vendors/push";
+
 export type ProviderKind = "SMS" | "EMAIL" | "WHATSAPP" | "PAYMENT" | "PUSH" | "STORAGE" | "CONSENT" | "AI";
 export type ProviderMode = "mock" | "real";
 export const PROVIDER_KINDS: ProviderKind[] = ["SMS", "EMAIL", "WHATSAPP", "PAYMENT", "PUSH", "STORAGE", "CONSENT", "AI"];
@@ -65,7 +68,7 @@ export function providerConfig(kind: ProviderKind, env: Env = process.env): Prov
   return {
     kind,
     mode: providerMode(kind, env),
-    apiUrl: clean(env[`${kind}_API_URL`])?.replace(/\/+$/, ""),
+    apiUrl: vendorApiUrl(kind, env),
     apiKey: clean(env[`${kind}_API_KEY`]) ?? clean(env[`${kind}_API_TOKEN`]),
     webhookSecret: clean(env[`${kind}_WEBHOOK_SECRET`]),
     senderId: SENDER_VAR[kind] ? clean(env[SENDER_VAR[kind]!]) : undefined,
@@ -80,6 +83,7 @@ export function providerConfig(kind: ProviderKind, env: Env = process.env): Prov
 export function webhookSecretFor(kind: ProviderKind, env: Env = process.env): string | undefined {
   const c = providerConfig(kind, env);
   if (c.webhookSecret) return c.webhookSecret;
+  if (c.mode === "real") { const d = derivedWebhookSecret(kind, env); if (d) return d; }
   return c.mode === "mock" && env.NODE_ENV !== "production" ? MOCK_WEBHOOK_SECRET : undefined;
 }
 
@@ -97,7 +101,8 @@ export function validateProviderConfig(env: Env = process.env, kinds: ProviderKi
     const c = providerConfig(kind, env);
     if (c.mode !== "real") continue;
     const need = (name: string, v: string | undefined) => { if (!v) problems.push(`${kind}_MODE=real but ${name} is not set`); };
-    need(`${kind}_API_URL`, c.apiUrl);
+    if (kind === "PUSH" && !c.apiUrl) { problems.push(...pushProblems(env).map((p) => p.replace("PUSH_MODE=real needs", "PUSH_MODE=real (or MOBILE_PUSH_MODE) needs"))); continue; } // FCM v1 / Expo from PUSH_* credentials; PUSH_API_URL only for a custom gateway
+    need(`${kind}_API_URL`, c.apiUrl); // native vendors have a default base (Meta / Twilio / Paymob / Fawry); SES needs its regional URL
     if (c.apiUrl) {
       try {
         const u = new URL(c.apiUrl);
@@ -107,8 +112,9 @@ export function validateProviderConfig(env: Env = process.env, kinds: ProviderKi
     }
     if (kind !== "PUSH") need(`${kind}_API_KEY`, c.apiKey);
     if (kind === "AI") need("AI_MODEL", c.model);
-    if (WEBHOOK_KINDS.includes(kind)) need(`${kind}_WEBHOOK_SECRET`, c.webhookSecret);
+    if (WEBHOOK_KINDS.includes(kind) && !derivedWebhookSecret(kind, env)) need(`${kind}_WEBHOOK_SECRET`, c.webhookSecret);
     if (SENDER_VAR[kind]) need(SENDER_VAR[kind]!, c.senderId);
+    problems.push(...vendorProblems(kind, env));
   }
   return problems;
 }
@@ -117,6 +123,16 @@ export function validateProviderConfig(env: Env = process.env, kinds: ProviderKi
 export function assertProviderConfig(env: Env = process.env, kinds?: ProviderKind[]): void {
   const problems = validateProviderConfig(env, kinds);
   if (problems.length) throw new ProviderConfigError(problems);
+}
+
+export interface ProviderStatus { provider: string; mode: ProviderMode; vendor: string; ready: boolean }
+/** Active mode of every provider for /health: mode, vendor in use and whether the required variables for that mode are present. Never a secret or value. */
+export function providerStatus(env: Env = process.env, kinds: ProviderKind[] = PROVIDER_KINDS): ProviderStatus[] {
+  return kinds.map((kind) => {
+    const c = providerConfig(kind, env);
+    const vendor = c.mode === "real" ? (vendorOf(kind, env) ?? (kind === "PUSH" && !c.apiUrl ? "fcm+expo" : "gateway")) : "mock";
+    return { provider: kind.toLowerCase(), mode: c.mode, vendor, ready: c.mode === "mock" || validateProviderConfig(env, [kind]).length === 0 };
+  });
 }
 
 /** Dev-only tools (mock message view, webhook simulator, demo runner). Always off in production; PROVIDER_DEV_TOOLS=false turns them off elsewhere. */
