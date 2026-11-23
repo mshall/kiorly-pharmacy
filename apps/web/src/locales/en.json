@@ -88,7 +88,13 @@
     "passportFailed": "Kiorex Passport sign-in failed",
     "handoffBusy": "Signing you in…",
     "handoffFailed": "We could not complete the sign-in from Kiorly. Sign in below.",
-    "handoffReason": {"mfa": "Your account uses a second factor. Sign in here to enter the code.", "password_expired": "Your password has expired. Sign in here to set a new one.", "org": "Choose your organisation here to continue.", "other": "Sign in here to continue."}
+    "handoffReason": {
+      "mfa": "Your account uses a second factor. Sign in here to enter the code.",
+      "password_expired": "Your password has expired. Sign in here to set a new one.",
+      "org": "Choose your organisation here to continue.",
+      "other": "Sign in here to continue."
+    },
+    "switchProduct": "Switch product"
   },
   "roles": {
     "OWNER": "Owner",
@@ -1385,7 +1391,18 @@
         "audit": "Audit log",
         "controlled-register": "Controlled register"
       }
-    }
+    },
+    "signinTitle": "Default sign-in method",
+    "signinHint": "Both methods stay available on the sign-in page. This only chooses which one is preselected for your team.",
+    "signinPassport": "Kiorex Passport",
+    "signinPassword": "Password",
+    "signinAuto": "Automatic",
+    "signinAutoHint": "Kiorex Passport when this organisation is linked to Kiorex, otherwise Password.",
+    "signinEffective": "Preselected now: {{method}}",
+    "signinLinked": "Linked to Kiorex",
+    "signinNotLinked": "Not linked to Kiorex",
+    "signinSaved": "Default sign-in method saved",
+    "signinOwnerOnly": "Only the organisation owner or an administrator can change this."
   },
   "theme": {
     "label": "Theme",

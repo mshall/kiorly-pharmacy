@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 /** Founder, 24 Nov 2026: exactly two sign-in methods, Kiorex Passport first and the default, Password behind a toggle on the same screen. */
 const KEY = "kiorly.signin.method";
 const PASSPORT = { issuer: "http://localhost:4400", clientId: "x", authorizationEndpoint: "http://localhost:4400/auth", scope: "openid", endSession: true };
-const config = (page: Page, passport: boolean) => page.route("**/api/v1/auth/config", (r) => r.fulfill({ json: { localLogin: true, passport: passport ? PASSPORT : null } }));
+const config = (page: Page, passport: boolean) => page.route("**/api/v1/auth/config*", (r) => r.fulfill({ json: { localLogin: true, passport: passport ? PASSPORT : null, passportAvailable: passport, defaultMethod: passport ? "PASSPORT" : "PASSWORD" } }));
 
 test.describe("Login: Passport default, password toggle, last-method memory", () => {
   test("a fresh browser lands on Kiorex Passport; Password is one click away", async ({ page }) => {

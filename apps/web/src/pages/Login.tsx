@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,8 @@ import { setLang } from "@/lib/i18n";
 import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
 import { currentNavigationType, readHandoff, wantsPassportAutostart, withoutHandoff } from "@/lib/kiorly-home";
 import { rememberSignInMethod } from "@/lib/sign-in-method";
+import { currentOrgHint } from "@/lib/sign-in-default";
+import { SwitchProductLink } from "@/components/switch-product-link";
 import { SignInMethodTabs } from "@/components/sign-in-method-tabs";
 import { useSignInMethod } from "@/components/use-sign-in-method";
 
@@ -22,7 +24,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
   const { t, i18n } = useTranslation();
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-(--kx-indigo-950) p-12 text-white lg:flex">
+      <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-(--kx-indigo-950) p-12 text-white lg:sticky lg:top-0 lg:flex lg:h-screen" data-testid="login-brand-panel">
         <div className="pointer-events-none absolute -inset-e-32 -top-32 size-112 rounded-full bg-(--kx-indigo-800)/50 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -inset-s-24 size-104 rounded-full bg-(--kx-ocean-700)/40 blur-3xl" />
         <div className="relative"><KiorexLogo variant="lockup" product="pharmacy" lang={i18n.language} tone="inverse" height={52} /><p data-kx-tagline className="mt-1 text-xs text-white/70">{t("app.tagline")}</p></div>
@@ -51,13 +53,15 @@ export function Login() {
   const { t, i18n } = useTranslation();
   const { login, signedIn, adoptSession } = useAuth();
   const nav = useNavigate();
-  const cfg = useQuery({ queryKey: ["auth-config"], queryFn: fetchAuthConfig, staleTime: 60_000 });
+  // The login page is pre-auth: the org is identified by `?org=`, a tenant subdomain or the org remembered on this browser; the API answers uniformly for unknown orgs.
+  const orgHint = useMemo(() => currentOrgHint(), []);
+  const cfg = useQuery({ queryKey: ["auth-config", orgHint], queryFn: () => fetchAuthConfig(orgHint), staleTime: 60_000 });
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
   const { search } = useLocation();
   const passport = cfg.data?.passport ?? null;
   // Two methods only: Kiorex Passport (default) and Password; the last method that signed this browser in is preselected. No Passport on the API: password only.
-  const sim = useSignInMethod(cfg.isPending ? undefined : passport !== null);
+  const sim = useSignInMethod(cfg.isPending ? undefined : passport !== null, cfg.data?.defaultMethod);
   // Kiorly Home sends `?sso=passport`: start "Sign in with Kiorex Passport" by itself (once per page load; the Passport SSO session makes it silent).
   const autostarted = useRef(false);
   // Kiorly Home password handoff: redeem the single-use code once, strip it from the address bar first, then adopt the normal session.
@@ -103,6 +107,7 @@ export function Login() {
         <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? <Pulse size={16} loop /> : null}{t("auth.signIn")}</Button>
         <p className="text-center text-sm text-muted-foreground">{t("auth.noAccount")} <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">{t("auth.signUp")}</Link></p>
       </form> : null}
+      <p className="mt-6 text-center"><SwitchProductLink /></p>
       {DevTestUsers ? <Suspense fallback={null}><DevTestUsers busy={busy} onPick={(em, pw) => { setEmail(em); setPassword(pw); void signInWith(em, pw); }} /></Suspense> : null}
     </Shell>
   );

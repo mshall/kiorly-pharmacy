@@ -13,6 +13,8 @@ import { RequiresFlag, RequiresFlagGuard } from "../feature-flags/requires-flag.
 import { StaffRole } from "../generated/prisma/client";
 import { normalizePhone } from "../auth/passport";
 import { PassportSessions } from "../auth/passport-sessions.service";
+import { effectiveOrgDefault, type SignInDefaultMethod } from "../auth/sign-in-default";
+import { tenantLinkedToKiorex } from "../auth/sign-in-config";
 
 class BranchDto {
   @IsString() @MinLength(2) name!: string;
@@ -77,6 +79,8 @@ class SettingsDto {
   @IsOptional() @IsString() ownerEmail?: string;
   @IsOptional() @IsIn(["ar", "en"]) defaultLocale?: "ar" | "en";
   @IsOptional() @IsString() receiptFooter?: string;
+  /** Preselected sign-in method on the login page (both stay offered); null = automatic. Stored in its own column, not in the settings JSON. */
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsIn(["PASSWORD", "PASSPORT"]) defaultSignInMethod?: SignInDefaultMethod | null;
 }
 class SignupDto {
   @IsString() @MinLength(2) pharmacyName!: string;
@@ -221,16 +225,19 @@ export class TenancyController {
   async settings(@CurrentUser() u: AuthUser) {
     const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: u.orgId } });
     const pack = this.packs.get(t.marketCode, null);
-    return { name: t.name, edition: t.edition, market: t.marketCode, subscriptionStatus: t.subscriptionStatus, pack, settings: t.settings ?? {} };
+    const linkedToKiorex = await tenantLinkedToKiorex(this.prisma, t);
+    return { name: t.name, edition: t.edition, market: t.marketCode, subscriptionStatus: t.subscriptionStatus, pack, settings: t.settings ?? {}, defaultSignInMethod: t.defaultSignInMethod, effectiveSignInMethod: effectiveOrgDefault({ stored: t.defaultSignInMethod, linkedToKiorex }), linkedToKiorex };
   }
 
   @Patch("settings")
   @Perm("settings.write")
   async patchSettings(@CurrentUser() u: AuthUser, @Body() dto: SettingsDto) {
     const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: u.orgId } });
-    const settings = { ...((t.settings as object | null) ?? {}), ...dto };
-    await this.prisma.tenant.update({ where: { id: u.orgId }, data: { settings: JSON.parse(JSON.stringify(settings)) } });
+    const { defaultSignInMethod, ...json } = dto;
+    const settings = { ...((t.settings as object | null) ?? {}), ...json };
+    await this.prisma.tenant.update({ where: { id: u.orgId }, data: { settings: JSON.parse(JSON.stringify(settings)), ...(defaultSignInMethod !== undefined ? { defaultSignInMethod } : {}) } });
     await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "settings.update", entityType: "Tenant", entityId: u.orgId, meta: { fields: Object.keys(dto) } });
+    if (defaultSignInMethod !== undefined && defaultSignInMethod !== t.defaultSignInMethod) await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "settings.default_signin_method", entityType: "Tenant", entityId: u.orgId, meta: { from: t.defaultSignInMethod, to: defaultSignInMethod } });
     return settings;
   }
 

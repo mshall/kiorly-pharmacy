@@ -8,6 +8,7 @@ import { Button, Card, Empty, ErrorNote, Field, Input, PageHeader, Switch, Table
 import { StatusChip, TableSkeleton } from "@/brand/ui-kit";
 import { fmtDateTime } from "@/lib/format";
 import { useToast } from "@/lib/toast";
+import { SignInDefaultCard } from "@/pages/settings/SignInDefaultCard";
 import { StaffManagement } from "@/pages/settings/StaffManagement";
 import { DataTab, ModeCard, ReceiptTab, RegionalTab, RolesMatrixTab } from "@/pages/settings/SettingsMore";
 
@@ -107,7 +108,7 @@ export function Settings() {
       <PageHeader title={t("set.title")} subtitle={t("set.subtitle")} />
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "pharmacy" && <PharmacyTab />}{tab === "staff" && <StaffManagement />}{tab === "roles" && <RolesMatrixTab />}{tab === "receipt" && <ReceiptTab />}{tab === "regional" && <RegionalTab />}{tab === "data" && <DataTab />}{tab === "branches" && <BranchesTab />}{tab === "marketplace" && <MarketplaceTab />}{tab === "system" && <SystemTab />}
+        {tab === "pharmacy" && <><PharmacyTab /><SignInDefaultCard /></>}{tab === "staff" && <StaffManagement />}{tab === "roles" && <RolesMatrixTab />}{tab === "receipt" && <ReceiptTab />}{tab === "regional" && <RegionalTab />}{tab === "data" && <DataTab />}{tab === "branches" && <BranchesTab />}{tab === "marketplace" && <MarketplaceTab />}{tab === "system" && <SystemTab />}
       </div>
     </>
   );

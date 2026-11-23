@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Res, UnauthorizedException } from "@nestjs/common";
-import type { Response } from "express";
+import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
@@ -17,6 +17,10 @@ import { PassportService } from "./passport.service";
 import { PassportSessions } from "./passport-sessions.service";
 import { HandoffCodes, HandoffError, isHomeOrigin, webBaseUrl } from "./handoff";
 import { PrismaHandoffStore } from "./handoff.store";
+import { deploymentDefaultMethod, orgSignInFacts, resolvePublicSignInConfig } from "./sign-in-config";
+import { makeWindowLimiter } from "./sign-in-default";
+
+const configLimiter = makeWindowLimiter(300, 60_000);
 
 class LoginDto {
   @IsEmail() email!: string;
@@ -65,8 +69,13 @@ export class AuthController {
   /** Login page configuration: is the password form offered, and is Kiorex Passport (OIDC + PKCE) available. Nothing secret. */
   @Get("config")
   @Public()
-  config() {
-    return this.passport.publicConfig();
+  async config(@Query("org") org: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const base = await this.passport.publicConfig();
+    res.setHeader("Cache-Control", "no-store");
+    // Pre-auth and public: rate limited per client; an unknown or missing org gets the deployment default in the same shape (no org enumeration).
+    if (!configLimiter(req.ip ?? "anon")) throw new DomainError("RATE_LIMITED", "Too many requests, try again in a minute", 429);
+    const facts = org ? await orgSignInFacts(this.prisma, org) : null;
+    return { ...base, ...resolvePublicSignInConfig({ passportAvailable: base.passport !== null, org: facts, deployment: deploymentDefaultMethod() }) };
   }
 
   /** Web Passport sign-in: the SPA did authorize + PKCE; the API redeems the code server-side and issues the staff session. */

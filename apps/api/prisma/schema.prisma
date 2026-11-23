@@ -36,6 +36,12 @@ enum Edition {
   ENTERPRISE
 }
 
+/// Default sign-in method preselected on the login page for an organisation (ADR-038 amendment). Both methods stay available.
+enum SignInMethod {
+  PASSWORD
+  PASSPORT
+}
+
 enum StaffRole {
   OWNER
   PHARMACIST
@@ -257,6 +263,8 @@ model Tenant {
   marketCode         String    @default("EG")
   /// Local stand-in for the kernel subscription (PH-F09 seam): ACTIVE | TRIAL | SUSPENDED.
   subscriptionStatus String    @default("ACTIVE")
+  /// Preselected sign-in method (both stay offered). null = automatic: PASSPORT when the org is linked to Kiorex, else PASSWORD.
+  defaultSignInMethod SignInMethod?
   /// Market-pack overrides (VAT label/rate, currency, thresholds). See kernel-adapter/market-pack.
   settings           Json?
   onboardedAt        DateTime?

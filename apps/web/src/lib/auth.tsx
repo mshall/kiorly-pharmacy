@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, getToken, setToken } from "@/lib/api";
 import type { Me } from "@/lib/types";
 import { takeEndSessionUrl } from "@/lib/passport";
+import { rememberSignInOrg } from "@/lib/sign-in-default";
 import { useToast } from "@/lib/toast";
 import { useTranslation } from "react-i18next";
 
@@ -29,6 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [branch, setBranch] = useState<string | null>(() => { try { return localStorage.getItem(BRANCH_KEY); } catch { return null; } });
   // re-check every minute: a session Passport ended (back-channel logout) or a deactivated account leaves the app within a minute even when idle
   const meQ = useQuery({ queryKey: ["me", token], queryFn: () => api<Me>("/auth/me"), enabled: !!token, retry: false, staleTime: 60_000, refetchInterval: 60_000 });
+  // the next visit to the login page asks the API for THIS organisation's default sign-in method
+  const orgId = meQ.data?.tenant.id;
+  useEffect(() => { rememberSignInOrg(orgId); }, [orgId]);
   useEffect(() => { const h = (e: Event) => { setTok(null); qc.clear(); takeEndSessionUrl(); if ((e as CustomEvent<{ code?: string }>).detail?.code === "SESSION_REVOKED") toast(t("errors.codes.SESSION_REVOKED")); }; window.addEventListener("kiorly:unauthorized", h); return () => window.removeEventListener("kiorly:unauthorized", h); }, [qc, toast, t]);
   const login = useCallback(async (email: string, password: string) => {
     const r = await api<{ accessToken: string }>("/auth/login", { body: { email, password } });

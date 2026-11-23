@@ -7,6 +7,9 @@ import { ApiError } from "./api";
 
 export interface AuthConfig {
   localLogin: boolean;
+  /** Per-organisation default (ADR-038 amendment): which method the login page preselects. Both stay offered when Passport is available. */
+  defaultMethod?: "PASSWORD" | "PASSPORT";
+  passportAvailable?: boolean;
   passport: null | { issuer: string; clientId: string; authorizationEndpoint: string; scope: string; endSession: boolean };
 }
 
@@ -20,9 +23,9 @@ export async function s256(verifier: string): Promise<string> {
   return b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
 }
 
-export async function fetchAuthConfig(): Promise<AuthConfig> {
+export async function fetchAuthConfig(org?: string | null): Promise<AuthConfig> {
   try {
-    const res = await fetch("/api/v1/auth/config");
+    const res = await fetch(`/api/v1/auth/config${org ? `?org=${encodeURIComponent(org)}` : ""}`);
     if (!res.ok) throw new Error(String(res.status));
     return (await res.json()) as AuthConfig;
   } catch {
