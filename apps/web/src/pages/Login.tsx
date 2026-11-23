@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { lazy, Suspense, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,10 @@ import { KiorlyBrandLockup, KiorlyFootText, KxControlPair, LanguageToggle, Pulse
 import { KiorexLogo } from "@/brand/components";
 import { setLang } from "@/lib/i18n";
 import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
+
+// DEV ONLY quick-pick test users. Keep the condition inline: Vite folds `import.meta.env.DEV` to false in production builds, which drops the
+// dynamic import and the whole ../dev folder (asserted by scripts/check-no-dev-test-users.mjs).
+const DevTestUsers = import.meta.env.DEV && import.meta.env.VITE_DEV_TEST_USERS !== "false" ? lazy(() => import("@/dev/dev-test-users")) : null;
 
 function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
@@ -49,7 +53,8 @@ export function Login() {
   if (signedIn) return <Navigate to="/" replace />;
   const passport = cfg.data?.passport ?? null;
   const localLogin = cfg.data?.localLogin ?? true;
-  const submit = async (e: FormEvent) => { e.preventDefault(); setBusy(true); setErr(null); try { await login(email, password); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
+  const signInWith = async (em: string, pw: string) => { setBusy(true); setErr(null); try { await login(em, pw); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
+  const submit = async (e: FormEvent) => { e.preventDefault(); await signInWith(email, password); };
   return (
     <Shell title={t("auth.signIn")} subtitle={t("auth.signInLede")}>
       {passport ? (
@@ -65,6 +70,7 @@ export function Login() {
         <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? <Pulse size={16} loop /> : null}{t("auth.signIn")}</Button>
         <p className="text-center text-sm text-muted-foreground">{t("auth.noAccount")} <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">{t("auth.signUp")}</Link></p>
       </form> : null}
+      {DevTestUsers ? <Suspense fallback={null}><DevTestUsers busy={busy} onPick={(em, pw) => { setEmail(em); setPassword(pw); void signInWith(em, pw); }} /></Suspense> : null}
     </Shell>
   );
 }
