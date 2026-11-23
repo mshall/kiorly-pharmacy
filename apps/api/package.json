@@ -6,6 +6,7 @@
     "typecheck": "prisma generate && tsc --noEmit -p tsconfig.json",
     "build": "prisma generate && nest build",
     "dev": "nest start --watch",
+    "dev:kiorex": "KIOREX_MODE=real FLAGS_POLL_ENABLED=true FLAGS_POLL_INTERVAL_MS=1500 OUTBOX_POLL_INTERVAL_MS=1000 nest start --watch",
     "start": "node dist/main.js",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev && prisma generate",

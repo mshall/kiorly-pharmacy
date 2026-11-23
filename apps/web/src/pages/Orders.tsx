@@ -14,6 +14,8 @@ import type { Order } from "@/lib/types";
 const TONE: Record<string, KTone> = { RECEIVED: "warn", ACCEPTED: "info", PARTIALLY_ACCEPTED: "info", READY: "good", DISPENSED: "neutral", REJECTED: "bad", CANCELLED: "bad", EXPIRED: "bad" };
 const FLOW = ["RECEIVED", "ACCEPTED", "READY", "DISPENSED"] as const;
 const REASONS = ["outOfStock", "rxInvalid", "cannotDeliver", "other"] as const;
+/** Machine code sent to Kiorex with the free-text reason, so the patient sees a localised explanation. */
+const REASON_CODE: Record<string, string> = { outOfStock: "OUT_OF_STOCK", rxInvalid: "RX_INVALID", cannotDeliver: "CANNOT_DELIVER" };
 type View = "open" | "progress" | "closed" | "all";
 const shortId = (id: string) => (id.length > 14 ? `${id.slice(0, 6)}…${id.slice(-6)}` : id);
 const isOpen = (o: Order) => o.status === "RECEIVED";
@@ -80,8 +82,9 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
     <article aria-label={`#${o.externalOrderId}`} className="flex flex-col rounded-xl border border-border/80 bg-card p-5 shadow-kx-1 transition-shadow duration-150 hover:shadow-kx-2">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div><h2 className="text-base font-semibold tracking-tight" title={o.externalOrderId}><bdi>#{shortId(o.externalOrderId)}</bdi></h2><p className="mt-0.5 text-sm text-muted-foreground">{o.customerName ?? t("ord.guest")} · <span className="kx-num">{fmtNum(units)} {t("ord.units")}</span></p></div>
-        <div className="flex flex-col items-end gap-1.5"><div className="flex gap-1.5">{o.hasRx && <Badge tone="info">Rx</Badge>}<StatusChip tone={TONE[o.status] ?? "neutral"}>{t(`ordStatus.${o.status}`)}</StatusChip></div><div className="kx-num text-lg font-semibold">{fmtMoney(o.orderValue)}</div></div>
+        <div className="flex flex-col items-end gap-1.5"><div className="flex gap-1.5">{o.deliveryMethod && <span data-testid="order-method"><Badge tone="neutral">{t(`ord.method.${o.deliveryMethod}`)}</Badge></span>}{o.hasRx && <Badge tone="info">Rx</Badge>}<StatusChip tone={TONE[o.status] ?? "neutral"}>{t(`ordStatus.${o.status}`)}</StatusChip></div><div className="kx-num text-lg font-semibold">{fmtMoney(o.orderValue)}</div></div>
       </header>
+      {o.deliveryMethod === "DELIVERY" && (o.deliveryAddress || o.customerPhone) && <p className="mt-3 rounded-lg bg-muted/60 p-3 text-sm" data-testid="order-delivery"><span className="font-medium">{t("ord.deliverTo")}: </span><bdi>{o.deliveryAddress}</bdi>{o.customerPhone && <span className="ms-2 text-muted-foreground">{t("ord.phone")}: <bdi dir="ltr" className="kx-num">{o.customerPhone}</bdi></span>}</p>}
       <Timeline status={o.status} />
       <Sla order={o} />
       <ul className="mt-4 divide-y divide-border/70 rounded-lg border border-border/70 text-sm">
@@ -99,7 +102,7 @@ function OrderCard({ o, onAccept, onReject, onReady, busy }: { o: Order; onAccep
       {can("orders.respond") && (o.status === "RECEIVED" || isProgress(o)) && (
         <footer className="mt-4 flex flex-wrap gap-2 border-t border-border/70 pt-4">
           {o.status === "RECEIVED" && <><Button onClick={() => onAccept(o)} disabled={busy}><Check aria-hidden className="size-4" />{t("ord.accept")}</Button><Button variant="outline" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
-          {isProgress(o) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-medium shadow-kx-1 hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}<ArrowRight aria-hidden className="size-4 rtl:rotate-180" /></Link>}{o.status !== "READY" && <Button onClick={() => onReady(o)} disabled={busy}>{t("ord.ready")}</Button>}<Button variant="ghost" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
+          {isProgress(o) && <>{o.dispensingId && <Link className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-input bg-card px-4 text-sm font-medium shadow-kx-1 hover:bg-accent" to={`/dispensing/${o.dispensingId}`}>{t("ord.openDispensing")}<ArrowRight aria-hidden className="size-4 rtl:rotate-180" /></Link>}{o.status !== "READY" && <Button onClick={() => onReady(o)} disabled={busy}>{o.deliveryMethod === "DELIVERY" ? t("ord.readyDelivery") : t("ord.ready")}</Button>}<Button variant="ghost" onClick={() => onReject(o)} className="text-[hsl(var(--danger-text))]">{t("ord.reject")}</Button></>}
         </footer>
       )}
     </article>
@@ -147,14 +150,14 @@ export function Orders() {
   const { t } = useTranslation();
   const qc = useQueryClient(); const toast = useToast();
   const res = useQuery({ queryKey: ["orders"], queryFn: () => api<Order[]>("/kiorex-orders"), refetchInterval: 15_000 });
-  const [rej, setRej] = useState<Order | null>(null); const [reason, setReason] = useState(""); const [acc, setAcc] = useState<Order | null>(null);
+  const [rej, setRej] = useState<Order | null>(null); const [reason, setReason] = useState(""); const [reasonCode, setReasonCode] = useState("PHARMACY_REJECTED"); const [acc, setAcc] = useState<Order | null>(null);
   const [sp, setSp] = useSearchParams(); const [limit, setLimit] = useState(12);
   const qv = sp.get("view") as View | null; const view: View = qv && ["open", "progress", "closed", "all"].includes(qv) ? qv : "open";
   const setView = (v: View) => setSp({ view: v }, { replace: true });
   const refresh = () => void qc.invalidateQueries({ queryKey: ["orders"] });
   const accept = useMutation({ mutationFn: (v: { id: string; lines: Array<{ lineId: string; qtyAccepted: number }> }) => api(`/kiorex-orders/${v.id}/accept`, { body: { lines: v.lines } }), onSuccess: () => { toast(t("common.saved")); setAcc(null); refresh(); } });
   const ready = useMutation({ mutationFn: (id: string) => api(`/kiorex-orders/${id}/ready`, { body: {} }), onSuccess: () => { toast(t("common.saved")); refresh(); } });
-  const reject = useMutation({ mutationFn: () => api(`/kiorex-orders/${rej!.id}/reject`, { body: { reason, reasonCode: "PHARMACY_REJECTED" } }), onSuccess: () => { setRej(null); setReason(""); refresh(); } });
+  const reject = useMutation({ mutationFn: () => api(`/kiorex-orders/${rej!.id}/reject`, { body: { reason, reasonCode } }), onSuccess: () => { setRej(null); setReason(""); setReasonCode("PHARMACY_REJECTED"); refresh(); } });
   if (res.error instanceof ApiError && res.error.featureDisabled) return <Card><p>{t("errors.featureDisabled", { key: "pharmacy.kiorex_orders" })}</p></Card>;
   const all = res.data ?? [];
   const counts = { open: all.filter(isOpen).length, progress: all.filter(isProgress).length, closed: all.filter((o) => !isOpen(o) && !isProgress(o)).length };
@@ -180,8 +183,8 @@ export function Orders() {
       <AcceptModal order={acc} onClose={() => setAcc(null)} onSubmit={(lines) => accept.mutate({ id: acc!.id, lines })} busy={accept.isPending} error={accept.error} />
       <Modal open={!!rej} onClose={() => setRej(null)} title={t("ord.reject")}>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); reject.mutate(); }}>
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t("ord.quickReasons")}>{REASONS.filter((r) => r !== "other").map((r) => <button key={r} type="button" onClick={() => setReason(t(`ord.reasons.${r}`))} className="min-h-8 rounded-full border border-border bg-card px-3 text-sm hover:bg-accent">{t(`ord.reasons.${r}`)}</button>)}</div>
-          <Field label={t("common.reason")} hint={t("ord.rejectHint")}>{(id) => <Input id={id} required minLength={3} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t("ord.quickReasons")}>{REASONS.filter((r) => r !== "other").map((r) => <button key={r} type="button" onClick={() => { setReason(t(`ord.reasons.${r}`)); setReasonCode(REASON_CODE[r] ?? "PHARMACY_REJECTED"); }} className="min-h-8 rounded-full border border-border bg-card px-3 text-sm hover:bg-accent">{t(`ord.reasons.${r}`)}</button>)}</div>
+          <Field label={t("common.reason")} hint={t("ord.rejectHint")}>{(id) => <Input id={id} required minLength={3} value={reason} onChange={(e) => { setReason(e.target.value); setReasonCode("PHARMACY_REJECTED"); }} />}</Field>
           <ErrorNote error={reject.error} /><div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setRej(null)}>{t("common.cancel")}</Button><Button type="submit" variant="danger" disabled={reject.isPending}>{t("ord.reject")}</Button></div>
         </form>
       </Modal>

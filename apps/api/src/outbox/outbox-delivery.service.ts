@@ -25,11 +25,20 @@ export class OutboxDeliveryService implements OnModuleInit, OnModuleDestroy {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   onModuleInit() {
+    this.announceMode();
     if (process.env.OUTBOX_POLL_ENABLED !== "false" && process.env.NODE_ENV !== "test") {
       this.timer = setInterval(() => void this.deliverDue().catch((e) => this.log.warn(String(e))), Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 5000));
       this.timer.unref();
     }
   }
+  /** Say loudly how outbox events leave this process: mock mode marks them SENT without any network call, so a Kiorex patient order never moves (a silent trap in local dev). */
+  private announceMode() {
+    const flagsPolling = process.env.FLAGS_POLL_ENABLED === "true";
+    if (kiorexMode() === "real") this.log.log(`Kiorex outbox delivery: real (flag polling ${flagsPolling ? "on" : "OFF"})`);
+    else this.log.warn("KIOREX_MODE=mock: outbox events are verified locally and marked SENT WITHOUT reaching Kiorex, so patient orders will not move past SUBMITTED. Set KIOREX_MODE=real FLAGS_POLL_ENABLED=true (npm run dev:kiorex, or e2e/scripts/up.sh) for the full chain.");
+    if (!flagsPolling) this.log.warn("FLAGS_POLL_ENABLED is not true: Kiorex flag changes (pharmacy.kiorex_orders, ...) reach this API only through the signed push.");
+  }
+
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
   /** Per-tenant delivery target; env values are the single-tenant dev fallback. */

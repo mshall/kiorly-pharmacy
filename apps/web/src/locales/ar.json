@@ -908,7 +908,15 @@
       "cannotDeliver": "لا يمكن التنفيذ في الوقت المناسب",
       "other": "سبب آخر"
     },
-    "showMore": "عرض المزيد (المتبقي {{count}})"
+    "showMore": "عرض المزيد (المتبقي {{count}})",
+    "readyDelivery": "جاهز للتوصيل",
+    "method": {
+      "PICKUP": "استلام من الصيدلية",
+      "DELIVERY": "توصيل"
+    },
+    "deliverTo": "التوصيل إلى",
+    "prepaid": "مدفوع مسبقًا على كيوريكس",
+    "phone": "الهاتف"
   },
   "ordStatus": {
     "RECEIVED": "جديد",

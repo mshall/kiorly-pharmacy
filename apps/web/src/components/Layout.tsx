@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { setLang } from "@/lib/i18n";
 import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
+import { routeDeniedReason } from "@/lib/route-access";
 import { api } from "@/lib/api";
 import { KiorlyBrandLockup, KxControlPair, LanguageToggle, ThemeToggle } from "@/brand/ui-kit";
 import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
@@ -47,6 +48,9 @@ export function Layout() {
     { to: "/audit", label: t("nav.audit"), perm: "audit.read", icon: ScrollText, group: "admin" },
     { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings, group: "admin" },
   ];
+  const { pathname } = useLocation();
+  // Direct-URL guard: a route whose nav entry is hidden for this user must say so, not sit on a skeleton fed by a 403.
+  const routeDenied = me ? routeDeniedReason(pathname, all, can, flag) : null;
   const items = all.filter((i) => (!i.perm || can(i.perm)) && (!i.flag || flag(i.flag)));
   const groups = ["", "counter", "clinical", "stock", "money", "admin"].map((g) => ({ g, items: items.filter((i) => i.group === g) })).filter((x) => x.items.length);
 
@@ -88,7 +92,15 @@ export function Layout() {
             <Button variant="outline" size="sm" onClick={logout}>{t("auth.logout")}</Button>
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="p-4 md:p-6"><Outlet /></main>
+        <main id="main" tabIndex={-1} className="p-4 md:p-6">
+          {routeDenied ? (
+            <div role="alert" data-testid="route-denied" className="mx-auto mt-16 max-w-md space-y-3 text-center">
+              <h1 className="text-xl font-semibold">{routeDenied === "flag" ? t("common.featureOffTitle") : t("common.noAccessTitle")}</h1>
+              <p className="text-sm text-muted-foreground">{routeDenied === "flag" ? t("common.featureOffBody") : t("common.noAccessBody")}</p>
+              <Link to="/" className="inline-block text-sm font-medium text-primary underline-offset-2 hover:underline">{t("nav.dashboard")}</Link>
+            </div>
+          ) : <Outlet />}
+        </main>
       </div>
     </div>
   );

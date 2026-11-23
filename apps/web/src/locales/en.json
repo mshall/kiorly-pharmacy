@@ -908,7 +908,15 @@
       "cannotDeliver": "Cannot fulfil in time",
       "other": "Other"
     },
-    "showMore": "Show more ({{count}} left)"
+    "showMore": "Show more ({{count}} left)",
+    "readyDelivery": "Ready for dispatch",
+    "method": {
+      "PICKUP": "Pickup",
+      "DELIVERY": "Delivery"
+    },
+    "deliverTo": "Deliver to",
+    "prepaid": "Prepaid on Kiorex",
+    "phone": "Phone"
   },
   "ordStatus": {
     "RECEIVED": "New",
