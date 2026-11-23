@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsNumberString, IsOptional, IsString, Matches, Max, Min, MinLength, ValidateNested } from "class-validator";
+import { ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsNumberString, IsOptional, IsString, Matches, Max, Min, MaxLength, MinLength, ValidateIf, ValidateNested } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { CurrentUser, Perm, Public } from "../auth/decorators";
 import type { AuthUser } from "../auth/auth-user";
@@ -11,6 +11,8 @@ import { KERNEL, type EntitlementsPort, type MarketPackPort } from "../kernel-ad
 import { DomainError, conflict, notFound } from "../common/errors";
 import { RequiresFlag, RequiresFlagGuard } from "../feature-flags/requires-flag.guard";
 import { StaffRole } from "../generated/prisma/client";
+import { normalizePhone } from "../auth/passport";
+import { PassportSessions } from "../auth/passport-sessions.service";
 
 class BranchDto {
   @IsString() @MinLength(2) name!: string;
@@ -33,6 +35,8 @@ class StaffDto {
   @IsIn(Object.values(StaffRole)) role!: StaffRole;
   @IsOptional() @IsString() branchId?: string;
   @IsOptional() @IsString() pharmacistLicenceNo?: string;
+  /** E.164 (spaces/dashes tolerated); links this staff row to the person's Kiorex Passport on first Passport sign-in. */
+  @IsOptional() @IsString() @MaxLength(32) phone?: string;
 }
 class StaffPatchDto {
   @IsOptional() @IsString() displayName?: string;
@@ -41,6 +45,8 @@ class StaffPatchDto {
   @IsOptional() @IsString() pharmacistLicenceNo?: string;
   @IsOptional() @IsBoolean() active?: boolean;
   @IsOptional() @IsString() @MinLength(8) password?: string;
+  /** E.164, or null / "" to clear. */
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsString() @MaxLength(32) phone?: string | null;
 }
 class ReceiptSettingsDto {
   @IsOptional() @IsString() header?: string; @IsOptional() @IsString() footer?: string; @IsOptional() @IsBoolean() showVat?: boolean; @IsOptional() @IsBoolean() showLicence?: boolean;
@@ -91,7 +97,18 @@ export class TenancyController {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(KERNEL.entitlements) private readonly ent: EntitlementsPort,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
+    @Inject(PassportSessions) private readonly sessions: PassportSessions,
   ) {}
+
+  /** Staff phone: strict E.164 (formatting characters tolerated), unique inside the tenant. Returns null for "clear". Never logged. */
+  private async cleanPhone(orgId: string, raw: string | null | undefined, exceptId?: string): Promise<string | null> {
+    if (raw === null || raw === undefined || raw.trim() === "") return null;
+    const phone = normalizePhone(raw);
+    if (!phone) throw new DomainError("INVALID_PHONE", "Phone must be in international format, e.g. +201000002004", 400);
+    const clash = await this.prisma.staffUser.findFirst({ where: { orgId, phone, ...(exceptId ? { id: { not: exceptId } } : {}) }, select: { id: true } });
+    if (clash) throw conflict("PHONE_TAKEN", "Another staff member already uses this phone number");
+    return phone;
+  }
 
   /** Self-serve onboarding (Lite). `pharmacy.module` OFF => no new sign-ups (KX-08 §09). */
   @Post("onboarding/signup")
@@ -152,7 +169,7 @@ export class TenancyController {
   @Perm("staff.manage")
   async staff(@CurrentUser() u: AuthUser) {
     const rows = await this.prisma.staffUser.findMany({ where: { orgId: u.orgId }, orderBy: { displayName: "asc" } });
-    return rows.map(({ passwordHash: _p, ...s }) => s);
+    return rows.map(({ passwordHash: _p, subject, ...s }) => ({ ...s, passportLinked: !!subject }));
   }
 
   @Post("staff")
@@ -164,12 +181,13 @@ export class TenancyController {
     if (over) throw new DomainError("PLAN_LIMIT", `Your plan allows ${over.limit} users`, 402, over);
     if (dto.branchId && !(await this.prisma.branch.findFirst({ where: { id: dto.branchId, orgId: u.orgId } }))) throw notFound("Branch", dto.branchId);
     if (await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } })) throw conflict("EMAIL_TAKEN", "Email already registered");
+    const phone = await this.cleanPhone(u.orgId, dto.phone);
     const s = await this.prisma.staffUser.create({
-      data: { orgId: u.orgId, displayName: dto.displayName, email: dto.email.toLowerCase(), passwordHash: await hashPassword(dto.password), role: dto.role, branchId: dto.branchId, pharmacistLicenceNo: dto.pharmacistLicenceNo },
+      data: { orgId: u.orgId, displayName: dto.displayName, email: dto.email.toLowerCase(), passwordHash: await hashPassword(dto.password), role: dto.role, branchId: dto.branchId, pharmacistLicenceNo: dto.pharmacistLicenceNo, phone },
     });
-    await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "staff.create", entityType: "StaffUser", entityId: s.id, meta: { role: dto.role } });
-    const { passwordHash: _p, ...out } = s;
-    return out;
+    await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "staff.create", entityType: "StaffUser", entityId: s.id, meta: { role: dto.role, linkKeySet: !!phone } });
+    const { passwordHash: _p, subject, ...out } = s;
+    return { ...out, passportLinked: !!subject };
   }
 
   @Patch("staff/:id")
@@ -177,11 +195,25 @@ export class TenancyController {
   async patchStaff(@CurrentUser() u: AuthUser, @Param("id") id: string, @Body() dto: StaffPatchDto) {
     const s = await this.prisma.staffUser.findFirst({ where: { id, orgId: u.orgId } });
     if (!s) throw notFound("Staff", id);
-    const { password, ...rest } = dto;
-    const r = await this.prisma.staffUser.update({ where: { id }, data: { ...rest, ...(password ? { passwordHash: await hashPassword(password) } : {}) } });
-    await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "staff.update", entityType: "StaffUser", entityId: id, meta: { fields: Object.keys(dto).filter((k) => k !== "password"), passwordChanged: !!password } });
-    const { passwordHash: _p, ...out } = r;
-    return out;
+    if (id === u.userId && ((dto.active === false) || (dto.role && dto.role !== s.role))) throw conflict("CANNOT_CHANGE_SELF", "You cannot deactivate yourself or change your own role");
+    const role = dto.role ?? s.role;
+    const lic = dto.pharmacistLicenceNo ?? s.pharmacistLicenceNo;
+    if (role === "PHARMACIST" && !lic) throw new DomainError("LICENCE_REQUIRED", "Pharmacists need a syndicate licence number", 400);
+    if (dto.branchId && !(await this.prisma.branch.findFirst({ where: { id: dto.branchId, orgId: u.orgId } }))) throw notFound("Branch", dto.branchId);
+    const { password, phone: rawPhone, ...rest } = dto;
+    const phoneChange = rawPhone !== undefined ? { phone: await this.cleanPhone(u.orgId, rawPhone, id) } : {};
+    let r;
+    try {
+      r = await this.prisma.staffUser.update({ where: { id }, data: { ...rest, ...phoneChange, ...(password ? { passwordHash: await hashPassword(password) } : {}) } });
+    } catch (e) {
+      if ((e as { code?: string }).code === "P2002") throw conflict("PHONE_TAKEN", "Another staff member already uses this phone number");
+      throw e;
+    }
+    await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "staff.update", entityType: "StaffUser", entityId: id, meta: { fields: Object.keys(dto).filter((k) => k !== "password" && k !== "phone"), passwordChanged: !!password, linkKeyChanged: rawPhone !== undefined } });
+    // deactivating a staff member ends their Kiorex Passport web sessions straight away
+    if (dto.active === false && s.active) await this.sessions.revokeForStaff(id, "staff_deactivated");
+    const { passwordHash: _p, subject, ...out } = r;
+    return { ...out, passportLinked: !!subject };
   }
 
   @Get("settings")

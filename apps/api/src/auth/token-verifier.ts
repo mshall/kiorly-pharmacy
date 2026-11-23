@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { hasMfa, passportConfig, peekAlg, verifyPassportAccessToken } from "./passport";
 
@@ -11,15 +12,17 @@ export interface VerifiedToken {
   staffId?: string;
   /** Raw Passport access token (staff mobile app): `sub` maps to StaffUser.subject. */
   passport?: boolean;
+  /** Passport web session: the `PassportSession` row id (`jti`), checked against back-channel logout on every request. */
+  sessionId?: string;
 }
 
 export type AuthMode = "local" | "oidc";
 
 const key = () => new TextEncoder().encode(secret());
 function secret(): string {
-  const s = process.env.AUTH_JWT_SECRET;
+  const s = process.env.AUTH_JWT_SECRET || process.env.JWT_SECRET; // JWT_SECRET is what the infra secret injects
   if (s) return s;
-  if (process.env.NODE_ENV === "production") throw new Error("AUTH_JWT_SECRET is required in production");
+  if (process.env.NODE_ENV === "production") throw new Error("AUTH_JWT_SECRET (or JWT_SECRET) is required in production");
   return "dev-only-kiorly-pharmacy-secret-change-me";
 }
 export const authMode = (): AuthMode => (process.env.AUTH_MODE === "oidc" ? "oidc" : "local");
@@ -48,10 +51,11 @@ export class TokenVerifier {
   }
 
   /** Web session after Passport sign-in (the browser never holds the Passport tokens). */
-  async issueSession(staffId: string, mfa: boolean, ttlSeconds = 60 * 60 * 8): Promise<string> {
+  async issueSession(staffId: string, mfa: boolean, ttlSeconds = 60 * 60, sessionId?: string): Promise<string> {
     return new SignJWT({ amr: ["passport"], mfa })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(staffId)
+      .setJti(sessionId ?? randomUUID())
       .setIssuer(SESSION_ISSUER)
       .setAudience("kiorly-pharmacy")
       .setIssuedAt()
@@ -63,7 +67,8 @@ export class TokenVerifier {
     if (peekAlg(token) === "HS256") {
       const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"], issuer: [LOCAL_ISSUER, SESSION_ISSUER], audience: "kiorly-pharmacy" });
       if (payload.iss === LOCAL_ISSUER && authMode() !== "local") throw new Error("local tokens are disabled");
-      return { sub: String(payload.sub), staffId: String(payload.sub), mfa: payload.mfa === true, claims: payload };
+      if (payload.iss === SESSION_ISSUER && !payload.jti) throw new Error("session id missing");
+      return { sub: String(payload.sub), staffId: String(payload.sub), mfa: payload.mfa === true, claims: payload, ...(payload.iss === SESSION_ISSUER ? { sessionId: String(payload.jti) } : {}) };
     }
     const cfg = passportConfig();
     if (!cfg) throw new Error("Passport tokens are not accepted");

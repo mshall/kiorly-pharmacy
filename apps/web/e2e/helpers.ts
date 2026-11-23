@@ -20,7 +20,7 @@ export async function login(page: Page, email: string, lang: "en" | "ar" = "en")
   await page.goto("/login");
   await page.getByLabel(lang === "en" ? "Email" : "البريد الإلكتروني").fill(email);
   await page.getByLabel(lang === "en" ? "Password" : "كلمة المرور").fill(DEMO_PASSWORD);
-  await page.getByRole("button", { name: lang === "en" ? "Sign in" : "تسجيل الدخول" }).click();
+  await page.getByRole("button", { name: lang === "en" ? "Sign in" : "تسجيل الدخول", exact: true }).click(); // exact: the page also offers "Sign in with Kiorex Passport"
   await expect(page.getByRole("navigation")).toBeVisible();
 }
 

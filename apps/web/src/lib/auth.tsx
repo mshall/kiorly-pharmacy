@@ -3,6 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, getToken, setToken } from "@/lib/api";
 import type { Me } from "@/lib/types";
 import { takeEndSessionUrl } from "@/lib/passport";
+import { useToast } from "@/lib/toast";
+import { useTranslation } from "react-i18next";
 
 interface AuthCtx {
   me: Me | null;
@@ -22,11 +24,12 @@ export const useAuth = (): AuthCtx => { const c = useContext(Ctx); if (!c) throw
 
 const BRANCH_KEY = "kiorly.branch";
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const qc = useQueryClient();
+  const qc = useQueryClient(); const toast = useToast(); const { t } = useTranslation();
   const [token, setTok] = useState<string | null>(getToken());
   const [branch, setBranch] = useState<string | null>(() => { try { return localStorage.getItem(BRANCH_KEY); } catch { return null; } });
-  const meQ = useQuery({ queryKey: ["me", token], queryFn: () => api<Me>("/auth/me"), enabled: !!token, retry: false, staleTime: 60_000 });
-  useEffect(() => { const h = () => { setTok(null); qc.clear(); takeEndSessionUrl(); }; window.addEventListener("kiorly:unauthorized", h); return () => window.removeEventListener("kiorly:unauthorized", h); }, [qc]);
+  // re-check every minute: a session Passport ended (back-channel logout) or a deactivated account leaves the app within a minute even when idle
+  const meQ = useQuery({ queryKey: ["me", token], queryFn: () => api<Me>("/auth/me"), enabled: !!token, retry: false, staleTime: 60_000, refetchInterval: 60_000 });
+  useEffect(() => { const h = (e: Event) => { setTok(null); qc.clear(); takeEndSessionUrl(); if ((e as CustomEvent<{ code?: string }>).detail?.code === "SESSION_REVOKED") toast(t("errors.codes.SESSION_REVOKED")); }; window.addEventListener("kiorly:unauthorized", h); return () => window.removeEventListener("kiorly:unauthorized", h); }, [qc, toast, t]);
   const login = useCallback(async (email: string, password: string) => {
     const r = await api<{ accessToken: string }>("/auth/login", { body: { email, password } });
     setToken(r.accessToken); setTok(r.accessToken); await qc.invalidateQueries();

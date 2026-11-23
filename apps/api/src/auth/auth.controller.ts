@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, Post, Res, UnauthorizedException } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
@@ -13,6 +14,7 @@ import { FLAG_DEFINITIONS } from "../feature-flags/feature-flag-keys";
 import { AuditService } from "../audit/audit.service";
 import { DomainError } from "../common/errors";
 import { PassportService } from "./passport.service";
+import { PassportSessions } from "./passport-sessions.service";
 
 class LoginDto {
   @IsEmail() email!: string;
@@ -45,6 +47,7 @@ export class AuthController {
     @Inject(PermissionsService) private readonly perms: PermissionsService,
     @Inject(TenantModeService) private readonly modes: TenantModeService,
     @Inject(PassportService) private readonly passport: PassportService,
+    @Inject(PassportSessions) private readonly sessions: PassportSessions,
   ) {}
 
   /** Login page configuration: is the password form offered, and is Kiorex Passport (OIDC + PKCE) available. Nothing secret. */
@@ -61,6 +64,19 @@ export class AuthController {
   exchange(@Body() dto: OidcExchangeDto) {
     throttle(`oidc:${dto.codeVerifier.slice(0, 12)}`);
     return this.passport.exchange(dto);
+  }
+
+  /**
+   * OIDC Back-Channel Logout receiver (registered as `backchannel_logout_uri` of the Passport client kiorly-pharmacy-web).
+   * Public by design: the signed `logout_token` is the credential. 200 = processed (idempotent per sid); 400 = invalid or replayed.
+   */
+  @Post("oidc/backchannel-logout")
+  @Public()
+  @HttpCode(200)
+  async backchannelLogout(@Body("logout_token") logoutToken: unknown, @Res({ passthrough: true }) res: Response) {
+    res.setHeader("Cache-Control", "no-store");
+    await this.sessions.backchannelLogout(logoutToken);
+    return {};
   }
 
   /** AUTH_MODE=local only (dev/demo/E2E). In AUTH_MODE=oidc sign-in happens at Kiorex Passport and this route is 404-equivalent. */

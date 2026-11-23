@@ -4,56 +4,16 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Building2, Cog, Database, Globe, Inbox, Printer, ShieldCheck, Store, Users } from "lucide-react";
-import { Avatar, Button, Card, Empty, ErrorNote, Field, Input, Modal, PageHeader, Select, Switch, Table, Tabs, Td } from "@/components/ui";
+import { Button, Card, Empty, ErrorNote, Field, Input, PageHeader, Switch, Table, Tabs, Td } from "@/components/ui";
 import { StatusChip, TableSkeleton } from "@/brand/ui-kit";
 import { fmtDateTime } from "@/lib/format";
 import { useToast } from "@/lib/toast";
-import type { Role } from "@/lib/types";
+import { StaffManagement } from "@/pages/settings/StaffManagement";
 import { DataTab, ModeCard, ReceiptTab, RegionalTab, RolesMatrixTab } from "@/pages/settings/SettingsMore";
 
 const Badge = ({ tone = "neutral", children }: { tone?: "neutral" | "good" | "bad" | "warn" | "info"; children: React.ReactNode }) => <StatusChip tone={tone}>{children}</StatusChip>;
 
-interface Staff { id: string; displayName: string; email: string | null; role: Role; branchId: string | null; pharmacistLicenceNo: string | null; active: boolean }
 interface Branch { id: string; name: string; code: string | null; licenceNo: string | null; active: boolean }
-const ROLES: Role[] = ["OWNER", "PHARMACIST", "BRANCH_MANAGER", "CASHIER", "ASSISTANT", "CHAIN_OPS"];
-
-function StaffTab() {
-  const { t } = useTranslation();
-  const qc = useQueryClient(); const toast = useToast(); const { me } = useAuth();
-  const staff = useQuery({ queryKey: ["staff"], queryFn: () => api<Staff[]>("/staff") });
-  const branches = useQuery({ queryKey: ["branches"], queryFn: () => api<Branch[]>("/branches") });
-  const [open, setOpen] = useState(false); const [f, setF] = useState({ displayName: "", email: "", password: "", role: "CASHIER" as Role, branchId: "", pharmacistLicenceNo: "" });
-  const create = useMutation({ mutationFn: () => api("/staff", { body: { ...f, branchId: f.branchId || undefined, pharmacistLicenceNo: f.pharmacistLicenceNo || undefined } }), onSuccess: () => { toast(t("common.saved")); setOpen(false); void qc.invalidateQueries({ queryKey: ["staff"] }); } });
-  const toggle = useMutation({ mutationFn: (s: Staff) => api(`/staff/${s.id}`, { method: "PATCH", body: { active: !s.active } }), onSuccess: () => void qc.invalidateQueries({ queryKey: ["staff"] }) });
-  return (
-    <Card title={t("set.staff")} actions={<Button size="sm" onClick={() => setOpen(true)}>{t("set.addStaff")}</Button>}>
-      <p className="mb-4 text-sm text-muted-foreground">{t("set.rbacNote")}</p>
-      <ErrorNote error={toggle.error} />
-      {staff.isLoading ? <TableSkeleton rows={5} cols={5} /> : (
-        <Table head={[t("sup.name"), t("set.role"), t("common.branch"), t("set.licence"), t("common.status"), ""]} empty={!staff.data?.length ? <Empty>{t("common.none")}</Empty> : null}>
-          {staff.data?.map((s) => <tr key={s.id} className={s.active ? undefined : "opacity-60"}>
-            <Td><div className="flex items-center gap-3"><Avatar name={s.displayName} /><div className="min-w-0"><div className="font-medium leading-tight">{s.displayName}{s.id === me?.user.id && <span className="ms-2 text-xs font-normal text-muted-foreground">({t("set.you")})</span>}</div><div className="text-xs text-muted-foreground" dir="ltr">{s.email}</div></div></div></Td>
-            <Td><Badge tone={s.role === "OWNER" ? "info" : "neutral"}>{t(`roles.${s.role}`)}</Badge></Td>
-            <Td>{branches.data?.find((b) => b.id === s.branchId)?.name ?? <span className="text-muted-foreground">{t("set.allBranches")}</span>}</Td>
-            <Td className="font-mono text-xs">{s.pharmacistLicenceNo ?? "—"}</Td>
-            <Td><Badge tone={s.active ? "good" : "bad"}>{s.active ? t("set.active") : t("set.inactive")}</Badge></Td>
-            <Td className="text-end"><Button size="sm" variant="outline" disabled={s.id === me?.user.id} onClick={() => toggle.mutate(s)}>{s.active ? t("set.deactivate") : t("set.activate")}</Button></Td></tr>)}
-        </Table>
-      )}
-      <Modal open={open} onClose={() => setOpen(false)} title={t("set.addStaff")}>
-        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
-          <Field label={t("sup.name")}>{(id) => <Input id={id} required value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} />}</Field>
-          <Field label={t("auth.email")}>{(id) => <Input id={id} type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}</Field>
-          <Field label={t("auth.password")} hint={t("auth.passwordHint")}>{(id) => <Input id={id} type="password" required minLength={8} autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />}</Field>
-          <Field label={t("set.role")}>{(id) => <Select id={id} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}</Select>}</Field>
-          <Field label={t("common.branch")}>{(id) => <Select id={id} value={f.branchId} onChange={(e) => setF({ ...f, branchId: e.target.value })}><option value="">{t("set.allBranches")}</option>{branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>}</Field>
-          {f.role === "PHARMACIST" && <Field label={t("set.licence")} hint={t("set.licenceHint")}>{(id) => <Input id={id} required value={f.pharmacistLicenceNo} onChange={(e) => setF({ ...f, pharmacistLicenceNo: e.target.value })} />}</Field>}
-          <ErrorNote error={create.error} /><Button type="submit" disabled={create.isPending}>{t("common.save")}</Button>
-        </form>
-      </Modal>
-    </Card>
-  );
-}
 
 function BranchesTab() {
   const { t } = useTranslation();
@@ -147,7 +107,7 @@ export function Settings() {
       <PageHeader title={t("set.title")} subtitle={t("set.subtitle")} />
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "pharmacy" && <PharmacyTab />}{tab === "staff" && <StaffTab />}{tab === "roles" && <RolesMatrixTab />}{tab === "receipt" && <ReceiptTab />}{tab === "regional" && <RegionalTab />}{tab === "data" && <DataTab />}{tab === "branches" && <BranchesTab />}{tab === "marketplace" && <MarketplaceTab />}{tab === "system" && <SystemTab />}
+        {tab === "pharmacy" && <PharmacyTab />}{tab === "staff" && <StaffManagement />}{tab === "roles" && <RolesMatrixTab />}{tab === "receipt" && <ReceiptTab />}{tab === "regional" && <RegionalTab />}{tab === "data" && <DataTab />}{tab === "branches" && <BranchesTab />}{tab === "marketplace" && <MarketplaceTab />}{tab === "system" && <SystemTab />}
       </div>
     </>
   );

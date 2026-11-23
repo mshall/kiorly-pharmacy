@@ -309,8 +309,49 @@ model StaffUser {
   tenant Tenant @relation(fields: [orgId], references: [id])
 
   @@unique([orgId, subject])
+  @@unique([orgId, phone])
   @@index([orgId, role])
   @@index([phone])
+}
+
+/// A staff web session started with Kiorex Passport. The product session JWT carries this row id (`jti`); a back-channel logout (or
+/// deactivating the staff member) sets `revokedAt`, which ends the session at the next request. Identity only: no tokens are stored.
+model PassportSession {
+  id            String    @id @default(cuid())
+  orgId         String
+  staffId       String
+  /// Passport subject (`sub`) and session id (`sid` of the id_token) that a logout_token refers to.
+  sub           String
+  sid           String?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+
+  @@index([sid])
+  @@index([sub])
+  @@index([staffId])
+}
+
+/// Back-channel logout record for raw Passport access tokens (staff mobile app): a token whose `sid` (or `sub`, issued before `revokedAt`) is listed is refused.
+model PassportRevocation {
+  id        String   @id @default(cuid())
+  /// SID | SUB
+  kind      String
+  value     String
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([kind, value])
+}
+
+/// jti of every accepted logout_token (replay protection, shared by all API instances). Rows are purged after the token's own expiry.
+model LogoutTokenSeen {
+  jti       String   @id
+  seenAt    DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }
 
 // ------------------------------------------------------------- catalogue ----
@@ -1234,11 +1275,11 @@ model KiorexOrder {
   rejectionReason String?
   rejectionCode   String?
   readyAt         DateTime?
+  /// 1.8.0: set when a DELIVERY order is handed to the courier (OrderOutForDelivery).
+  outForDeliveryAt DateTime?
   dispensingId    String?
   /// Kiorex patient subject (opaque ref; also the Rx patient externalId). Never shown outside the order.
   patientRef      String?
-  /// 1.8.0: set when a DELIVERY order is handed to the courier (OrderOutForDelivery).
-  outForDeliveryAt DateTime?
   /// PICKUP | DELIVERY as chosen in Kiorex.
   deliveryMethod  String?
   /// Kiorex Pay payment reference (reconciliation only).

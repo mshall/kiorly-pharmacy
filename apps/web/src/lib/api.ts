@@ -36,7 +36,7 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
   const text = await res.text();
   const data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
   if (!res.ok) {
-    if (res.status === 401 && token) { setToken(null); window.dispatchEvent(new Event("kiorly:unauthorized")); }
+    if (res.status === 401 && token) { setToken(null); window.dispatchEvent(new CustomEvent("kiorly:unauthorized", { detail: { code: String(data.code ?? "") } })); }
     throw new ApiError(res.status, String(data.code ?? "ERROR"), String(data.message ?? res.statusText), data.details, data);
   }
   return data as T;

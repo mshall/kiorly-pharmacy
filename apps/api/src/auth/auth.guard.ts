@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { IS_PUBLIC, REQUIRES_PERM } from "./decorators";
 import { authMode, TokenVerifier } from "./token-verifier";
 import { PassportService } from "./passport.service";
+import { PassportSessions } from "./passport-sessions.service";
 import { passportConfig } from "./passport";
 import { PRIVILEGED_ROLES, type Permission } from "./permissions";
 import { PermissionsService } from "./permissions.service";
@@ -24,6 +25,7 @@ export class AuthGuard implements CanActivate {
     @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
     @Inject(PermissionsService) private readonly perms: PermissionsService,
     @Optional() @Inject(PassportService) private readonly passport?: PassportService,
+    @Optional() @Inject(PassportSessions) private readonly sessions?: PassportSessions,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -37,6 +39,11 @@ export class AuthGuard implements CanActivate {
       verified = await this.tokens.verify(header.slice(7));
     } catch {
       throw new UnauthorizedException({ statusCode: 401, code: "INVALID_TOKEN", message: "Invalid or expired token" });
+    }
+    // a Passport web session ends with the Passport session (back-channel logout); raw Passport access tokens (staff app) are checked by sid/sub
+    if (this.sessions) {
+      if (verified.sessionId) await this.sessions.assertActive(verified.sessionId);
+      else if (verified.passport) await this.sessions.assertBearerActive(verified.claims as never);
     }
     // product tokens carry the staff id; a raw Passport access token (staff mobile app) maps by subject, linking by verified phone on first login
     const cfg = verified.passport ? passportConfig() : null;

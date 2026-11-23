@@ -1,8 +1,9 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { DomainError } from "../common/errors";
 import { TokenVerifier } from "./token-verifier";
+import { PassportSessions } from "./passport-sessions.service";
 import { discover, hasMfa, normalizePhone, passportConfig, verifyPassportAccessToken, verifyPassportIdToken, type PassportClaims, type PassportConfig } from "./passport";
 
 export interface ExchangeInput { code: string; codeVerifier: string; redirectUri: string; nonce: string }
@@ -18,6 +19,7 @@ export class PassportService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
+    @Optional() @Inject(PassportSessions) private readonly sessions?: PassportSessions,
   ) {}
 
   /** Public config for the web login page (nothing secret). */
@@ -85,6 +87,9 @@ export class PassportService {
     const endSessionUrl = d.end_session_endpoint
       ? `${d.end_session_endpoint}?${new URLSearchParams({ id_token_hint: idToken, post_logout_redirect_uri: `${origin}/` })}`
       : undefined;
-    return { accessToken: await this.tokens.issueSession(staff.id, hasMfa(access)), ...(endSessionUrl ? { endSessionUrl } : {}) };
+    // one server-side row per web sign-in: a back-channel logout from Passport ends it, and it expires after the (short) max age
+    const ttl = cfg.sessionMaxAgeSeconds;
+    const row = await this.sessions?.open(staff, { sub: access.sub!, sid: typeof idClaims.sid === "string" ? idClaims.sid : undefined }, ttl);
+    return { accessToken: await this.tokens.issueSession(staff.id, hasMfa(access), ttl, row?.id), expiresIn: ttl, ...(endSessionUrl ? { endSessionUrl } : {}) };
   }
 }
