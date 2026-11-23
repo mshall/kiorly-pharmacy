@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Res, UnauthorizedException } from "@nestjs/common";
 import type { Response } from "express";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
@@ -15,6 +15,8 @@ import { AuditService } from "../audit/audit.service";
 import { DomainError } from "../common/errors";
 import { PassportService } from "./passport.service";
 import { PassportSessions } from "./passport-sessions.service";
+import { HandoffCodes, HandoffError, isHomeOrigin, webBaseUrl } from "./handoff";
+import { PrismaHandoffStore } from "./handoff.store";
 
 class LoginDto {
   @IsEmail() email!: string;
@@ -26,6 +28,14 @@ class OidcExchangeDto {
   @IsString() @MinLength(43) @MaxLength(128) codeVerifier!: string;
   @IsString() @MaxLength(512) redirectUri!: string;
   @IsString() @MaxLength(256) nonce!: string;
+}
+
+class HandoffLoginDto {
+  @IsEmail() email!: string;
+  @IsString() @MinLength(1) @MaxLength(256) password!: string;
+}
+class HandoffExchangeDto {
+  @IsString() @MaxLength(128) code!: string;
 }
 
 const attempts = new Map<string, { n: number; t: number }>();
@@ -48,7 +58,9 @@ export class AuthController {
     @Inject(TenantModeService) private readonly modes: TenantModeService,
     @Inject(PassportService) private readonly passport: PassportService,
     @Inject(PassportSessions) private readonly sessions: PassportSessions,
+    @Inject(PrismaHandoffStore) private readonly handoffStore: PrismaHandoffStore,
   ) {}
+  private handoffCodes() { return new HandoffCodes(this.handoffStore, "pharmacy"); }
 
   /** Login page configuration: is the password form offered, and is Kiorex Passport (OIDC + PKCE) available. Nothing secret. */
   @Get("config")
@@ -90,6 +102,42 @@ export class AuthController {
     if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id });
+    return { accessToken: await this.tokens.issueLocal(staff.id) };
+  }
+
+  /**
+   * Kiorly Home password sign-in, step 1 (ADR-038 handoff). Same checks, throttle and audit as `login`, but the answer is a single-use
+   * 30-second code (never a token) plus where to send the browser. Only the Kiorly Home origin may call it (Origin header allow-list).
+   */
+  @Post("handoff/login")
+  @Public()
+  @HttpCode(200)
+  async handoffLogin(@Body() dto: HandoffLoginDto, @Headers("origin") origin: string | undefined, @Res({ passthrough: true }) res: Response) {
+    res.setHeader("Cache-Control", "no-store");
+    if (!isHomeOrigin(origin)) throw new DomainError("HANDOFF_ORIGIN_NOT_ALLOWED", "This sign-in start is not allowed from here", 403);
+    if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
+    throttle(dto.email.toLowerCase());
+    const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
+    if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
+    const { code, expiresInSeconds } = await this.handoffCodes().issue({ subjectId: staff.id, origin: origin! });
+    await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.handoff_issued", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home" } });
+    const web = webBaseUrl();
+    return { status: "OK", code, expiresInSeconds, redirectUrl: web ? `${web}/login?handoff=${encodeURIComponent(code)}&from=kiorly-home` : null };
+  }
+
+  /** Kiorly Home password sign-in, step 2: the product web redeems the code once and receives the normal login result. Replays and expired codes: 401. */
+  @Post("handoff/exchange")
+  @Public()
+  @HttpCode(200)
+  async handoffExchange(@Body() dto: HandoffExchangeDto, @Res({ passthrough: true }) res: Response) {
+    res.setHeader("Cache-Control", "no-store");
+    let subjectId: string;
+    try { ({ subjectId } = await this.handoffCodes().redeem({ code: dto.code })); }
+    catch (e) { if (e instanceof HandoffError) throw new UnauthorizedException({ statusCode: 401, code: e.code, message: e.message }); throw e; }
+    const staff = await this.prisma.staffUser.findUnique({ where: { id: subjectId } });
+    if (!staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "HANDOFF_INVALID", message: "The sign-in link is invalid or expired. Sign in again." });
+    await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
+    await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home-handoff" } });
     return { accessToken: await this.tokens.issueLocal(staff.id) };
   }
 

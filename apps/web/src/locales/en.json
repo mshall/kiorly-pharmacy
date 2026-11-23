@@ -85,7 +85,10 @@
     "passportHint": "Uses your verified phone number. Your owner links it to your staff account.",
     "passportOr": "or use your pharmacy e-mail and password",
     "passportBusy": "Signing you in with Kiorex Passport…",
-    "passportFailed": "Kiorex Passport sign-in failed"
+    "passportFailed": "Kiorex Passport sign-in failed",
+    "handoffBusy": "Signing you in…",
+    "handoffFailed": "We could not complete the sign-in from Kiorly. Sign in below.",
+    "handoffReason": {"mfa": "Your account uses a second factor. Sign in here to enter the code.", "password_expired": "Your password has expired. Sign in here to set a new one.", "org": "Choose your organisation here to continue.", "other": "Sign in here to continue."}
   },
   "roles": {
     "OWNER": "Owner",

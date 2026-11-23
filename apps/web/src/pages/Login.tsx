@@ -9,7 +9,7 @@ import { KiorlyBrandLockup, KiorlyFootText, KxControlPair, LanguageToggle, Pulse
 import { KiorexLogo } from "@/brand/components";
 import { setLang } from "@/lib/i18n";
 import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
-import { currentNavigationType, wantsPassportAutostart } from "@/lib/kiorly-home";
+import { currentNavigationType, readHandoff, wantsPassportAutostart, withoutHandoff } from "@/lib/kiorly-home";
 import { rememberSignInMethod } from "@/lib/sign-in-method";
 import { SignInMethodTabs } from "@/components/sign-in-method-tabs";
 import { useSignInMethod } from "@/components/use-sign-in-method";
@@ -49,7 +49,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
 
 export function Login() {
   const { t, i18n } = useTranslation();
-  const { login, signedIn } = useAuth();
+  const { login, signedIn, adoptSession } = useAuth();
   const nav = useNavigate();
   const cfg = useQuery({ queryKey: ["auth-config"], queryFn: fetchAuthConfig, staleTime: 60_000 });
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
@@ -60,10 +60,25 @@ export function Login() {
   const sim = useSignInMethod(cfg.isPending ? undefined : passport !== null);
   // Kiorly Home sends `?sso=passport`: start "Sign in with Kiorex Passport" by itself (once per page load; the Passport SSO session makes it silent).
   const autostarted = useRef(false);
+  // Kiorly Home password handoff: redeem the single-use code once, strip it from the address bar first, then adopt the normal session.
+  const [handoff] = useState(() => readHandoff(window.location.search));
+  const [handoffBusy, setHandoffBusy] = useState(!!handoff.code);
+  const redeemed = useRef(false);
   useEffect(() => {
-    if (signedIn || !passport || autostarted.current || !wantsPassportAutostart(search, currentNavigationType())) return;
+    if (!handoff.code && !handoff.reason) return;
+    window.history.replaceState(window.history.state, "", withoutHandoff(window.location.pathname, window.location.search, window.location.hash));
+    if (!handoff.code || redeemed.current) return;
+    redeemed.current = true;
+    api<{ accessToken: string }>("/auth/handoff/exchange", { body: { code: handoff.code } })
+      .then(async (r) => { await adoptSession(r.accessToken); rememberSignInMethod("password"); nav("/", { replace: true }); })
+      .catch(() => { setHandoffBusy(false); setErr(new Error(t("auth.handoffFailed"))); });
+  }, [handoff, adoptSession, nav, t]);
+  // the handoff could not complete (second factor, expired password, organisation): show the product's own password form
+  useEffect(() => { if (handoff.reason && sim.ready) sim.choose("password"); }, [handoff.reason, sim.ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (signedIn || handoff.code || !passport || autostarted.current || !wantsPassportAutostart(search, currentNavigationType())) return;
     autostarted.current = true; void startPassportSignIn(passport, i18n.language);
-  }, [signedIn, passport, search, i18n.language]);
+  }, [signedIn, passport, search, i18n.language, handoff.code]);
   if (signedIn) return <Navigate to="/" replace />;
   const localLogin = cfg.data?.localLogin ?? true;
   const method = localLogin ? sim.method : "passport"; // a Passport-only deployment has no Password option
@@ -71,6 +86,8 @@ export function Login() {
   const submit = async (e: FormEvent) => { e.preventDefault(); await signInWith(email, password); };
   return (
     <Shell title={t("auth.signIn")} subtitle={t("auth.signInLede")}>
+      {handoffBusy ? <p role="status" data-testid="handoff-busy" className="mb-4 text-sm text-muted-foreground">{t("auth.handoffBusy")}</p> : null}
+      {handoff.reason ? <p role="status" data-testid="handoff-reason" className="mb-4 rounded-lg border border-border bg-muted/50 p-3 text-sm">{t(`auth.handoffReason.${handoff.reason}`, { defaultValue: t("auth.handoffReason.other") })}</p> : null}
       {!sim.ready ? <div role="status" aria-busy="true" aria-label={t("auth.signIn")} data-testid="signin-loading" className="h-40 animate-pulse rounded-xl bg-muted/60" /> : null}
       {sim.ready && passport && localLogin ? <SignInMethodTabs className="mb-6" value={method} onChange={sim.choose} labels={{ group: t("auth.method"), passport: t("auth.methodPassport"), password: t("auth.methodPassword") }} /> : null}
       {sim.ready && passport && method === "passport" ? (
