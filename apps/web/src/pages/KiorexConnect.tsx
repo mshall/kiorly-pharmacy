@@ -3,14 +3,9 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { AlertCircle, CheckCircle2, Clock, Lock, RefreshCw } from "lucide-react";
-import i18n from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { useAction } from "@/lib/hooks";
 import { Button, Card, ErrorNote, Input } from "@/components/ui";
-import { ar, en } from "./kiorexConnect.strings";
-
-i18n.addResourceBundle("en", "translation", { kiorexConnect: en }, true, false);
-i18n.addResourceBundle("ar", "translation", { kiorexConnect: ar }, true, false);
 
 type StepStatus = "done" | "action_needed" | "waiting_kiorex" | "blocked";
 interface Step { key: string; status: StepStatus; optional?: boolean; link?: string; detail?: Record<string, unknown> }
