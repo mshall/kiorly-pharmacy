@@ -1,8 +1,10 @@
-import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Inject, Injectable, Optional, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { PrismaService } from "../prisma/prisma.service";
 import { IS_PUBLIC, REQUIRES_PERM } from "./decorators";
 import { authMode, TokenVerifier } from "./token-verifier";
+import { PassportService } from "./passport.service";
+import { passportConfig } from "./passport";
 import { PRIVILEGED_ROLES, type Permission } from "./permissions";
 import { PermissionsService } from "./permissions.service";
 import type { AuthUser } from "./auth-user";
@@ -21,6 +23,7 @@ export class AuthGuard implements CanActivate {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
     @Inject(PermissionsService) private readonly perms: PermissionsService,
+    @Optional() @Inject(PassportService) private readonly passport?: PassportService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -35,10 +38,14 @@ export class AuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException({ statusCode: 401, code: "INVALID_TOKEN", message: "Invalid or expired token" });
     }
-    const staff = await this.prisma.staffUser.findFirst({
-      where: authMode() === "local" ? { id: verified.sub } : { subject: verified.sub },
-      include: { tenant: true },
-    });
+    // product tokens carry the staff id; a raw Passport access token (staff mobile app) maps by subject, linking by verified phone on first login
+    const cfg = verified.passport ? passportConfig() : null;
+    const staff = verified.passport && cfg && this.passport
+      ? await this.passport.resolveStaff(verified.claims, cfg)
+      : await this.prisma.staffUser.findFirst({
+        where: verified.staffId ? { id: verified.staffId } : authMode() === "local" ? { id: verified.sub } : { subject: verified.sub },
+        include: { tenant: true },
+      });
     if (!staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "UNKNOWN_STAFF", message: "No active staff account" });
     if (process.env.NODE_ENV === "production" && authMode() === "oidc" && PRIVILEGED_ROLES.includes(staff.role) && !verified.mfa) {
       throw forbidden("MFA_REQUIRED", "Privileged roles require multi-factor authentication");

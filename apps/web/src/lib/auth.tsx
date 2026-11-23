@@ -2,12 +2,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, getToken, setToken } from "@/lib/api";
 import type { Me } from "@/lib/types";
+import { takeEndSessionUrl } from "@/lib/passport";
 
 interface AuthCtx {
   me: Me | null;
   loading: boolean;
   signedIn: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Adopt a session issued after a Kiorex Passport sign-in. */
+  adoptSession: (accessToken: string) => Promise<void>;
   logout: () => void;
   can: (perm: string) => boolean;
   flag: (key: string) => boolean;
@@ -23,12 +26,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTok] = useState<string | null>(getToken());
   const [branch, setBranch] = useState<string | null>(() => { try { return localStorage.getItem(BRANCH_KEY); } catch { return null; } });
   const meQ = useQuery({ queryKey: ["me", token], queryFn: () => api<Me>("/auth/me"), enabled: !!token, retry: false, staleTime: 60_000 });
-  useEffect(() => { const h = () => { setTok(null); qc.clear(); }; window.addEventListener("kiorly:unauthorized", h); return () => window.removeEventListener("kiorly:unauthorized", h); }, [qc]);
+  useEffect(() => { const h = () => { setTok(null); qc.clear(); takeEndSessionUrl(); }; window.addEventListener("kiorly:unauthorized", h); return () => window.removeEventListener("kiorly:unauthorized", h); }, [qc]);
   const login = useCallback(async (email: string, password: string) => {
     const r = await api<{ accessToken: string }>("/auth/login", { body: { email, password } });
     setToken(r.accessToken); setTok(r.accessToken); await qc.invalidateQueries();
   }, [qc]);
-  const logout = useCallback(() => { setToken(null); setTok(null); qc.clear(); }, [qc]);
+  const adoptSession = useCallback(async (accessToken: string) => { setToken(accessToken); setTok(accessToken); await qc.invalidateQueries(); }, [qc]);
+  const logout = useCallback(() => {
+    setToken(null); setTok(null); qc.clear();
+    // Passport-started session: end the Passport session too (RP-initiated logout with id_token_hint), otherwise "Sign in with Kiorex Passport" would silently sign the user back in
+    const end = takeEndSessionUrl();
+    if (end) window.location.assign(end);
+  }, [qc]);
   const me = meQ.data ?? null;
   const branchId = useMemo(() => {
     if (!me) return null;
@@ -36,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return me.branches.some((b) => b.id === branch) ? branch : me.branches[0]?.id ?? null;
   }, [me, branch]);
   const value: AuthCtx = {
-    me, loading: !!token && meQ.isLoading, signedIn: !!token && !!me, login, logout,
+    me, loading: !!token && meQ.isLoading, signedIn: !!token && !!me, login, adoptSession, logout,
     can: (p) => !!me?.permissions.includes(p), flag: (k) => me?.flags[k] ?? true, branchId,
     setBranchId: (id) => { setBranch(id); try { localStorage.setItem(BRANCH_KEY, id); } catch { /* ignore */ } void qc.invalidateQueries(); },
   };

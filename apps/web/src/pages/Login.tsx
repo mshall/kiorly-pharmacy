@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/lib/auth";
@@ -7,6 +8,7 @@ import { Button, ErrorNote, Field, Input } from "@/components/ui";
 import { KiorlyBrandLockup, KiorlyFootText, KxControlPair, LanguageToggle, Pulse, ThemeToggle } from "@/brand/ui-kit";
 import { KiorexLogo } from "@/brand/components";
 import { setLang } from "@/lib/i18n";
+import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
 
 function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
@@ -38,22 +40,31 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
 }
 
 export function Login() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { login, signedIn } = useAuth();
   const nav = useNavigate();
+  const cfg = useQuery({ queryKey: ["auth-config"], queryFn: fetchAuthConfig, staleTime: 60_000 });
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
   if (signedIn) return <Navigate to="/" replace />;
+  const passport = cfg.data?.passport ?? null;
+  const localLogin = cfg.data?.localLogin ?? true;
   const submit = async (e: FormEvent) => { e.preventDefault(); setBusy(true); setErr(null); try { await login(email, password); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
   return (
     <Shell title={t("auth.signIn")} subtitle={t("auth.signInLede")}>
-      <form onSubmit={submit} className="space-y-4">
+      {passport ? (
+        <div className="mb-6 space-y-3">
+          <Button type="button" size="lg" className="w-full" onClick={() => void startPassportSignIn(passport, i18n.language)}>{t("auth.passport")}</Button>
+          {localLogin ? <p className="text-center text-xs text-muted-foreground">{t("auth.passportOr")}</p> : null}
+        </div>
+      ) : null}
+      {localLogin ? <form onSubmit={submit} className="space-y-4">
         <Field label={t("auth.email")}>{(id) => <Input id={id} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
         <Field label={t("auth.password")}>{(id) => <Input id={id} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
         <ErrorNote error={err} />
         <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? <Pulse size={16} loop /> : null}{t("auth.signIn")}</Button>
         <p className="text-center text-sm text-muted-foreground">{t("auth.noAccount")} <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">{t("auth.signUp")}</Link></p>
-      </form>
+      </form> : null}
     </Shell>
   );
 }

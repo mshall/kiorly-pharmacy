@@ -7,6 +7,7 @@ import { Layout } from "@/components/Layout";
 import { Spinner } from "@/components/ui";
 import { registerServiceWorker } from "@/lib/offline";
 import { Login, Signup } from "@/pages/Login";
+import { AuthCallback } from "@/pages/AuthCallback";
 import { Dashboard } from "@/pages/Dashboard";
 import { Catalogue } from "@/pages/Catalogue";
 import { Inventory } from "@/pages/Inventory";
@@ -49,6 +50,7 @@ export function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route element={<Guard><Layout /></Guard>}>
                 <Route index element={<Dashboard />} />

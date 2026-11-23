@@ -63,6 +63,13 @@ const BASES: Base[] = [
 
 const gtin = (n: number) => `622${String(n).padStart(10, "0")}${n % 10}`;
 
+/** Passport demo persona (phone +20100000<n>, sub 01HZKXD...<n>) -> staff e-mail. Keep in sync with kiorex-account/config/seed-users.json and TEST_DATA.md. */
+export const PASSPORT_DEMO_STAFF: Record<string, number> = {
+  "pharmacist@demo.kiorly.local": 2004, // Mostafa Reda (Passport org member, pharmacist)
+  "owner@demo.kiorly.local": 2007,
+  "cashier@demo.kiorly.local": 2008,
+};
+
 export async function seed(): Promise<{ tenantId: string }> {
   assertDemoSeedAllowed("Kiorly Pharmacy base demo tenant");
   loadEnv();
@@ -98,6 +105,15 @@ export async function seed(): Promise<{ tenantId: string }> {
     const cashier = await mkStaff("cashier", "CASHIER", "Omar Cashier", { branchId: b1.id });
     await mkStaff("manager", "BRANCH_MANAGER", "Mona Manager", { branchId: b1.id });
     await mkStaff("chain", "CHAIN_OPS", "Chain Ops");
+    // DEV: Kiorex Passport demo personas (kiorex-account/config/seed-users.json) are linked to their staff rows, so "Sign in with Kiorex Passport"
+    // (OTP 000000) works locally for the web and the Kiorly staff app. subject = the dev IdP sub (AWS staging: DEMO_SUB_MAP_JSON by phone).
+    if (process.env.NODE_ENV !== "production") {
+      const subMap: Record<string, string> = (() => { try { return JSON.parse(process.env.DEMO_SUB_MAP_JSON || "{}"); } catch { return {}; } })();
+      for (const [email, n] of Object.entries(PASSPORT_DEMO_STAFF)) {
+        const phone = `+20100000${n}`;
+        await prisma.staffUser.updateMany({ where: { email }, data: { phone, subject: subMap[phone] ?? `01HZKXD${String(n).padStart(19, "0")}` } });
+      }
+    }
 
     // DEV registration of Kiorex as a machine client of this tenant (kiorex-contracts PARTNER_DEV_DEFAULTS; local only, never in production).
     if (process.env.NODE_ENV !== "production") {

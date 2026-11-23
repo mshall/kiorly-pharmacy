@@ -291,6 +291,8 @@ model StaffUser {
   orgId               String
   /// Kiorex Account subject (OIDC `sub`); identity stays out of clinical data (ADR-013).
   subject             String?
+  /// Verified E.164 phone used to link the staff row to its Kiorex Passport on first Passport sign-in (identity only, never clinical).
+  phone               String?
   displayName         String
   role                StaffRole
   /// Required for PHARMACIST: syndicate licence number.
@@ -308,6 +310,7 @@ model StaffUser {
 
   @@unique([orgId, subject])
   @@index([orgId, role])
+  @@index([phone])
 }
 
 // ------------------------------------------------------------- catalogue ----

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { CurrentUser, Public } from "./decorators";
 import type { AuthUser } from "./auth-user";
@@ -12,10 +12,18 @@ import { FeatureFlagsService } from "../feature-flags/feature-flags.service";
 import { FLAG_DEFINITIONS } from "../feature-flags/feature-flag-keys";
 import { AuditService } from "../audit/audit.service";
 import { DomainError } from "../common/errors";
+import { PassportService } from "./passport.service";
 
 class LoginDto {
   @IsEmail() email!: string;
   @IsString() @MinLength(6) password!: string;
+}
+
+class OidcExchangeDto {
+  @IsString() @MaxLength(2048) code!: string;
+  @IsString() @MinLength(43) @MaxLength(128) codeVerifier!: string;
+  @IsString() @MaxLength(512) redirectUri!: string;
+  @IsString() @MaxLength(256) nonce!: string;
 }
 
 const attempts = new Map<string, { n: number; t: number }>();
@@ -36,7 +44,24 @@ export class AuthController {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(PermissionsService) private readonly perms: PermissionsService,
     @Inject(TenantModeService) private readonly modes: TenantModeService,
+    @Inject(PassportService) private readonly passport: PassportService,
   ) {}
+
+  /** Login page configuration: is the password form offered, and is Kiorex Passport (OIDC + PKCE) available. Nothing secret. */
+  @Get("config")
+  @Public()
+  config() {
+    return this.passport.publicConfig();
+  }
+
+  /** Web Passport sign-in: the SPA did authorize + PKCE; the API redeems the code server-side and issues the staff session. */
+  @Post("oidc/exchange")
+  @Public()
+  @HttpCode(200)
+  exchange(@Body() dto: OidcExchangeDto) {
+    throttle(`oidc:${dto.codeVerifier.slice(0, 12)}`);
+    return this.passport.exchange(dto);
+  }
 
   /** AUTH_MODE=local only (dev/demo/E2E). In AUTH_MODE=oidc sign-in happens at Kiorex Passport and this route is 404-equivalent. */
   @Post("login")

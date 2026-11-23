@@ -76,7 +76,11 @@
     "heroFoot": "Kiorly Pharmacy by Kiorex",
     "heroFootWord": "Pharmacy",
     "signInLede": "Sign in to your pharmacy workspace.",
-    "signUpLede": "Create your pharmacy workspace in a minute."
+    "signUpLede": "Create your pharmacy workspace in a minute.",
+    "passport": "Sign in with Kiorex Passport",
+    "passportOr": "or use your pharmacy e-mail and password",
+    "passportBusy": "Signing you in with Kiorex Passport…",
+    "passportFailed": "Kiorex Passport sign-in failed"
   },
   "roles": {
     "OWNER": "Owner",

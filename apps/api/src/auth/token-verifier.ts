@@ -1,11 +1,16 @@
 import { Injectable } from "@nestjs/common";
-import { SignJWT, createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { hasMfa, passportConfig, peekAlg, verifyPassportAccessToken } from "./passport";
 
 export interface VerifiedToken {
   /** Local mode: StaffUser.id. OIDC mode: Kiorex Passport `sub` (mapped to StaffUser.subject). */
   sub: string;
   mfa: boolean;
   claims: JWTPayload;
+  /** Set for product-issued tokens (password login, Passport web session): the StaffUser.id. */
+  staffId?: string;
+  /** Raw Passport access token (staff mobile app): `sub` maps to StaffUser.subject. */
+  passport?: boolean;
 }
 
 export type AuthMode = "local" | "oidc";
@@ -19,20 +24,35 @@ function secret(): string {
 }
 export const authMode = (): AuthMode => (process.env.AUTH_MODE === "oidc" ? "oidc" : "local");
 
+export const LOCAL_ISSUER = "kiorly-pharmacy-local";
+/** Issued by `POST /auth/oidc/exchange` after a verified Passport code exchange (web). Accepted in every mode. */
+export const SESSION_ISSUER = "kiorly-pharmacy-passport-session";
+
 /**
  * Verifies bearer tokens.
- *  - AUTH_MODE=local (default): HS256 tokens issued by POST /auth/login (dev/demo/E2E; staff email + password).
- *  - AUTH_MODE=oidc: RS256 tokens from Kiorex Passport (issuer + JWKS + audience validated; `acr/amr must signal MFA for privileged roles in production).
+ *  - HS256 product tokens: `POST /auth/login` (AUTH_MODE=local only) and the Passport web session (`/auth/oidc/exchange`, any mode).
+ *  - RS256 Passport access tokens (staff mobile app): AUTH_MODE=oidc, or AUTH_ACCEPT_PASSPORT=true outside production. Issuer + JWKS +
+ *    audience + accepted client validated; privileged roles need acr/amr MFA in production.
  */
 @Injectable()
 export class TokenVerifier {
-  private jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-
   async issueLocal(sub: string, ttlSeconds = 60 * 60 * 10): Promise<string> {
     return new SignJWT({ amr: ["pwd"] })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(sub)
-      .setIssuer("kiorly-pharmacy-local")
+      .setIssuer(LOCAL_ISSUER)
+      .setAudience("kiorly-pharmacy")
+      .setIssuedAt()
+      .setExpirationTime(`${ttlSeconds}s`)
+      .sign(key());
+  }
+
+  /** Web session after Passport sign-in (the browser never holds the Passport tokens). */
+  async issueSession(staffId: string, mfa: boolean, ttlSeconds = 60 * 60 * 8): Promise<string> {
+    return new SignJWT({ amr: ["passport"], mfa })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(staffId)
+      .setIssuer(SESSION_ISSUER)
       .setAudience("kiorly-pharmacy")
       .setIssuedAt()
       .setExpirationTime(`${ttlSeconds}s`)
@@ -40,16 +60,14 @@ export class TokenVerifier {
   }
 
   async verify(token: string): Promise<VerifiedToken> {
-    if (authMode() === "local") {
-      const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"], issuer: "kiorly-pharmacy-local", audience: "kiorly-pharmacy" });
-      return { sub: String(payload.sub), mfa: false, claims: payload };
+    if (peekAlg(token) === "HS256") {
+      const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"], issuer: [LOCAL_ISSUER, SESSION_ISSUER], audience: "kiorly-pharmacy" });
+      if (payload.iss === LOCAL_ISSUER && authMode() !== "local") throw new Error("local tokens are disabled");
+      return { sub: String(payload.sub), staffId: String(payload.sub), mfa: payload.mfa === true, claims: payload };
     }
-    const issuer = process.env.OIDC_ISSUER;
-    if (!issuer) throw new Error("OIDC_ISSUER is required when AUTH_MODE=oidc");
-    this.jwks ??= createRemoteJWKSet(new URL(process.env.OIDC_JWKS_URL ?? `${issuer.replace(/\/$/, "")}/jwks`));
-    const { payload } = await jwtVerify(token, this.jwks, { algorithms: ["RS256"], issuer, audience: process.env.OIDC_AUDIENCE ?? "kiorly-pharmacy" });
-    // @kiorex/contracts 1.2.0 (KA10): step-up signal is `acr` urn:kiorex:acr:mfa and/or `amr` (RFC 8176). Unknown claims are ignored.
-    const amr = Array.isArray(payload.amr) ? (payload.amr as string[]) : [];
-    return { sub: String(payload.sub), mfa: payload.acr === "urn:kiorex:acr:mfa" || amr.includes("mfa") || payload.mfa === true, claims: payload };
+    const cfg = passportConfig();
+    if (!cfg) throw new Error("Passport tokens are not accepted");
+    const claims = await verifyPassportAccessToken(token, cfg);
+    return { sub: String(claims.sub), mfa: hasMfa(claims) || claims.mfa === true, claims, passport: true };
   }
 }
