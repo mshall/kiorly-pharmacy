@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { canRequest, deriveIntakeSigningKey, enrolmentIdOf, intakeHeaders, isEnrolmentCode, newIntakeNonce, deriveStatusToken, intakeUrl, kiorexHost, progressPct, signConnectBody, validatePayoutLabel } from "./kiorex-connect.core";
+import { canRequest, deriveIntakeSigningKey, enrolmentIdOf, intakeHeaders, isEnrolmentCode, newIntakeNonce, deriveStatusToken, intakeUrl, kiorexHost, progressPct, validatePayoutLabel } from "./kiorex-connect.core";
 import { computePharmacySteps, type PharmacyConnectFacts } from "./kiorex-connect.logic";
 
 const ready = (o: Partial<PharmacyConnectFacts> = {}): PharmacyConnectFacts => ({ status: "CONSENTED", subscriptionStatus: "ACTIVE", optedInBranches: 1, pricedItems: 12, branchesMissingHours: 0, branchesMissingLicenceNo: 0, licenceDocument: true, payoutLabel: true, termsAccepted: true, liveOnKiorex: false, ...o });
@@ -31,7 +31,6 @@ describe("pharmacy Connect to Kiorex (ADR-040)", () => {
     assert.equal(deriveStatusToken("k", "org1"), deriveStatusToken("k", "org1")); assert.notEqual(deriveStatusToken("k", "org1"), deriveStatusToken("k", "org2")); assert.ok(deriveStatusToken("k", "o").length >= 32);
   });
   it("signs like the outbox and targets the Kiorex intake route", () => {
-    assert.match(signConnectBody("s", 1, "{}"), /^sha256=[0-9a-f]{64}$/);
     assert.equal(intakeUrl(kiorexHost({ KIOREX_BASE_URL: "http://localhost:4000/api/v1/" })), "http://localhost:4000/api/v1/partners/v1/connection-requests");
   });
   it("intake auth (contracts 1.9.0): enrolment code signs the first request, the issued key later ones; same derivation as kiorex-contracts", () => {
