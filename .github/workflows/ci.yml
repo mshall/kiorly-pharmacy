@@ -58,6 +58,10 @@ jobs:
         run: npm test
       - name: Docs hub check
         run: npm run docs:check
+      - name: OpenAPI document is current (contract drift)
+        run: |
+          npm run openapi:export -w api
+          git diff --exit-code -- Docs/openapi.json
       - name: Build
         run: npm run build
 
