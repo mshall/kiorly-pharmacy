@@ -75,6 +75,8 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 - **NH-PH-042 Controlled witness policy**: witness required for adjustments, write-offs, returns, count variances and transfers of controlled drugs; confirm it matches the regulator's register rules.
 - **NH-PH-043 Loyalty and credit terms**: tier thresholds, points value and customer credit days are defaults; the owner must set them.
 - **NH-PH-044 Application backup**: `/admin/export` is a data export, not a disaster-recovery backup.
+- **NH-PH-045 Growth links (GRW-P4-B1)**: the Growth role matrix, plan link limits, AR and EN wording and the five recommendation texts are PROPOSED_DEFAULT and need a founder decision and a native Arabic review. See `Docs/GROWTH.md`.
+- **NH-PH-046 kiorly.link and the Kiorex pharmacy page**: the public short-link base (`LINK_SHORT_BASE_URL`, NH-008) is unset (the API resolver URL is printed in QR codes until then, so reprint the cards when the domain exists). The Kiorex landing route and its use of the signed touch are confirmed with the Kiorex team in P4-B2.
 
 
 ## Provider go-live checklist (config only: no code change)

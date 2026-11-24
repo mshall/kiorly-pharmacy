@@ -1,0 +1,53 @@
+{
+  "_source": "Generated with the Clinic provider-links/link-code.ts (GRW-P1-D1): code = alphabet[byte & 31] for the 8 seed bytes. Partner copies (PH, LB) must reproduce every row.",
+  "vectors": [
+    {
+      "seedHex": "e3efee55e5b43a06",
+      "code": "3FEN5MT6"
+    },
+    {
+      "seedHex": "7790ee588f6f27f0",
+      "code": "QGERFF7G"
+    },
+    {
+      "seedHex": "c07bf5d7102b6e9e",
+      "code": "0VNQGBEY"
+    },
+    {
+      "seedHex": "69d040375519bdde",
+      "code": "9G0QNSXY"
+    },
+    {
+      "seedHex": "2ffe9da44ff81760",
+      "code": "FYX4FRQ0"
+    },
+    {
+      "seedHex": "acbb2d8dbb7884c8",
+      "code": "CVDDVR48"
+    },
+    {
+      "seedHex": "99f5cc21c7c2823c",
+      "code": "SNC1722W"
+    },
+    {
+      "seedHex": "de5f63ecb8b2f1cc",
+      "code": "YZ3CRJHC"
+    },
+    {
+      "seedHex": "f612936ef912fd8c",
+      "code": "PJKESJXC"
+    },
+    {
+      "seedHex": "a3b707dac014e4f6",
+      "code": "3Q7T0M4P"
+    },
+    {
+      "seedHex": "31b2f5ea13c826b8",
+      "code": "HJNAK86R"
+    },
+    {
+      "seedHex": "1a2b69efc63cb599",
+      "code": "TB9F6WNS"
+    }
+  ]
+}

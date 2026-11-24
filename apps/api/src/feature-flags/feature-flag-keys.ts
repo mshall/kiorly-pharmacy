@@ -16,6 +16,8 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   { key: "pharmacy.forecasting", cls: "AI", dependsOn: ["pharmacy.module"], launchLocked: false, offBehaviour: "Min/max reorder only" },
   /** Kiorly staff app: commercial entitlement (PRO and above). NOT a safety control: safety alerts reach every plan (ADR-025). */
   { key: "mobile_staff_app", cls: "Module", dependsOn: [], launchLocked: false, offBehaviour: "Kiorly shows the upgrade screen; the read-only safety-alert inbox stays available" },
+  /** GRW-P4-B1: new provider links, QR and counter cards. OFF: nothing new can be created; existing links keep resolving and counting and a revoke still reaches Kiorex. Ships ON. */
+  { key: "growth.provider_links", cls: "Module", dependsOn: ["pharmacy.module"], launchLocked: false, offBehaviour: "No new links, QR codes or counter cards; existing links keep resolving and counting" },
   { key: "pharmacy.insurer_claims", cls: "Module", dependsOn: ["pharmacy.module"], launchLocked: false, offBehaviour: "Cash/self-pay only" },
 ];
 

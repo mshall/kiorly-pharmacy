@@ -2065,3 +2065,71 @@ model RateLimitBucket {
   @@id([key, windowStart])
   @@index([expiresAt])
 }
+
+// ------------------------------------------------- growth: provider links ---
+// GRW-P4-B1 (migration 20261203110000_growth_provider_links). Partner-side half of provider links: a pharmacy creates a link or counter QR, Kiorex learns the
+// code through ReferralLinkCreated (outbox, product PHARMACY) and decides origin on its own order intake (P4-B2). Counters only: no visitor, patient or device identifier.
+
+enum ReferralLinkOwnerScope {
+  ORG
+  BRANCH
+  DESK
+}
+
+enum ReferralLinkChannelKind {
+  WEB_LINK
+  QR_POSTER
+  QR_DESK
+  SOCIAL
+  SMS
+  WHATSAPP_SHARE
+  EMAIL_SIG
+  GOOGLE_PROFILE
+}
+
+enum ReferralLinkStatus {
+  ACTIVE
+  PAUSED
+  REVOKED
+}
+
+/// One provider link. `code` is 8 Crockford characters (DB CHECK). `branchRef` is a Branch id (BRANCH and DESK scopes); a DESK link's `label` names the counter.
+model ProviderReferralLink {
+  id          String                  @id @default(cuid())
+  orgId       String
+  branchRef   String?
+  ownerScope  ReferralLinkOwnerScope
+  channelKind ReferralLinkChannelKind @default(WEB_LINK)
+  code        String                  @unique
+  label       String
+  status      ReferralLinkStatus      @default(ACTIVE)
+  /// Optional UTM and campaign tags (short tokens only).
+  tags        Json?
+  createdBy   String
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @default(now()) @updatedAt
+  revokedAt   DateTime?
+  revokedBy   String?
+
+  daily ProviderReferralLinkDaily[]
+
+  @@index([orgId, status])
+  @@index([orgId, branchRef])
+  @@index([updatedAt, id])
+}
+
+/// Daily counters of one link (UTC day). `orders` and `completed` stay 0 until Kiorex sends the acquisition block (P4-B2).
+model ProviderReferralLinkDaily {
+  linkId    String
+  orgId     String
+  date      DateTime @db.Date
+  visits    Int      @default(0)
+  orders    Int      @default(0)
+  completed Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  link ProviderReferralLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@id([linkId, date])
+  @@index([orgId, date])
+}

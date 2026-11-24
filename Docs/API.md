@@ -38,3 +38,12 @@ New permissions: `customers.*`, `rx.refill`, `rx.transfer`, `safety.kb.manage`, 
 ## Default sign-in method (ADR-038 amendment, 24 Nov 2026)
 - `GET /auth/config{?org=}` (public, no-store, 300 requests/min/client) now also returns `passportAvailable` and `defaultMethod` (`PASSWORD` | `PASSPORT`): the method the login page preselects. Both methods stay offered when Passport is available; when it is not, `defaultMethod` is `PASSWORD`. `?org=<organisation id>` identifies the organisation before login; a missing or unknown org gets the deployment default (`SIGNIN_DEFAULT_METHOD`, `PASSWORD` unless set) in the same shape (no org enumeration).
 - Organisation setting `defaultSignInMethod` (`PASSWORD` | `PASSPORT` | `null` = automatic), column on `Tenant`, read from `GET /settings` (with `effectiveSignInMethod` and `linkedToKiorex`) and changed with `PATCH /settings` `{ "defaultSignInMethod": ... }`; permission `settings.write` (owner); audit `settings.default_signin_method` (from, to). Automatic = `PASSPORT` when the org is linked to Kiorex (Kiorex org id, active integration client, or Passport-linked staff), else `PASSWORD`.
+
+## Growth: provider links (GRW-P4-B1, see [GROWTH.md](./GROWTH.md))
+| Area | Endpoints | Notes |
+|---|---|---|
+| Web | `GET /growth/access|links|summary|performance|recommendations`, `POST /growth/links`, `PATCH /growth/links/:id`, `GET /growth/links/:id/qr.svg|qr.png|poster` | role matrix, 403 `KIOREX_NOT_CONNECTED`, flag `growth.provider_links` on create, QR and print; counts only |
+| Staff app | `GET /mobile/growth`, `GET|POST /mobile/growth/links`, `PATCH /mobile/growth/links/:id`, `GET /mobile/growth/qr?linkId=` | plan gate `mobile_staff_app` first; pause and resume only (revoke is web only) |
+| Public | `GET /public/links/q/:code` | 302 to the Kiorex pharmacy page with the signed touch `lt`; no cookies, no visitor data; destination from configuration only |
+| Kiorex machine | `GET /marketplace/v1/referral-links[/:code]` | signed lookup and reconciliation feed of the link registry, one organisation per client key |
+| Events out | `ReferralLinkCreated`, `ReferralLinkRevoked` (`product` PHARMACY) | outbox, validated against `@kiorex/contracts` 1.12.0 |
