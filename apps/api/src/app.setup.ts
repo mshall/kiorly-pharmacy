@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { RejectNulBytesPipe } from "./common/reject-nul-bytes.pipe";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { applyHttpHardening, swaggerEnabled } from "./common/http-hardening";
 import { AllExceptionsFilter } from "./common/db-error.filter";
@@ -11,7 +12,7 @@ export const PREFIX_EXCLUDES = ["marketplace/v1/(.*)"];
 export function configureApp(app: INestApplication): void {
   applyHttpHardening(app); // security headers, no X-Powered-By, trust-proxy hops
   app.setGlobalPrefix("api/v1", { exclude: PREFIX_EXCLUDES });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(new RejectNulBytesPipe(), new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
   if (swaggerEnabled()) { // off in production unless SWAGGER_ENABLED=true
     const doc = buildOpenApi(app);
