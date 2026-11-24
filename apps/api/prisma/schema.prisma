@@ -1294,6 +1294,13 @@ model KiorexOrder {
   deliveryMethod  String?
   /// Kiorex Pay payment reference (reconciliation only).
   paymentRef      String?
+  /// GRW-P4-B2: Kiorex product acquisition block (origin only; never patient data). Counters credit the cited link of THIS organisation once per order.
+  acquisitionOrigin             String?
+  acquisitionDecisionRef        String?
+  acquisitionReason             String?
+  acquisitionLinkId             String?
+  acquisitionOrderCountedAt     DateTime?
+  acquisitionCompletedCountedAt DateTime?
   createdAt       DateTime          @default(now())
 
   lines KiorexOrderLine[]

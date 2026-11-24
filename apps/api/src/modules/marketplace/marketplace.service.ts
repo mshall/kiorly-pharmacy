@@ -17,6 +17,7 @@ import { DEFAULT_RX_VALIDITY_DAYS } from "../prescriptions/prescriptions.service
 import { PriceService } from "../catalogue/price.service";
 import { dosageFormAr, projectDrugForKiorex } from "../catalogue/kiorex-projection";
 import { seal } from "../../common/secret-box";
+import { acquisitionColumns, creditLinkOnce, parseAcquisitionBlock } from "../growth/acquisition-fact";
 import { randomBytes } from "node:crypto";
 
 const toMinor = (v: DecimalValue) => Math.round(D(v).mul(100).toNumber());
@@ -33,6 +34,8 @@ export interface IngestOrderInput {
   payment?: { reference?: string; totalMinor?: number; currency?: string };
   /** Either a Kiorex e-Rx (recordRef + verificationToken, verified with Kiorex) or an uploaded scan (prescriberName + scanRef). */
   prescription?: { patientRef?: string; recordRef?: string; verificationToken?: string; prescriberName?: string; prescriberLicenceNo?: string; issuedAt?: string; scanRef?: string };
+  /** GRW-P4-B2 optional Kiorex acquisition block (contracts 1.12.0 `ProductAcquisitionBlock`); an invalid or foreign block is ignored, never an error. */
+  acquisition?: unknown;
 }
 
 @Injectable()
@@ -56,6 +59,7 @@ export class MarketplaceService implements OnModuleInit {
       const order = await tx.kiorexOrder.findFirst({ where: { id: c.kiorexOrderRef, orgId: c.orgId }, include: { lines: true } });
       if (!order) return;
       await tx.kiorexOrder.update({ where: { id: order.id }, data: { status: "DISPENSED", dispensingId: c.dispensingId } });
+      await creditLinkOnce(tx, c.orgId, order.id, "completed", c.dispensedAt);
       const pharmacyId = await this.pharmacyId(tx, c.orgId);
       await this.outbox.enqueue({
         orgId: c.orgId, type: "DispenseCompleted", aggregateId: order.externalOrderId, dedupeKey: `DispenseCompleted:${order.id}`,
@@ -143,15 +147,19 @@ export class MarketplaceService implements OnModuleInit {
         }
         prescriptionId = rx.id;
       }
+      const block = parseAcquisitionBlock(input.acquisition, "PHARMACY");
+      const acq = block ? await acquisitionColumns(tx, orgId, block) : {};
       const o = await tx.kiorexOrder.create({
         data: {
+          ...acq,
           orgId, branchId: input.branchId, externalOrderId: input.orderId, hasRx, prescriptionId, customerName: input.customer?.name, customerPhone: input.customer?.phone, deliveryAddress: input.customer?.address ?? (input.delivery?.address ? JSON.stringify(input.delivery.address) : undefined), prepaid: input.prepaid ?? true,
           patientRef: input.patientRef, deliveryMethod: input.delivery?.method, paymentRef: input.payment?.reference,
           orderValue, slaDueAt: new Date(Date.now() + setting.slaMinutes * 60_000), lines: { create: input.lines.map((l) => ({ drugId: l.sku, qtyRequested: l.quantity, unitPrice: l.unitPrice })) },
         },
         include: { lines: true },
       });
-      await tx.auditLog.create({ data: { orgId, action: "order.received", entityType: "KiorexOrder", entityId: o.id, meta: { externalOrderId: input.orderId, hasRx, lines: input.lines.length } } });
+      await tx.auditLog.create({ data: { orgId, action: "order.received", entityType: "KiorexOrder", entityId: o.id, meta: { externalOrderId: input.orderId, hasRx, lines: input.lines.length, ...(block ? { acquisitionOrigin: block.origin } : {}) } } });
+      await creditLinkOnce(tx, orgId, o.id, "orders");
       return o;
     });
     const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } });

@@ -92,6 +92,8 @@ class IngestDto {
   @IsOptional() @ValidateNested() @Type(() => DeliveryDto) delivery?: DeliveryDto;
   @IsOptional() @ValidateNested() @Type(() => PaymentDto) payment?: PaymentDto;
   @IsOptional() @ValidateNested() @Type(() => PrescriptionDto) prescription?: PrescriptionDto;
+  /** GRW-P4-B2: validated leniently in the service (a malformed block is ignored, never a 400). */
+  @IsOptional() @IsObject() acquisition?: Record<string, unknown>;
 }
 class QuoteItemDto { @IsString() sku!: string; @IsInt() @Min(1) @Max(50) qty!: number; }
 class QuoteDeliveryDto { @IsOptional() @IsString() method?: string; }
