@@ -8,6 +8,7 @@ import { Button, Select, cn } from "@/components/ui";
 import { listQueue } from "@/lib/offline";
 import { routeDeniedReason } from "@/lib/route-access";
 import { api } from "@/lib/api";
+import { SetupBar, SetupChecklist } from "@/setup/setup-core";
 import { homeUrlFromEnv, switchWorkspaceHref } from "@/lib/kiorly-home";
 import { KiorlyBrandLockup, KxControlPair, LanguageToggle, ThemeToggle } from "@/brand/ui-kit";
 import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, Link2, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
@@ -97,6 +98,8 @@ export function Layout() {
           </div>
         </header>
         <main id="main" tabIndex={-1} className="p-4 md:p-6">
+          <SetupBar onEntity={setBranchId} />
+          {pathname === "/" && !routeDenied ? <SetupChecklist /> : null}
           {routeDenied ? (
             <div role="alert" data-testid="route-denied" className="mx-auto mt-16 max-w-md space-y-3 text-center">
               <h1 className="text-xl font-semibold">{routeDenied === "flag" ? t("common.featureOffTitle") : t("common.noAccessTitle")}</h1>

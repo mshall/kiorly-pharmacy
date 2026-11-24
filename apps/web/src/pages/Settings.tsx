@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -14,7 +15,7 @@ import { DataTab, ModeCard, ReceiptTab, RegionalTab, RolesMatrixTab } from "@/pa
 
 const Badge = ({ tone = "neutral", children }: { tone?: "neutral" | "good" | "bad" | "warn" | "info"; children: React.ReactNode }) => <StatusChip tone={tone}>{children}</StatusChip>;
 
-interface Branch { id: string; name: string; code: string | null; licenceNo: string | null; active: boolean }
+interface Branch { id: string; name: string; code: string | null; licenceNo: string | null; address?: string | null; active: boolean }
 
 function BranchesTab() {
   const { t } = useTranslation();
@@ -22,11 +23,28 @@ function BranchesTab() {
   const branches = useQuery({ queryKey: ["branches"], queryFn: () => api<Branch[]>("/branches") });
   const [name, setName] = useState("");
   const add = useMutation({ mutationFn: () => api("/branches", { body: { name } }), onSuccess: () => { setName(""); void qc.invalidateQueries({ queryKey: ["branches"] }); } });
+  // Quick setup deep link: /settings?tab=branches&setup=branch_licence&entity=<branchId> preselects the branch to complete
+  const [params] = useSearchParams();
+  const { can } = useAuth();
+  const [pick, setPick] = useState<string>(params.get("entity") ?? "");
+  const cur = branches.data?.find((b) => b.id === pick) ?? branches.data?.[0];
+  const [draft, setDraft] = useState<{ id: string; licenceNo: string; address: string } | null>(null);
+  const form = draft && draft.id === cur?.id ? draft : cur ? { id: cur.id, licenceNo: cur.licenceNo ?? "", address: cur.address ?? "" } : null;
+  const saveBranch = useMutation({ mutationFn: () => api(`/branches/${form!.id}`, { method: "PATCH", body: { licenceNo: form!.licenceNo.trim(), address: form!.address.trim() } }), onSuccess: () => { setDraft(null); void qc.invalidateQueries({ queryKey: ["branches"] }); } });
   return (
     <Card title={t("set.branches")}>
       <Table head={[t("sup.name"), t("onb.branchLicence"), t("common.status")]} empty={branches.isLoading ? <TableSkeleton rows={3} cols={3} /> : null}>{branches.data?.map((b) => <tr key={b.id}><Td className="font-medium">{b.name}</Td><Td>{b.licenceNo ?? "—"}</Td><Td><Badge tone={b.active ? "good" : "bad"}>{b.active ? t("set.active") : t("set.inactive")}</Badge></Td></tr>)}</Table>
       <form className="mt-3 flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}><Field label={t("set.newBranch")}>{(id) => <Input id={id} required minLength={2} value={name} onChange={(e) => setName(e.target.value)} />}</Field><Button type="submit">{t("set.addBranch")}</Button></form>
       <ErrorNote error={add.error} />
+      {can("settings.write") && cur && form ? (
+        <form className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2" data-testid="branch-licence-form" onSubmit={(e) => { e.preventDefault(); saveBranch.mutate(); }}>
+          <Field label={t("common.branch")}>{(id) => <select id={id} className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm" value={cur.id} onChange={(e) => { setPick(e.target.value); setDraft(null); }}>{branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>}</Field>
+          <Field label={t("onb.branchLicence")} hint={t("onb.branchLicenceHint")}>{(id) => <Input id={id} data-setup-target="branch_licence" value={form.licenceNo} onChange={(e) => setDraft({ ...form, licenceNo: e.target.value })} />}</Field>
+          <Field label={t("onb.address")} className="sm:col-span-2">{(id) => <Input id={id} value={form.address} onChange={(e) => setDraft({ ...form, address: e.target.value })} />}</Field>
+          <div className="sm:col-span-2"><Button type="submit" disabled={saveBranch.isPending}>{t("common.save")}</Button></div>
+          <ErrorNote error={saveBranch.error} />
+        </form>
+      ) : null}
     </Card>
   );
 }
@@ -101,7 +119,8 @@ function SystemTab() {
 export function Settings() {
   const { t } = useTranslation();
   const { can, me } = useAuth();
-  const [tab, setTab] = useState("pharmacy");
+  const [search] = useSearchParams();
+  const [tab, setTab] = useState(search.get("tab") ?? "pharmacy");
   const tabs = [{ id: "pharmacy", label: t("set.pharmacy"), icon: <Store /> }, ...(can("staff.manage") ? [{ id: "staff", label: t("set.staff"), icon: <Users /> }] : []), { id: "roles", label: t("set.rolesTitle"), icon: <ShieldCheck /> }, { id: "branches", label: t("set.branches"), icon: <Building2 /> }, ...(can("settings.write") ? [{ id: "receipt", label: t("set.tabReceipt"), icon: <Printer /> }, { id: "regional", label: t("set.tabRegional"), icon: <Globe /> }] : []), ...(can("data.import") || can("data.export") ? [{ id: "data", label: t("set.tabData"), icon: <Database /> }] : []), ...(me?.tenant.mode === "INTEGRATED" ? [{ id: "marketplace", label: t("set.marketplace"), icon: <Inbox /> }] : []), { id: "system", label: t("set.system"), icon: <Cog /> }];
   return (
     <>
