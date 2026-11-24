@@ -78,13 +78,15 @@ module "kiorly_pharmacy" {
   opensearch           = var.opensearch
   redis                = var.redis
 
-  waf_enabled         = var.waf_enabled
-  waf_rules           = jsondecode(file("${path.root}/../../../../../../platform/waf-rules.json"))
-  use_cmk             = var.use_cmk
-  openai_secret_name  = var.openai_secret_name
-  generated_secrets   = var.generated_secrets
-  placeholder_secrets = var.placeholder_secrets
-  scheduled_jobs      = var.scheduled_jobs
+  waf_enabled                = var.waf_enabled
+  waf_rules                  = jsondecode(file("${path.root}/../../../../../../platform/waf-rules.json"))
+  use_cmk                    = var.use_cmk
+  openai_secret_name         = var.openai_secret_name
+  generated_secrets          = var.generated_secrets
+  placeholder_secrets        = var.placeholder_secrets
+  lead_signing_secret        = var.lead_signing_secret
+  lead_signing_secret_inject = var.lead_signing_secret_inject
+  scheduled_jobs             = var.scheduled_jobs
 
   alarm_emails          = var.alarm_emails
   alarm_webhook_urls    = var.alarm_webhook_urls

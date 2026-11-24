@@ -18,6 +18,11 @@ output "placeholder_secret_arns" {
   value       = { for k, v in aws_secretsmanager_secret.placeholder : k => v.arn }
 }
 
+output "named_placeholder_secret_arns" {
+  description = "Explicit-name placeholder secret ARNs keyed by full name."
+  value       = { for k, v in aws_secretsmanager_secret.named_placeholder : k => v.arn }
+}
+
 output "openai_secret_arn" {
   description = "Imported OpenAI secret ARN (null when not configured)."
   value       = one(data.aws_secretsmanager_secret.openai[*].arn)
@@ -28,6 +33,7 @@ output "readable_secret_arns" {
   value = concat(
     [for v in aws_secretsmanager_secret.generated : v.arn],
     [for v in aws_secretsmanager_secret.placeholder : v.arn],
+    [for v in aws_secretsmanager_secret.named_placeholder : v.arn],
     data.aws_secretsmanager_secret.openai[*].arn,
   )
 }
