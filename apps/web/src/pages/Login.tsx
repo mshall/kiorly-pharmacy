@@ -1,3 +1,4 @@
+import { KxBrandBackdrop } from "@/brand/components/web/KxBrandBackdrop";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -24,9 +25,8 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
   const { t, i18n } = useTranslation();
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden bg-(--kx-indigo-950) p-12 text-white lg:sticky lg:top-0 lg:flex lg:h-screen" data-testid="login-brand-panel">
-        <div className="pointer-events-none absolute -inset-e-32 -top-32 size-112 rounded-full bg-(--kx-indigo-800)/50 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 -inset-s-24 size-104 rounded-full bg-(--kx-ocean-700)/40 blur-3xl" />
+      <aside aria-hidden={false} className="relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:sticky lg:top-0 lg:flex lg:h-screen" data-testid="login-brand-panel">
+        <KxBrandBackdrop />
         <div className="relative"><KiorexLogo variant="lockup" product="pharmacy" lang={i18n.language} tone="inverse" height={52} /><p data-kx-tagline className="mt-1 text-xs text-white/70">{t("app.tagline")}</p></div>
         <div className="relative max-w-md">
           <Pulse size={28} loop />
