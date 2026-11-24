@@ -23,8 +23,9 @@ export class GrowthMobileController {
   links(@CurrentUser() u: AuthUser) { return this.svc.linksOnly(u); }
 
   @Get("qr") @ApiOperation({ summary: "QR (SVG) of a link" })
-  async qr(@CurrentUser() u: AuthUser, @Res({ passthrough: true }) res: Response, @Query("linkId") linkId?: string) {
+  async qr(@CurrentUser() u: AuthUser, @Res({ passthrough: true }) res: Response, @Query("linkId") linkId?: string, @Query("format") format?: string) {
     if (!linkId) throw badRequest("GROWTH_LINK_INVALID", "linkId is required");
+    if (format === "json") return this.svc.qrJson(u, linkId); // the staff app client reads JSON only
     const svg = await this.svc.qr(u, linkId); res.type("image/svg+xml; charset=utf-8"); return svg;
   }
 

@@ -14,6 +14,7 @@ import { MobileAlertsService } from "./mobile-alerts.service";
 import { MobileUpgradeService } from "./mobile-upgrade.service";
 import { PushService, renderPush } from "./push.service";
 import { modulesFor } from "./mobile-plan";
+import { growthLevel } from "../growth/growth-access";
 
 class RegisterDeviceDto {
   @IsString() @MinLength(8) @MaxLength(80) deviceId!: string;
@@ -55,7 +56,7 @@ export class MobileController {
     const settings = (tenant.settings ?? {}) as { defaultLocale?: string };
     const kiorexOrders = mode === "INTEGRATED" && this.flags.isEnabled("pharmacy.kiorex_orders", { orgId: u.orgId, market: u.market });
     const { plan, rawPlan, ...entitlement } = e;
-    const roleModules = modulesFor(perms, kiorexOrders);
+    const roleModules = modulesFor(perms, kiorexOrders, growthLevel(u.role));
     return {
       apiVersion: 1, product: "pharmacy" as const, serverTime: new Date().toISOString(),
       user: { id: u.userId, name: u.displayName, email: staff.email, role: u.role, roles: [u.role], locale: settings.defaultLocale ?? "ar", branchId: u.branchId, isPharmacist: !!u.pharmacistLicenceNo },

@@ -13,7 +13,7 @@ export function normalisePlan(edition: Edition | string): MobilePlan {
 /** Plan check only (the flag layer is evaluated on top of it). A SUSPENDED subscription loses the app but keeps safety alerts. */
 export const planIncludesMobile = (edition: Edition | string, subscriptionStatus = "ACTIVE"): boolean => normalisePlan(edition) !== "BASIC" && subscriptionStatus !== "SUSPENDED";
 
-export interface ModuleDef { key: string; perms: string[]; screens: string[]; extra?: "kiorex_orders" }
+export interface ModuleDef { key: string; perms: string[]; screens: string[]; extra?: "kiorex_orders" | "growth" }
 /** Per-role module catalogue: a module is enabled when the role's effective permissions include ALL of `perms`. */
 export const MODULE_DEFS: readonly ModuleDef[] = [
   { key: "pharmacy.rx", perms: ["rx.read"], screens: ["rx.queue", "rx.detail", "rx.safety"] },
@@ -26,15 +26,19 @@ export const MODULE_DEFS: readonly ModuleDef[] = [
   { key: "pharmacy.customers", perms: ["customer.read"], screens: ["customer.lookup"] },
   { key: "pharmacy.orders", perms: ["orders.read"], screens: ["orders.inbox"], extra: "kiorex_orders" },
   { key: "pharmacy.search", perms: ["catalogue.read"], screens: ["search.global"] },
+  /** GRW-P4-B3: Growth tab. Enabled by the Growth role matrix (growth-access.ts), not by a permission: pass the role level to modulesFor. */
+  { key: "pharmacy.growth", perms: [], screens: ["growth.links"], extra: "growth" },
 ];
 
-export function modulesFor(perms: ReadonlySet<string>, kiorexOrders: boolean) {
+export function modulesFor(perms: ReadonlySet<string>, kiorexOrders: boolean, growth: "admin" | "read" | "none" = "none") {
   return MODULE_DEFS.map((m) => {
     let enabled = m.perms.every((p) => perms.has(p));
     if (m.extra === "kiorex_orders" && !kiorexOrders) enabled = false;
+    if (m.extra === "growth") enabled = growth !== "none";
     const screens = [...m.screens];
     if (m.key === "pharmacy.rx" && perms.has("rx.validate")) screens.push("rx.validate");
     if (m.key === "pharmacy.rx" && perms.has("dispense.signoff")) screens.push("rx.override");
+    if (m.key === "pharmacy.growth" && growth === "admin") screens.push("growth.create");
     return { key: m.key, enabled, screens: enabled ? screens : [] };
   });
 }

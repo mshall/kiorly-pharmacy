@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { AuthUser } from "../../auth/auth-user";
 import { PrismaService } from "../../prisma/prisma.service";
+import { webBaseUrl } from "../../auth/handoff";
 import { GrowthInsightsService } from "./growth-insights.service";
 import { kiorexWebBase, PRODUCT_LANDING_PATH } from "./link-urls";
 import { ProviderLinksService, type CreateLinkBody, type UpdateLinkBody } from "./provider-links.service";
@@ -34,11 +35,14 @@ export class GrowthMobileService {
       statement: performance.statement,
       organisation: tenant.name,
       webGrowthPath: "/growth",
+      /** Absolute web workspace URL (this product's own web, WEB_APP_URL); null when the deployment has not set it. */
+      webGrowthUrl: ((b) => (b ? `${b}/growth` : null))(webBaseUrl()),
     };
   }
 
   async linksOnly(u: AuthUser) { const o = await this.links.list(u); const a = await this.links.access(u); return { items: o.items, can: { ...a.can, revoke: false }, plan: a.plan }; }
   qr(u: AuthUser, linkId: string) { return this.links.qrSvgFor(u, linkId); }
+  qrJson(u: AuthUser, linkId: string) { return this.links.qrPayloadFor(u, linkId); }
   create(u: AuthUser, b: CreateLinkBody) { return this.links.create(u, b); }
   update(u: AuthUser, id: string, b: UpdateLinkBody) { return this.links.update(u, id, { status: b.status, label: b.label }, { allowRevoke: false }); }
 }

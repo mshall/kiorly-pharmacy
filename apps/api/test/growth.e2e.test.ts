@@ -243,6 +243,7 @@ describe("Growth provider links (pharmacy)", () => {
       assert.equal((await t.http.patch(`/api/v1/mobile/growth/links/${made.body.id}`).set(owner()).send({ status: "PAUSED" })).body.status, "PAUSED");
       assert.equal((await t.http.patch(`/api/v1/mobile/growth/links/${made.body.id}`).set(owner()).send({ status: "REVOKED" })).status, 403);
       const qr = await getSvg(`/api/v1/mobile/growth/qr?linkId=${made.body.id}`, owner()); assert.equal(qr.status, 200); assert.match(qr.body as string, /^<svg/);
+      const qj = await t.http.get(`/api/v1/mobile/growth/qr?linkId=${made.body.id}&format=json`).set(owner()); assert.equal(qj.status, 200); assert.equal(qj.body.linkId, made.body.id); assert.match(qj.body.svg, /^<svg/); assert.match(qj.body.url, /^https?:\/\//);
       assert.equal((await t.http.get("/api/v1/mobile/growth/qr").set(owner())).status, 400);
       assert.equal((await t.http.get(`/api/v1/mobile/growth/qr?linkId=${made.body.id}`).set(auth(other.users.owner.token))).status, 404, "another organisation");
       assert.equal((await t.http.get("/api/v1/mobile/growth/links").set(owner())).body.items.length > 0, true);

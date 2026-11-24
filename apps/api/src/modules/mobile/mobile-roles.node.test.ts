@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { ROLE_PERMISSIONS } from "../../auth/permissions";
 import { modulesFor } from "./mobile-plan";
+import { growthLevel } from "../growth/growth-access";
 
 const keys = (role: keyof typeof ROLE_PERMISSIONS, kiorexOrders = true) => modulesFor(ROLE_PERMISSIONS[role], kiorexOrders).filter((m) => m.enabled).map((m) => m.key.replace("pharmacy.", "")).sort();
 const screens = (role: keyof typeof ROLE_PERMISSIONS) => modulesFor(ROLE_PERMISSIONS[role], true).find((m) => m.key === "pharmacy.rx")!.screens;
@@ -36,5 +37,18 @@ describe("Kiorly pharmacy: modules per role (default RBAC)", () => {
     for (const r of ["PHARMACIST", "BRANCH_MANAGER", "OWNER"] as const) assert.ok(ROLE_PERMISSIONS[r].has("controlled.manage"), r);
     for (const r of ["CASHIER", "ASSISTANT", "CHAIN_OPS"] as const) assert.ok(!ROLE_PERMISSIONS[r].has("controlled.manage"), r);
     assert.ok(!ROLE_PERMISSIONS.ASSISTANT.has("inventory.count.approve") && !ROLE_PERMISSIONS.CASHIER.has("inventory.count.approve"));
+  });
+});
+
+/** GRW-P4-B3: the Growth tab follows the Growth role matrix (growth-access.ts), never a permission. */
+describe("Kiorly pharmacy: pharmacy.growth module per role", () => {
+  const growth = (role: keyof typeof ROLE_PERMISSIONS) => modulesFor(ROLE_PERMISSIONS[role], true, growthLevel(role as never)).find((m) => m.key === "pharmacy.growth")!;
+  it("owner and branch manager: links screen plus create; read roles: links only", () => {
+    for (const r of ["OWNER", "BRANCH_MANAGER"] as const) assert.deepEqual([growth(r).enabled, growth(r).screens], [true, ["growth.links", "growth.create"]], r);
+    for (const r of ["PHARMACIST", "CASHIER", "ASSISTANT", "CHAIN_OPS"] as const) assert.deepEqual([growth(r).enabled, growth(r).screens], [true, ["growth.links"]], r);
+  });
+  it("level none (and the default argument) disables the module with no screens", () => {
+    assert.deepEqual(modulesFor(ROLE_PERMISSIONS.OWNER, true).find((m) => m.key === "pharmacy.growth"), { key: "pharmacy.growth", enabled: false, screens: [] });
+    assert.equal(modulesFor(ROLE_PERMISSIONS.OWNER, true, "none").find((m) => m.key === "pharmacy.growth")!.enabled, false);
   });
 });

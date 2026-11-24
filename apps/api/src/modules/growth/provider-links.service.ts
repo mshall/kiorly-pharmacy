@@ -228,6 +228,14 @@ export class ProviderLinksService {
     return qrSvg(this.qrTarget(link));
   }
 
+  /** Staff app shape (same as the Clinic `/mobile/growth/qr`): the short URL, its SVG and the link id as JSON (GRW-P4-B3; the app client only reads JSON). */
+  async qrPayloadFor(user: AuthUser, id: string): Promise<{ url: string; svg: string; linkId: string }> {
+    const link = await this.loadLink(user, id, "view");
+    await this.assertConnected(user.orgId);
+    const url = this.qrTarget(link);
+    return { url, svg: await qrSvg(url), linkId: link.id };
+  }
+
   async qrPngFor(user: AuthUser, id: string, width?: number): Promise<Buffer> {
     const link = await this.loadLink(user, id, "view");
     await this.assertConnected(user.orgId);
