@@ -96,3 +96,6 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 **Mobile (Kiorly staff app)**: Android channels `default|safety|clinical|ops` are created by the app and named per push kind by this API. Build/EAS details: `kiorly/Docs/NEEDS_HUMAN.md`.
 
 **Unverified against live vendors:** Paymob `transaction_inquiry` / `void_refund` payloads, Fawry `FawryPay.jsp` signature item order and status v2, Meta template layouts, SES SNS variations; exercise each in the vendor sandbox before production.
+
+## Kiorex acquisition block (GRW-P4-B2)
+- **Do Pharmacys ever owe Kiorex a commission on attribution?** Today no: the block is informational and no charge exists. A rate and basis are a founder and finance decision (launch guide 11.40). Until then nothing here may be shown to a provider as a fee.

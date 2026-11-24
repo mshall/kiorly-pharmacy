@@ -38,3 +38,13 @@ A pharmacy can hand its own customers to its Kiorex pharmacy page through a link
 - The shared flag catalogue has no kiorly-pharmacy row for `growth.provider_links`, so ops cannot toggle it per product until contracts add one.
 - No staff-app tab and no `pharmacy.growth` bootstrap module key (W9). No server PDF. `kiorly.link` is NEEDS_HUMAN.
 - Role matrix, plan limits and wording are PROPOSED_DEFAULT; Arabic wording needs native review.
+
+## Kiorex acquisition block (GRW-P4-B2, wave 7, 25 Nov 2026)
+
+Kiorex decides every Pharmacy order or booking it takes (origin PROVIDER_LED, MARKETPLACE or UNATTRIBUTED, never a charge: the commission link of products is inert) and may send the result as the optional `acquisition` block of contracts 1.12.0 (`ProductAcquisitionBlock`: origin, decisionId, policyVersion, reason, evidenceHash, optional `linkCode` and `product`). This service stores it and credits its own links; it changes nothing else.
+
+- **Schema** (migration `20270107110000_growth_acquisition_fact`, additive, nullable): `KiorexOrder.acquisitionOrigin` (CHECK: the three origins), `acquisitionDecisionRef`, `acquisitionReason`, `acquisitionLinkId` (set only when the cited code is a link of THIS organisation), `acquisitionOrderCountedAt`, `acquisitionCompletedCountedAt`.
+- **Code**: `modules/growth/acquisition-fact.ts` (copy of the shared convention, no cross-product import): `parseAcquisitionBlock` is total: a malformed block, a block for the other product or an absent block is ignored, never a 400; `creditLinkOnce` claims the order row with a conditional update and increments `ProviderReferralLinkDaily.orders` when the order is stored and `.completed` on dispense (DispenseCompleted hook), once each per order.
+- **Rules**: only PROVIDER_LED with a code of this organisation counts; another organisation's code, a MARKETPLACE or UNATTRIBUTED origin and a Clinic client's block count nothing (Lab: only a Kiorex booking client can carry the block); no order line, test name or person is read from the block.
+- **Tests**: `test/acquisition-fact.e2e.test.ts` (3: stored and counted once with replay, ignored cases, foreign organisation and constraint) and the workspace suite `e2e/test/53-growth-product-ingest.e2e.ts` on the real stack.
+- **Gaps**: the staff-app tab (P4-B3) is not built; `growth-metrics.ts` still labels `acquisitionPending` when no link order exists yet.
