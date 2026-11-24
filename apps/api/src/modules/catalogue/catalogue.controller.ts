@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Header, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import { DomainError } from "../../common/errors";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsIn, IsNumberString, IsOptional, IsString, MinLength, ValidateNested } from "class-validator";
@@ -145,14 +146,18 @@ export class CatalogueController {
   @Get("labels")
   @Perm("catalogue.read")
   async labels(@CurrentUser() u: AuthUser, @Query("drugIds") drugIds: string, @Query("branchId") branchId?: string) {
-    return this.svc.labels(u.orgId, branchId ?? u.branchId ?? null, drugIds.split(",").filter(Boolean));
+    const ids = (typeof drugIds === "string" ? drugIds : "").split(",").filter(Boolean).slice(0, 200);
+    if (!ids.length) throw new DomainError("DRUG_IDS_REQUIRED", "drugIds (comma separated) is required", 400);
+    return this.svc.labels(u.orgId, branchId ?? u.branchId ?? null, ids);
   }
 
   @Get("labels/print")
   @Header("Content-Type", "text/html; charset=utf-8")
   @Perm("catalogue.read")
   async print(@CurrentUser() u: AuthUser, @Query("drugIds") drugIds: string, @Query("lang") lang: "ar" | "en" = "ar", @Query("branchId") branchId?: string) {
-    const items = await this.svc.labels(u.orgId, branchId ?? u.branchId ?? null, drugIds.split(",").filter(Boolean));
+    const ids = (typeof drugIds === "string" ? drugIds : "").split(",").filter(Boolean).slice(0, 200);
+    if (!ids.length) throw new DomainError("DRUG_IDS_REQUIRED", "drugIds (comma separated) is required", 400);
+    const items = await this.svc.labels(u.orgId, branchId ?? u.branchId ?? null, ids);
     return renderShelfLabels(items, lang === "en" ? "en" : "ar", this.packs.get(u.market).currency);
   }
 }

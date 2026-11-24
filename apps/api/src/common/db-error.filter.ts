@@ -29,6 +29,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (err.code === "P2002") { res.status(409).json({ statusCode: 409, code: "DUPLICATE", message: "Duplicate record", details: err.meta }); return; }
       if (err.code === "P2025") { res.status(404).json({ statusCode: 404, code: "NOT_FOUND", message: "Record not found" }); return; }
     }
+    // Client faults that used to answer 500 (EDGE-49): Prisma argument validation (?from=garbage -> Invalid Date), malformed / out-of-range values, invalid dates, a mutating request with an empty body.
+    const code = (err as { code?: string } | null)?.code ?? "";
+    if ((err as { name?: string } | null)?.name === "PrismaClientValidationError" || ["P2000", "P2006", "P2007", "P2020", "P2023", "P2033"].includes(code) || (err instanceof RangeError && /invalid (time value|date)/i.test(msg))) {
+      res.status(400).json({ statusCode: 400, code: "INVALID_INPUT", message: "A value in the request is malformed or out of range" }); return;
+    }
+    if (err instanceof TypeError && /Cannot read properties of (undefined|null)|is not iterable/.test(msg)) {
+      const rq = host.switchToHttp().getRequest<{ method?: string; body?: unknown }>();
+      const empty = !rq.body || typeof rq.body !== "object" || Array.isArray(rq.body) || Object.keys(rq.body as object).length === 0;
+      if (["POST", "PUT", "PATCH"].includes(rq.method ?? "") && empty) { res.status(400).json({ statusCode: 400, code: "VALIDATION_FAILED", message: "The request body is missing or incomplete" }); return; }
+    }
     this.log.error(msg, err instanceof Error ? err.stack : undefined);
     res.status(500).json({ statusCode: 500, code: "INTERNAL", message: "Internal error" });
   }
