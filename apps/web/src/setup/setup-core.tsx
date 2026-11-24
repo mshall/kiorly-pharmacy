@@ -39,7 +39,7 @@ const read = <T,>(k: string): T | null => { try { const r = sessionStorage.getIt
 const write = (k: string, v: unknown) => { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } listeners.forEach((l) => l()); };
 let cache: { raw: string | null; v: Session | null } = { raw: null, v: null };
 function snapshot(): Session | null {
-  let raw: string | null = null;
+  let raw: string | null;
   try { raw = sessionStorage.getItem(ACTIVE); } catch { raw = null; }
   if (raw !== cache.raw) cache = { raw, v: raw ? (JSON.parse(raw) as Session) : null };
   return cache.v;

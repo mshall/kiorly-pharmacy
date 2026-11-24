@@ -13,7 +13,9 @@ const walk = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = 
 describe("i18n usage", () => {
   it("every literal t('key') used in the UI exists in en.json (and therefore, by parity, in ar.json)", () => {
     const missing: string[] = [];
-    for (const f of walk(root)) for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.-]+)"/g)) if (get(m[1]!) === undefined) missing.push(`${f.replace(root, "")}: ${m[1]}`);
+    // Quick-setup strings live in setup/setup-strings.ts and are merged at runtime (the shared locale files stay untouched): a `setup.<k>` key is covered by a `"<k>":` entry there.
+    const setupSrc = readFileSync(join(root, "setup/setup-strings.ts"), "utf8");
+    for (const f of walk(root)) for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.-]+)"/g)) { if (m[1]!.startsWith("setup.") && setupSrc.includes(`"${m[1]!.split(".").pop()}":`)) continue; if (get(m[1]!) === undefined) missing.push(`${f.replace(root, "")}: ${m[1]}`); }
     assert.deepEqual(missing, []);
   });
 
