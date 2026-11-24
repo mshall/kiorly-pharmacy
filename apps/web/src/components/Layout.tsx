@@ -9,7 +9,7 @@ import { listQueue } from "@/lib/offline";
 import { routeDeniedReason } from "@/lib/route-access";
 import { api } from "@/lib/api";
 import { SetupBar, SetupChecklist } from "@/setup/setup-core";
-import { homeUrlFromEnv, switchWorkspaceHref } from "@/lib/kiorly-home";
+import { homeUrlFromEnv, LOCAL_HOME_URL, switchWorkspaceHref } from "@/lib/kiorly-home";
 import { KiorlyBrandLockup, KxControlPair, LanguageToggle, ThemeToggle } from "@/brand/ui-kit";
 import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, Link2, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
@@ -28,7 +28,7 @@ export function useOnline(): boolean {
 export function Layout() {
   const { t } = useTranslation();
   const { me, can, flag, logout, branchId, setBranchId } = useAuth();
-  const switchHref = switchWorkspaceHref(homeUrlFromEnv({ VITE_KIORLY_HOME_URL: import.meta.env.VITE_KIORLY_HOME_URL as string | undefined, DEV: import.meta.env.DEV }));
+  const switchHref = switchWorkspaceHref(homeUrlFromEnv({ VITE_KIORLY_HOME_URL: import.meta.env.VITE_KIORLY_HOME_URL as string | undefined, DEV: import.meta.env.DEV, localDefault: import.meta.env.DEV ? LOCAL_HOME_URL : undefined }));
   const online = useOnline();
   const unreadQ = useQuery({ queryKey: ["alerts-count"], queryFn: () => api<{ unread: number; critical: number }>("/notifications/unread-count"), enabled: can("notifications.read"), refetchInterval: 60_000 });
   const queued = useQuery({ queryKey: ["offline-queue"], queryFn: () => listQueue().then((q) => q.length), refetchInterval: 5000 });

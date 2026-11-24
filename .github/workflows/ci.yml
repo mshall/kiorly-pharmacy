@@ -60,3 +60,71 @@ jobs:
         run: npm run docs:check
       - name: Build
         run: npm run build
+
+  # Production-bundle hygiene: the DEV ONLY "Test users" panel, synthetic logins and any localhost URL must not be in a production build (builds production + development, asserts the check is not vacuous).
+  web-bundle:
+    name: web production bundle (no dev-only feature, no localhost)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Production bundle check
+        run: npm run check:dev-test-users -w web
+
+  # Browser suites on a seeded API: sign-in screens (default method, edge widths 360-2560, Arabic, dark, axe) and the state-aware Kiorex tab.
+  web-e2e:
+    name: web Playwright (sign-in, edge, Kiorex tab)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiorly_pharmacy
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kiorly_pharmacy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/kiorly_pharmacy?schema=public
+      CI: "true"
+      DEMO_SEED_ALLOWED: "true"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run prisma:generate -w api
+      - run: npm run db:deploy -w api
+      - name: Seed the demo pharmacy
+        run: npm run seed:all -w api
+      - name: Start the API (:3100) and the web (:5192)
+        run: |
+          (cd apps/api && PORT=3100 NODE_ENV=development AUTH_MODE=local SWAGGER_ENABLED=false nohup npm run start:swc > ../../api.log 2>&1 &)
+          (cd apps/web && nohup npx vite --host 127.0.0.1 --port 5192 --strictPort > ../../web.log 2>&1 &)
+          for i in $(seq 1 90); do curl -fs localhost:3100/api/v1/health/ready >/dev/null && curl -fs 127.0.0.1:5192/ >/dev/null && exit 0; sleep 1; done; tail -n 40 api.log web.log; exit 1
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Sign-in screens and edge cases (Google Chrome, preinstalled on the runner)
+        run: SIGNIN_BASE_URL=http://localhost:5192 npx playwright test -c playwright.signin.config.ts
+        working-directory: apps/web
+      - name: Kiorex tab (front door, connect state)
+        run: KIOREX_TAB_BASE_URL=http://localhost:5192 npx playwright test -c playwright.kiorex-tab.config.ts
+        working-directory: apps/web
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with: { name: playwright-results, path: "apps/web/test-results", retention-days: 7 }
