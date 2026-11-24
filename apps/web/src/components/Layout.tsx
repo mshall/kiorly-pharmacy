@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import { SetupBar, SetupChecklist } from "@/setup/setup-core";
 import { homeUrlFromEnv, LOCAL_HOME_URL, switchWorkspaceHref } from "@/lib/kiorly-home";
 import { KiorlyBrandLockup, KxControlPair, LanguageToggle, ThemeToggle } from "@/brand/ui-kit";
-import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, Link2, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, Bell, BookLock, ScrollText, Landmark, Ticket, BookOpen, ShieldCheck, Boxes, Inbox, LayoutDashboard, Link2, Megaphone, PackagePlus, Pill, Settings, ShoppingCart, Truck, Users, type LucideIcon } from "lucide-react";
 
 interface NavItem { to: string; label: string; perm?: string; flag?: string; icon: LucideIcon; group: "" | "counter" | "clinical" | "stock" | "money" | "admin" }
 
@@ -49,6 +49,7 @@ export function Layout() {
     { to: "/reports", label: t("nav.reports"), perm: "reports.read", icon: BarChart3, group: "money" },
     { to: "/notifications", label: t("nav.notifications"), perm: "notifications.read", icon: Bell, group: "admin" },
     { to: "/audit", label: t("nav.audit"), perm: "audit.read", icon: ScrollText, group: "admin" },
+    { to: "/growth", label: t("nav.growth"), icon: Megaphone, group: "money" },
     { to: "/kiorex-connect", label: t("kiorexConnect.title", "Connect to Kiorex"), perm: "settings.write", icon: Link2, group: "admin" },
     { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings, group: "admin" },
   ];

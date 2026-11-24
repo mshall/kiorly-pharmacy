@@ -29,6 +29,7 @@ import { Audit } from "@/pages/Audit";
 import { Notifications } from "@/pages/Notifications";
 import { KiorexConnect } from "@/pages/KiorexConnect";
 import { KiorexFrontDoor } from "@/pages/KiorexFrontDoor";
+import { GrowthPage } from "@/features/growth/GrowthPage";
 
 const qc = new QueryClient({ /** networkMode "always": the till must keep running (and queue sales) while offline; react-query would otherwise pause mutations. */
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000, networkMode: "always" }, mutations: { networkMode: "always" } } });
@@ -74,6 +75,7 @@ export function App() {
                 <Route path="purchasing" element={<Purchasing />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="growth" element={<GrowthPage />} />
                 <Route path="kiorex-connect" element={<KiorexFrontDoor />} />
                 <Route path="kiorex-connect/steps" element={<KiorexConnect />} />
               </Route>
