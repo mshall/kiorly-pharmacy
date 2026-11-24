@@ -311,6 +311,8 @@ model StaffUser {
   passwordHash        String?
   branchId            String?
   mfaEnrolled         Boolean   @default(false)
+  /// Home cards this user dismissed (e.g. "kiorex-home"); per user, server-side.
+  dismissedCards      Json      @default("[]")
   lastLoginAt         DateTime?
   createdAt           DateTime  @default(now())
 
@@ -2050,5 +2052,16 @@ model HandoffCode {
   expiresAt DateTime
   usedAt    DateTime?
 
+  @@index([expiresAt])
+}
+
+/// Shared rate-limit counters (PgRateLimiter): one row per (key|windowMs, aligned window). Backs the sign-in throttles across API instances; expired rows are swept opportunistically.
+model RateLimitBucket {
+  key         String
+  windowStart DateTime
+  count       Int
+  expiresAt   DateTime
+
+  @@id([key, windowStart])
   @@index([expiresAt])
 }

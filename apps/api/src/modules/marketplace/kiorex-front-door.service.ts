@@ -6,10 +6,12 @@ import { badRequest, conflict } from "../../common/errors";
 import { PrismaService } from "../../prisma/prisma.service";
 import { kiorexHost } from "./kiorex-connect.core";
 import { KiorexConnectService } from "./kiorex-connect.service";
-import { cleanTalkToUs, frontDoorState, leadHeaders, leadSigningSecret, LeadInputError, newLeadNonce, type TalkToUsInput } from "./kiorex-front-door.core";
+import { cleanPauseReason, cleanTalkToUs, frontDoorState, LISTING_KEY, listingPause, leadHeaders, leadSigningSecret, LeadInputError, newLeadNonce, type TalkToUsInput } from "./kiorex-front-door.core";
 
 interface Flags { startedAt?: string; interestAt?: string; leadAt?: string }
 const KEY = "kiorexFrontDoor";
+/** The delivery fee the pharmacy configured for Kiorex orders (minor units); null when none is set, so the tile stays hidden instead of showing a made-up number. */
+const deliveryFee = (settings: unknown): number | null => { const n = Number((settings as { kiorexDeliveryFeeMinor?: unknown } | null)?.kiorexDeliveryFeeMinor); return Number.isFinite(n) && n > 0 ? Math.round(n) : null; };
 const monthStart = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)); };
 
 /** Front door of "Connect to Kiorex" (ADR-040): state, privacy-safe funnel markers, the Talk to us lead and the live dashboard numbers. Flags live in Tenant.settings.kiorexFrontDoor (no schema change). */
@@ -40,7 +42,25 @@ export class KiorexFrontDoorService {
       const opted = new Set((await this.prisma.branchMarketplaceSetting.findMany({ where: { orgId, optedIn: true }, select: { branchId: true } })).map((x) => x.branchId));
       branches = bs.map((b) => ({ id: b.id, name: b.name, optedIn: opted.has(b.id) }));
     }
-    return { state, status: c.status, legacy: c.legacy, started: !!f.startedAt || !!c.terms, interestedAt: f.interestAt ?? null, leadAt: f.leadAt ?? null, currency: ((t.settings as { currency?: string } | null)?.currency) ?? null, month, recent, branches, connect: c };
+    return { state, listing: { paused: !!listingPause(t.settings), pausedAt: listingPause(t.settings)?.pausedAt ?? null, reason: listingPause(t.settings)?.reason ?? null }, status: c.status, legacy: c.legacy, started: !!f.startedAt || !!c.terms, interestedAt: f.interestAt ?? null, leadAt: f.leadAt ?? null, currency: ((t.settings as { currency?: string } | null)?.currency) ?? null, deliveryFeeMinor: deliveryFee(t.settings), month, recent, branches, connect: c };
+  }
+
+  /** Owner pauses the WHOLE Kiorex listing (every branch) without touching the per-branch settings; resuming restores exactly what was set. Only a live listing can be paused. */
+  async pauseListing(u: AuthUser, reason?: unknown) {
+    const st = await this.get(u.orgId);
+    if (st.state !== "LIVE") throw conflict("NOT_LIVE", "Only a live Kiorex listing can be paused");
+    if (st.listing.paused) return st;
+    const t = await this.tenant(u.orgId); const why = cleanPauseReason(reason);
+    await this.prisma.tenant.update({ where: { id: u.orgId }, data: { settings: { ...((t.settings ?? {}) as Record<string, unknown>), [LISTING_KEY]: { paused: true, pausedAt: new Date().toISOString(), by: u.userId, ...(why ? { reason: why } : {}) } } as unknown as Prisma.InputJsonValue } });
+    await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "kiorex_listing.paused", entityType: "Tenant", entityId: u.orgId, meta: { reason: why ?? null } });
+    return this.get(u.orgId);
+  }
+  async resumeListing(u: AuthUser) {
+    const t = await this.tenant(u.orgId);
+    if (!listingPause(t.settings)) return this.get(u.orgId);
+    await this.prisma.tenant.update({ where: { id: u.orgId }, data: { settings: { ...((t.settings ?? {}) as Record<string, unknown>), [LISTING_KEY]: { paused: false, resumedAt: new Date().toISOString(), by: u.userId } } as unknown as Prisma.InputJsonValue } });
+    await this.audit.record({ orgId: u.orgId, actorId: u.userId, action: "kiorex_listing.resumed", entityType: "Tenant", entityId: u.orgId });
+    return this.get(u.orgId);
   }
 
   async interest(orgId: string) {

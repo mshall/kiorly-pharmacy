@@ -37,3 +37,14 @@ describe("Kiorex tab front door (ADR-040)", () => {
     assert.equal(leadSigningSecret({ NODE_ENV: "production", KIOREX_LEAD_SIGNING_SECRET: "x" }), "x");
   });
 });
+
+import { cleanPauseReason, listingPause } from "./kiorex-front-door.core";
+describe("listing pause helpers", () => {
+  it("reads the pause from tenant settings and cleans the reason", () => {
+    assert.equal(listingPause({}), null); assert.equal(listingPause(null), null);
+    assert.equal(listingPause({ kiorexListing: { paused: false, pausedAt: "x" } }), null);
+    assert.deepEqual(listingPause({ kiorexListing: { paused: true, pausedAt: "2026-11-24T10:00:00Z", by: "u1", reason: "Stocktake" } }), { pausedAt: "2026-11-24T10:00:00Z", by: "u1", reason: "Stocktake" });
+    assert.equal(cleanPauseReason("  Stocktake "), "Stocktake"); assert.equal(cleanPauseReason(""), undefined); assert.equal(cleanPauseReason(5), undefined);
+    assert.equal(cleanPauseReason("x".repeat(300))?.length, 200);
+  });
+});

@@ -35,7 +35,11 @@ describe("health e2e", () => {
   it("GET /api/v1/health/ready => 200 with database ok", async () => {
     const res = await fetch(`${base}/api/v1/health/ready`);
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { status: "ok", database: "ok" });
+    // readiness also lists every external provider (mode/vendor/ready, never a secret): assert the contract, not the exact provider set
+    const body = (await res.json()) as { status: string; database: string; providers: Array<{ provider: string; mode: string; ready: boolean }> };
+    assert.equal(body.status, "ok"); assert.equal(body.database, "ok");
+    assert.ok(Array.isArray(body.providers) && body.providers.length > 0);
+    for (const p of body.providers) { assert.equal(typeof p.provider, "string"); assert.ok(["mock", "real"].includes(p.mode)); assert.equal(typeof p.ready, "boolean"); assert.ok(!JSON.stringify(p).toLowerCase().includes("secret")); }
   });
 
   it("unprefixed /health/live is 404 (global prefix enforced)", async () => {

@@ -56,3 +56,15 @@ export function leadHeaders(secret: string, ts: number, body: string): Record<st
   return { "content-type": "application/json", "X-Kiorly-Timestamp": String(ts), "X-Kiorly-Signature": `sha256=${createHmac("sha256", key).update(`${ts}.${body}`).digest("hex")}` };
 }
 export const newLeadNonce = (): string => randomBytes(18).toString("base64url");
+
+/**
+ * The partner's own "pause my whole Kiorex listing" switch (separate from Kiorex ops pausing a partner and from the per-branch opt-out).
+ * Stored in Tenant.settings.kiorexListing; while set, the catalogue/pharmacy lists are empty and new Kiorex orders are refused with 409 LISTING_PAUSED.
+ */
+export interface ListingPause { pausedAt: string; by: string; reason?: string }
+export const LISTING_KEY = "kiorexListing";
+export function listingPause(settings: unknown): ListingPause | null {
+  const v = (settings as Record<string, unknown> | null | undefined)?.[LISTING_KEY] as { paused?: boolean; pausedAt?: string; by?: string; reason?: string } | undefined;
+  return v?.paused && v.pausedAt ? { pausedAt: v.pausedAt, by: v.by ?? "", ...(v.reason ? { reason: v.reason } : {}) } : null;
+}
+export const cleanPauseReason = (r: unknown): string | undefined => { if (typeof r !== "string") return undefined; const s = r.trim().slice(0, 200); return s && !CTRL.test(s) ? s : undefined; };

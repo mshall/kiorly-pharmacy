@@ -1,3 +1,4 @@
+import { listingPause } from "./kiorex-front-door.core";
 import { PushService } from "../mobile/push.service";
 import { Optional, Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma/client";
@@ -86,7 +87,7 @@ export class MarketplaceService implements OnModuleInit {
 
   // ------------------------------------------------------------------------------------------------ KPINV07 stock exposure (never controlled)
   async availability(orgId: string) {
-    const settings = await this.prisma.branchMarketplaceSetting.findMany({ where: { orgId, optedIn: true } });
+    const { settings } = await this.optedInBranches(orgId);
     const branches = [];
     for (const s of settings) {
       const atp = await this.inv.atp(orgId, s.branchId);
@@ -101,6 +102,7 @@ export class MarketplaceService implements OnModuleInit {
   async ingest(orgId: string, input: IngestOrderInput) {
     const dup = await this.prisma.kiorexOrder.findUnique({ where: { orgId_externalOrderId: { orgId, externalOrderId: input.orderId } }, include: { lines: true } });
     if (dup) return { order: dup, replayed: true };
+    if (listingPause((await this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId }, select: { settings: true } })).settings)) throw new DomainError("LISTING_PAUSED", "This pharmacy paused its Kiorex listing and is not taking new orders", 409);
     const setting = await this.prisma.branchMarketplaceSetting.findFirst({ where: { orgId, branchId: input.branchId, optedIn: true } });
     if (!setting) throw new DomainError("BRANCH_NOT_OPTED_IN", "Branch is not accepting Kiorex orders", 409);
     const drugs = await this.prisma.drug.findMany({ where: { id: { in: input.lines.map((l) => l.sku) }, OR: [{ orgId: null }, { orgId }] } });
@@ -298,9 +300,10 @@ export class MarketplaceService implements OnModuleInit {
 
   // ------------------------------------------------------------------------------------------------ Kiorex catalogue / quote / Rx validation (1.4.0)
   private async optedInBranches(orgId: string, branchId?: string) {
-    const settings = await this.prisma.branchMarketplaceSetting.findMany({ where: { orgId, optedIn: true, ...(branchId ? { branchId } : {}) } });
-    const branches = await this.prisma.branch.findMany({ where: { orgId, id: { in: settings.map((x) => x.branchId) }, active: true } });
     const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } });
+    // the owner paused the whole Kiorex listing: nothing is offered (the per-branch settings are untouched and come back on resume)
+    const settings = listingPause(tenant.settings) ? [] : await this.prisma.branchMarketplaceSetting.findMany({ where: { orgId, optedIn: true, ...(branchId ? { branchId } : {}) } });
+    const branches = await this.prisma.branch.findMany({ where: { orgId, id: { in: settings.map((x) => x.branchId) }, active: true } });
     return { settings, branches, tenant };
   }
 

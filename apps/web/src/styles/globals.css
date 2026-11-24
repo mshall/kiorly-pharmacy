@@ -80,3 +80,6 @@ dialog::backdrop { background: var(--kx-overlay); backdrop-filter: blur(2px); }
   .kx-hp-8 th:nth-child(8), .kx-hp-8 td:nth-child(8) { display: none; }
   .kx-hp-9 th:nth-child(9), .kx-hp-9 td:nth-child(9) { display: none; }
 }
+
+/* 360px phones: the header's right-hand group (bell, theme, language, switch product, sign out) wraps instead of pushing the page 4px wider than the viewport. */
+@media (max-width: 479px) { header.no-print > div:last-of-type { flex-wrap: wrap; justify-content: flex-end; min-width: 0; } }

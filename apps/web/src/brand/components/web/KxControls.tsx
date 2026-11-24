@@ -132,7 +132,7 @@ export function KxLanguageToggle({ lang, onChange, labels, className }: KxLangua
         <ChevronDown aria-hidden className={`size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
       </button>
       {open ? (
-        <div id={id} role="menu" aria-label={labels.language} data-kx-menu onKeyDown={onMenuKey}
+        <div id={id} role="menu" tabIndex={-1} aria-label={labels.language} data-kx-menu onKeyDown={onMenuKey}
           className="absolute end-0 top-full z-50 mt-2 min-w-[11rem] rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-[var(--kx-shadow-3)]">
           {KX_LANGUAGES.map((l, i) => (
             <button

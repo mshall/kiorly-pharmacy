@@ -1960,7 +1960,11 @@
     },
     "request": "Request registration",
     "requested": "Request sent. Kiorex will review it.",
-    "enrolment": {"label": "Enrolment code from Kiorex", "hint": "Kiorex gives you a one-time code to start the connection. Paste it here. It is used once and is not stored.", "placeholder": "kxe_..."},
+    "enrolment": {
+      "label": "Enrolment code from Kiorex",
+      "hint": "Kiorex gives you a one-time code to start the connection. Paste it here. It is used once and is not stored.",
+      "placeholder": "kxe_..."
+    },
     "refresh": "Refresh status",
     "rotate": "Rotate credentials",
     "decision": {
@@ -2155,14 +2159,21 @@
         "orders": "Kiorex orders",
         "completed": "Dispensed",
         "rejected": "Declined",
-        "value": "Dispensed value"
+        "value": "Dispensed value",
+        "deliveryFee": "Delivery fee you set"
       },
       "status": "Status",
       "where": "Branch",
       "delivery": {
         "PICKUP": "Pickup",
         "DELIVERY": "Delivery"
-      }
+      },
+      "listingLiveTitle": "Your Kiorex listing is on",
+      "listingLiveBody": "Patients can find you and place orders. Pausing hides every location from Kiorex until you resume; nothing else changes.",
+      "listingPausedTitle": "Your Kiorex listing is paused",
+      "listingPausedBody": "No new Kiorex orders arrive. Orders already placed are not affected. Resume when you are ready.",
+      "pauseListing": "Pause listing",
+      "resumeListing": "Resume listing"
     },
     "unavailable": "Kiorex information is available to clinic owners and managers.",
     "loading": "Loading"

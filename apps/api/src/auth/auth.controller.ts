@@ -19,6 +19,7 @@ import { HandoffCodes, HandoffError, isHomeOrigin, webBaseUrl } from "./handoff"
 import { PrismaHandoffStore } from "./handoff.store";
 import { deploymentDefaultMethod, orgSignInFacts, resolvePublicSignInConfig } from "./sign-in-config";
 import { makeWindowLimiter } from "./sign-in-default";
+import { PgRateLimiter, type RawSql } from "../common/pg-rate-limit";
 
 const configLimiter = makeWindowLimiter(300, 60_000);
 
@@ -42,12 +43,12 @@ class HandoffExchangeDto {
   @IsString() @MaxLength(128) code!: string;
 }
 
-const attempts = new Map<string, { n: number; t: number }>();
-function throttle(key: string) {
-  const now = Date.now();
-  const a = attempts.get(key);
-  if (!a || now - a.t > 60_000) { attempts.set(key, { n: 1, t: now }); return; }
-  if (++a.n > 10) throw new DomainError("RATE_LIMITED", "Too many login attempts, try again in a minute", 429);
+/** Sign-in throttle: 10 attempts per key per minute, counted in Postgres so it holds across API instances. */
+let pgLimiter: PgRateLimiter | undefined;
+async function throttle(prisma: PrismaService, key: string) {
+  pgLimiter ??= new PgRateLimiter(prisma as unknown as RawSql);
+  const r = await pgLimiter.hit(`signin:${key}`, Number(process.env.SIGNIN_RATE_PER_MINUTE) || 10, 60_000);
+  if (!r.ok) throw new DomainError("RATE_LIMITED", "Too many login attempts, try again in a minute", 429, { retryAfterSec: r.retryAfterSec });
 }
 
 @ApiTags("auth")
@@ -82,8 +83,8 @@ export class AuthController {
   @Post("oidc/exchange")
   @Public()
   @HttpCode(200)
-  exchange(@Body() dto: OidcExchangeDto) {
-    throttle(`oidc:${dto.codeVerifier.slice(0, 12)}`);
+  async exchange(@Body() dto: OidcExchangeDto) {
+    await throttle(this.prisma, `oidc:${dto.codeVerifier.slice(0, 12)}`);
     return this.passport.exchange(dto);
   }
 
@@ -106,7 +107,7 @@ export class AuthController {
   @HttpCode(200)
   async login(@Body() dto: LoginDto) {
     if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
-    throttle(dto.email.toLowerCase());
+    await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
@@ -125,7 +126,7 @@ export class AuthController {
     res.setHeader("Cache-Control", "no-store");
     if (!isHomeOrigin(origin)) throw new DomainError("HANDOFF_ORIGIN_NOT_ALLOWED", "This sign-in start is not allowed from here", 403);
     if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
-    throttle(dto.email.toLowerCase());
+    await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
     const { code, expiresInSeconds } = await this.handoffCodes().issue({ subjectId: staff.id, origin: origin! });

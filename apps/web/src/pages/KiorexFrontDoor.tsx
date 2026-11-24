@@ -15,7 +15,7 @@ type StepStatus = "done" | "action_needed" | "waiting_kiorex" | "blocked";
 interface Step { key: string; status: StepStatus; optional?: boolean }
 interface Connect { legacy: boolean; status: string; progress: number; steps: Step[] }
 export type DoorState = "NOT_CONNECTED" | "IN_PROGRESS" | "WAITING" | "LIVE" | "ATTENTION";
-interface Door { state: DoorState; status: string; legacy: boolean; started: boolean; interestedAt: string | null; leadAt: string | null; month: Record<string, number> | null; recent: Array<Record<string, string | number>>; branches?: Array<{ id: string; name: string; optedIn: boolean }>; labs?: Array<{ id: string; name: string }>; connect: Connect }
+interface Door { state: DoorState; listing?: { paused: boolean; pausedAt: string | null; reason: string | null }; deliveryFeeMinor?: number | null; currency?: string | null; status: string; legacy: boolean; started: boolean; interestedAt: string | null; leadAt: string | null; month: Record<string, number> | null; recent: Array<Record<string, string | number>>; branches?: Array<{ id: string; name: string; optedIn: boolean }>; labs?: Array<{ id: string; name: string }>; connect: Connect }
 const BASE = "/kiorex-connect"; const KEY = ["kiorex-front-door"];
 const ICON = { done: CheckCircle2, action_needed: AlertCircle, waiting_kiorex: Clock, blocked: Lock } as const;
 const TONE = { done: "text-emerald-800 dark:text-emerald-300", action_needed: "text-amber-800 dark:text-amber-300", waiting_kiorex: "text-sky-700 dark:text-sky-400", blocked: "text-muted-foreground" } as const;
@@ -24,9 +24,17 @@ const LINK_PRIMARY = `${linkBtn} bg-primary text-primary-foreground hover:opacit
 const TIMES = ["MORNING", "AFTERNOON", "EVENING", "ANYTIME"] as const;
 
 const nextStep = (steps: Step[]) => steps.find((s) => !s.optional && s.status !== "done" && s.status !== "waiting_kiorex" && s.key !== "live") ?? steps.find((s) => !s.optional && s.status === "waiting_kiorex");
-const dismissKey = (id: string) => `kiorex.homeCard.dismissed.${id}`;
-const isDismissed = (id: string) => { try { return localStorage.getItem(dismissKey(id)) === "1"; } catch { return false; } };
-const setDismissed = (id: string, on: boolean) => { try { if (on) localStorage.setItem(dismissKey(id), "1"); else localStorage.removeItem(dismissKey(id)); } catch { /* storage blocked: the card shows again */ } };
+import { HOME_CARD, loadDismissed, setCardDismissed, type DismissedRemote } from "@/lib/dismissed-cards";
+const PREF = "/me/preferences/dismissed-cards";
+const remote: DismissedRemote = { get: () => api<{ keys: string[] }>(PREF).then((r) => r.keys), put: (keys) => api<{ keys: string[] }>(PREF, { method: "PUT", body: { keys } }).then((r) => r.keys) };
+const browserStore = () => { try { return localStorage; } catch { return null; } };
+/** The home-card dismissal of the signed-in user: server side (per user), with the browser as fallback and a one-time migration of the old browser flag. */
+function useDismissedHomeCard(userId: string) {
+  const qc = useQueryClient(); const key = ["dismissed-cards", userId];
+  const q = useQuery({ queryKey: key, queryFn: () => loadDismissed(userId, remote, browserStore()), enabled: !!userId, staleTime: Infinity, retry: false });
+  const set = useMutation({ mutationFn: (on: boolean) => setCardDismissed(userId, HOME_CARD, on, q.data ?? [], remote, browserStore()), onSuccess: (keys) => { qc.setQueryData(key, keys); void qc.invalidateQueries({ queryKey: ["kiorex-home-card"] }); } });
+  return { ready: q.isSuccess, dismissed: !!q.data?.includes(HOME_CARD), dismiss: () => set.mutate(true), show: () => set.mutate(false) };
+}
 const useDoor = (enabled = true) => useQuery({ queryKey: KEY, queryFn: () => api<Door>(`${BASE}/front-door`), enabled, retry: false, refetchInterval: (s) => (s.state.data?.state === "WAITING" ? 15000 : false) });
 const num = (n: number, lang: string) => new Intl.NumberFormat(lang.startsWith("ar") ? "ar-EG" : "en").format(n);
 
@@ -63,7 +71,7 @@ function Landing({ door }: { door: Door }) {
   useEffect(() => { if (!sent.current && !door.interestedAt) { sent.current = true; void api(`${BASE}/front-door/interest`, { method: "POST" }).catch(() => undefined); } }, [door.interestedAt]);
   const required = door.connect.steps.filter((s) => !s.optional && s.key !== "live"); const done = required.filter((s) => s.status === "done").length;
   const benefits = ["search", "orders", "prepaid", "queue", "rx"];
-  const userId = me?.user.id ?? "";
+  const userId = me?.user.id ?? ""; const card = useDismissedHomeCard(userId);
   return (
     <div className="space-y-8" data-testid="kiorex-landing">
       <section className="rounded-3xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 sm:p-10" aria-labelledby="kx-hero">
@@ -88,7 +96,7 @@ function Landing({ door }: { door: Door }) {
           <ul className="space-y-2 text-sm" data-testid="landing-reassure">{(["optional", "reversible", "data", "choose"] as const).map((k) => <li key={k} className="flex gap-2"><CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />{t(`kiorexMarketing.reassure.${k}`)}</li>)}</ul></section>
         <section aria-labelledby="kx-fee" className="rounded-2xl border bg-card p-4 sm:p-6"><h2 id="kx-fee" className="mb-3 text-xl font-semibold">{t("kiorexMarketing.feeTitle")}</h2><p className="text-sm" data-testid="landing-fee">{t("kiorexMarketing.feeUnconfigured")}</p></section>
       </div>
-      {userId && isDismissed(userId) ? <Button variant="outline" size="sm" data-testid="home-card-show" onClick={() => { setDismissed(userId, false); qc.invalidateQueries({ queryKey: ["kiorex-home-card"] }); }}>{t("kiorexMarketing.homeCard.show")}</Button> : null}
+      {userId && card.dismissed ? <Button variant="outline" size="sm" data-testid="home-card-show" onClick={card.show}>{t("kiorexMarketing.homeCard.show")}</Button> : null}
     </div>
   );
 }
@@ -116,13 +124,19 @@ function Panel({ door, state }: { door: Door; state: Exclude<DoorState, "NOT_CON
 function Live({ door }: { door: Door }) {
   const { t, i18n } = useTranslation(); const qc = useQueryClient(); const lang = i18n.language; const m = door.month ?? {};
   const toggle = useMutation({ mutationFn: (v: { id: string; optedIn: boolean }) => api(`${BASE}/branches/${v.id}`, { method: "PUT", body: { optedIn: v.optedIn } }), onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }) });
+  const pause = useMutation({ mutationFn: (on: boolean) => api<Door>(`${BASE}/front-door/listing/${on ? "pause" : "resume"}`, { method: "POST", body: {} }), onSuccess: (d) => { qc.setQueryData(KEY, d); void qc.invalidateQueries({ queryKey: KEY }); } });
+  const paused = !!door.listing?.paused;
   const sites = door.branches ?? door.labs?.map((l) => ({ ...l, optedIn: true })) ?? [];
   const tiles = Object.keys(m);
   return (
     <section className="space-y-5" aria-labelledby="kx-live-h" data-testid="kiorex-live-dashboard">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="kx-live-h" className="text-xl font-semibold">{t("kiorexDoor.live.title")}</h2><Link to={`${BASE}/steps`} className={LINK_OUTLINE} data-testid="live-settings">{t("kiorexDoor.live.settings")}</Link></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tiles.map((k) => <div key={k} className="rounded-2xl border bg-card p-4" data-testid={`live-${k}`}><p className="text-xs text-muted-foreground">{t(`kiorexDoor.live.tile.${k}`)} · {t("kiorexDoor.live.month")}</p><p className="text-2xl font-semibold" dir="ltr">{num(m[k]!, lang)}</p></div>)}</div>
-      {sites.length ? <div className="rounded-2xl border bg-card" data-testid="live-listings"><h3 className="px-4 pt-3 font-medium">{t("kiorexDoor.live.listings")} <span className="text-xs font-normal text-muted-foreground">{t("kiorexDoor.live.listingsHint")}</span></h3><ul className="divide-y">{sites.map((b) => <li key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm" data-testid={`live-listing-${b.id}`} data-status={b.optedIn ? "LIVE" : "PAUSED"}><span className="font-medium" dir="auto">{b.name}</span><span className="rounded-full border px-2 text-xs">{!b.optedIn ? t("kiorexDoor.live.pausedByYou") : door.state === "LIVE" ? t("kiorexDoor.state.LIVE") : t(`kiorexDoor.state.${door.state}`)}</span>{door.branches ? <span className="ms-auto"><Button size="sm" variant="outline" disabled={toggle.isPending} onClick={() => toggle.mutate({ id: b.id, optedIn: !b.optedIn })} data-testid={`live-${b.optedIn ? "pause" : "resume"}-${b.id}`}>{b.optedIn ? t("kiorexDoor.live.pause") : t("kiorexDoor.live.resume")}</Button></span> : null}</li>)}</ul></div> : null}
+      <div className={`flex flex-wrap items-center gap-3 rounded-2xl border p-4 ${door.listing?.paused ? "border-amber-500/50 bg-amber-500/10" : "bg-card"}`} data-testid="live-listing-pause" data-paused={door.listing?.paused ? "true" : "false"}>
+        <div className="min-w-0 flex-1"><h3 className="font-medium">{door.listing?.paused ? t("kiorexDoor.live.listingPausedTitle") : t("kiorexDoor.live.listingLiveTitle")}</h3><p className="text-sm text-muted-foreground">{door.listing?.paused ? t("kiorexDoor.live.listingPausedBody") : t("kiorexDoor.live.listingLiveBody")}</p></div>
+        <Button size="sm" variant="outline" disabled={pause.isPending || door.state !== "LIVE"} onClick={() => pause.mutate(!door.listing?.paused)} data-testid={door.listing?.paused ? "listing-resume" : "listing-pause"}>{door.listing?.paused ? t("kiorexDoor.live.resumeListing") : t("kiorexDoor.live.pauseListing")}</Button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{tiles.map((k) => <div key={k} className="rounded-2xl border bg-card p-4" data-testid={`live-${k}`}><p className="text-xs text-muted-foreground">{t(`kiorexDoor.live.tile.${k}`)} · {t("kiorexDoor.live.month")}</p><p className="text-2xl font-semibold" dir="ltr">{num(m[k]!, lang)}</p></div>)}{door.deliveryFeeMinor ? <div className="rounded-2xl border bg-card p-4" data-testid="live-deliveryFee"><p className="text-xs text-muted-foreground">{t("kiorexDoor.live.tile.deliveryFee")}</p><p className="text-2xl font-semibold" dir="ltr">{new Intl.NumberFormat(lang.startsWith("ar") ? "ar-EG" : "en", door.currency ? { style: "currency", currency: door.currency } : undefined).format(door.deliveryFeeMinor / 100)}</p></div> : null}</div>
+      {sites.length ? <div className="rounded-2xl border bg-card" data-testid="live-listings"><h3 className="px-4 pt-3 font-medium">{t("kiorexDoor.live.listings")} <span className="text-xs font-normal text-muted-foreground">{t("kiorexDoor.live.listingsHint")}</span></h3><ul className="divide-y">{sites.map((b) => <li key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm" data-testid={`live-listing-${b.id}`} data-status={b.optedIn ? "LIVE" : "PAUSED"}><span className="font-medium" dir="auto">{b.name}</span><span className="rounded-full border px-2 text-xs">{!b.optedIn || paused ? t("kiorexDoor.live.pausedByYou") : door.state === "LIVE" ? t("kiorexDoor.state.LIVE") : t(`kiorexDoor.state.${door.state}`)}</span>{door.branches ? <span className="ms-auto"><Button size="sm" variant="outline" disabled={toggle.isPending} onClick={() => toggle.mutate({ id: b.id, optedIn: !b.optedIn })} data-testid={`live-${b.optedIn ? "pause" : "resume"}-${b.id}`}>{b.optedIn ? t("kiorexDoor.live.pause") : t("kiorexDoor.live.resume")}</Button></span> : null}</li>)}</ul></div> : null}
       <div className="rounded-2xl border bg-card p-4" data-testid="live-recent"><h3 className="mb-2 font-medium">{t("kiorexDoor.live.recent")}</h3>
         {door.recent.length === 0 ? <p className="text-sm text-muted-foreground">{t("kiorexDoor.live.noRecent")}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-sm"><thead><tr className="text-xs text-muted-foreground"><th scope="col" className="py-1 text-start font-medium">{t("kiorexDoor.live.when")}</th><th scope="col" className="py-1 text-start font-medium">{t("kiorexDoor.live.where")}</th><th scope="col" className="py-1 text-start font-medium">{t("kiorexDoor.live.status")}</th><th scope="col" className="py-1 text-start font-medium">{t("kiorexDoor.live.via")}</th></tr></thead><tbody>{door.recent.map((r) => <tr key={String(r.id)} className="border-t"><td className="py-1.5" dir="ltr">{new Date(String(r.createdAt)).toLocaleString(lang.startsWith("ar") ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short" })}</td><td className="py-1.5" dir="auto">{String(r.branch ?? r.lab ?? "")}</td><td className="py-1.5">{String(r.status).replace(/_/g, " ").toLowerCase()}</td><td className="py-1.5">{t(`kiorexDoor.live.delivery.${String(r.delivery ?? r.collection)}`, { defaultValue: String(r.delivery ?? r.collection ?? "") })}</td></tr>)}</tbody></table></div>}
       </div>
@@ -130,25 +144,30 @@ function Live({ door }: { door: Door }) {
   );
 }
 
+function Wrap({ d, children }: { d?: Door; children: ReactNode }) {
+  const { t } = useTranslation();
+  return <div className="space-y-6" data-testid="kiorex-front-door"><div><h1 className="text-xl font-semibold">{t("kiorexConnect.title")}</h1>{d ? <p className="mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium" data-testid="kiorex-state" data-state={d.state}>{t(`kiorexDoor.state.${d.state}`)}</p> : null}</div>{children}</div>;
+}
+
 /** The page behind the "Connect to Kiorex" nav item: picks the right state. The old checklist moved to `/kiorex-connect/steps`. */
 export function KiorexFrontDoor() {
-  const { t } = useTranslation(); const q = useDoor(); const d = q.data;
-  const Wrap = ({ children }: { children: ReactNode }) => <div className="space-y-6" data-testid="kiorex-front-door"><div><h1 className="text-xl font-semibold">{t("kiorexConnect.title")}</h1>{d ? <p className="mt-1 inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium" data-testid="kiorex-state" data-state={d.state}>{t(`kiorexDoor.state.${d.state}`)}</p> : null}</div>{children}</div>;
-  if (q.isError) return <Wrap><p className="text-sm text-destructive" data-testid="kiorex-load-error">{t("kiorexDoor.unavailable")}</p></Wrap>;
-  if (!d) return <Wrap><p className="text-sm text-muted-foreground" role="status">{t("kiorexDoor.loading")}</p></Wrap>;
-  return <Wrap>{d.state === "NOT_CONNECTED" ? <Landing door={d} /> : d.state === "LIVE" ? <Live door={d} /> : <><Panel door={d} state={d.state} />{d.state === "ATTENTION" ? <Live door={d} /> : null}</>}</Wrap>;
+  const { t } = useTranslation();
+  const q = useDoor(); const d = q.data;
+  if (q.isError) return <Wrap d={d}><p className="text-sm text-destructive" data-testid="kiorex-load-error">{t("kiorexDoor.unavailable")}</p></Wrap>;
+  if (!d) return <Wrap d={d}><p className="text-sm text-muted-foreground" role="status">{t("kiorexDoor.loading")}</p></Wrap>;
+  return <Wrap d={d}>{d.state === "NOT_CONNECTED" ? <Landing door={d} /> : d.state === "LIVE" ? <Live door={d} /> : <><Panel door={d} state={d.state} />{d.state === "ATTENTION" ? <Live door={d} /> : null}</>}</Wrap>;
 }
 
 /** One dismissible card on the home dashboard for standalone owners/admins. No pop-up; dismissal is remembered per user and the card returns only when asked from the Kiorex page. */
 export function KiorexHomeCard() {
-  const { t } = useTranslation(); const { me, can } = useAuth(); const id = me?.user.id ?? ""; const [hidden, setHidden] = useState(() => (id ? isDismissed(id) : true));
+  const { t } = useTranslation(); const { me, can } = useAuth(); const id = me?.user.id ?? ""; const card = useDismissedHomeCard(id); const hidden = !card.ready || card.dismissed;
   const allowed = !!me && can("settings.write");
   const q = useQuery({ queryKey: ["kiorex-home-card"], queryFn: () => api<Door>(`${BASE}/front-door`), enabled: allowed && !hidden, retry: false });
   if (!allowed || hidden || !q.data || !["NOT_CONNECTED", "IN_PROGRESS"].includes(q.data.state)) return null;
   return (
     <section className="relative rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-4 pe-12 sm:p-5 sm:pe-14" aria-labelledby="kx-home-h" data-testid="kiorex-home-card">
       <div className="flex flex-wrap items-center gap-3"><Sparkles className="size-5 shrink-0 text-primary" aria-hidden="true" /><div className="min-w-0 flex-1"><h2 id="kx-home-h" className="font-semibold">{t("kiorexMarketing.homeCard.title")}</h2><p className="text-sm text-muted-foreground">{t("kiorexMarketing.homeCard.body")}</p></div><Link to={BASE} className={LINK_PRIMARY} data-testid="home-card-open">{t("kiorexMarketing.homeCard.open")}</Link></div>
-      <button type="button" className="absolute end-2 top-2 inline-flex size-9 items-center justify-center rounded-md hover:bg-muted focus-visible:outline focus-visible:outline-2" aria-label={t("kiorexMarketing.homeCard.dismiss")} data-testid="home-card-dismiss" onClick={() => { setDismissed(id, true); setHidden(true); }}><X className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="absolute end-2 top-2 inline-flex size-9 items-center justify-center rounded-md hover:bg-muted focus-visible:outline focus-visible:outline-2" aria-label={t("kiorexMarketing.homeCard.dismiss")} data-testid="home-card-dismiss" onClick={card.dismiss}><X className="size-4" aria-hidden="true" /></button>
     </section>
   );
 }

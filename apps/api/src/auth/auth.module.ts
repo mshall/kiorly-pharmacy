@@ -1,3 +1,4 @@
+import { MePreferencesController } from "./me-preferences.controller";
 import { Global, Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { AuthController } from "./auth.controller";
@@ -10,5 +11,5 @@ import { PermissionsService } from "./permissions.service";
 import { TenantModeService } from "../tenancy/tenant-mode.service";
 
 @Global()
-@Module({ controllers: [AuthController], providers: [PrismaHandoffStore, TokenVerifier, PassportService, PassportSessions, PermissionsService, TenantModeService, { provide: APP_GUARD, useClass: AuthGuard }], exports: [TokenVerifier, PassportService, PassportSessions, PermissionsService, TenantModeService] })
+@Module({ controllers: [AuthController, MePreferencesController], providers: [PrismaHandoffStore, TokenVerifier, PassportService, PassportSessions, PermissionsService, TenantModeService, { provide: APP_GUARD, useClass: AuthGuard }], exports: [TokenVerifier, PassportService, PassportSessions, PermissionsService, TenantModeService] })
 export class AuthModule {}
