@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { applyHttpHardening, swaggerEnabled } from "./common/http-hardening";
 import { AllExceptionsFilter } from "./common/db-error.filter";
 import "./common/decimal-json";
 
@@ -8,10 +9,11 @@ export const PREFIX_EXCLUDES = ["marketplace/v1/(.*)"];
 
 /** Shared by main.ts and e2e tests so they boot identically. Create the app with `{ rawBody: true }` (webhook/HMAC verification needs raw bytes). */
 export function configureApp(app: INestApplication): void {
+  applyHttpHardening(app); // security headers, no X-Powered-By, trust-proxy hops
   app.setGlobalPrefix("api/v1", { exclude: PREFIX_EXCLUDES });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
-  if (process.env.SWAGGER_ENABLED !== "false") {
+  if (swaggerEnabled()) { // off in production unless SWAGGER_ENABLED=true
     const doc = buildOpenApi(app);
     SwaggerModule.setup("docs", app, doc, { jsonDocumentUrl: "docs-json" });
   }

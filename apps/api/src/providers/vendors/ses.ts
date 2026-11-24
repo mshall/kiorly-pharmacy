@@ -32,12 +32,13 @@ export function parseSesSend(json: any): { providerRef: string } {
 }
 
 /** Basic-auth verification of the SNS HTTPS subscription (password = webhook secret). */
+import { secretsEqual } from '../../common/http-hardening';
 export function verifySnsBasicAuth(secret: string, headers: Record<string, unknown>): boolean {
   if (!secret) return false;
   const a = String(Array.isArray(headers.authorization) ? headers.authorization[0] : headers.authorization ?? '');
   if (!a.startsWith('Basic ')) return false;
   const pw = Buffer.from(a.slice(6), 'base64').toString('utf8').split(':').slice(1).join(':');
-  return pw.length === secret.length && pw === secret;
+  return secretsEqual(pw, secret);
 }
 /** SNS SubscriptionConfirmation: only honour AWS SNS hosts. */
 export function snsConfirmUrl(raw: string): string | null {

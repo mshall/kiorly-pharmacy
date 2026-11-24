@@ -21,6 +21,13 @@ import { deploymentDefaultMethod, orgSignInFacts, resolvePublicSignInConfig } fr
 import { makeWindowLimiter } from "./sign-in-default";
 import { PgRateLimiter, type RawSql } from "../common/pg-rate-limit";
 
+/** Unknown e-mails burn one scrypt like known ones (pentest 2026-11: no user-enumeration timing). */
+const DUMMY_SCRYPT = "scrypt$7cd38f7ab867b50df28b0c0fd63dd060$97ff8ac4f83d30b1bfdf68edd866d072bd2c128f745cd06fab3f5e84c1fc3d19";
+async function passwordOk(pw: string, staff: { passwordHash: string | null } | null): Promise<boolean> {
+  const ok = await verifyPassword(pw, staff?.passwordHash ?? DUMMY_SCRYPT);
+  return Boolean(staff) && ok;
+}
+
 const configLimiter = makeWindowLimiter(300, 60_000);
 
 class LoginDto {
@@ -109,7 +116,7 @@ export class AuthController {
     if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
     await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
-    if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
+    if (!(await passwordOk(dto.password, staff)) || !staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id });
     return { accessToken: await this.tokens.issueLocal(staff.id) };
@@ -128,7 +135,7 @@ export class AuthController {
     if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
     await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
-    if (!staff || !staff.active || !(await verifyPassword(dto.password, staff.passwordHash))) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
+    if (!(await passwordOk(dto.password, staff)) || !staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
     const { code, expiresInSeconds } = await this.handoffCodes().issue({ subjectId: staff.id, origin: origin! });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.handoff_issued", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home" } });
     const web = webBaseUrl();
