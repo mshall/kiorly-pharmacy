@@ -10,7 +10,7 @@ export default function DevTestUsers({ onPick, busy }: { onPick: (email: string,
   return (
     <section data-testid="dev-test-users" aria-labelledby="dev-test-users-h" className="mt-8 rounded-xl border border-dashed border-(--kx-coral-500) bg-card p-4 shadow-kx-1">
       <h2 id="dev-test-users-h" className="flex items-center gap-2 text-sm font-semibold">
-        <span className="rounded-full bg-(--kx-coral-500) px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">DEV</span>
+        <span className="rounded-full bg-(--kx-coral-500) px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-(--kx-coral-950)">DEV</span>
         {ar ? "مستخدمو الاختبار (للتطوير فقط)" : "Test users (dev only)"}
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">{ar ? "للتطوير المحلي فقط: اضغط على مستخدم لتسجيل الدخول فورًا. بيانات تجريبية." : "Local development only: click a user to sign in at once. Synthetic data."}</p>
