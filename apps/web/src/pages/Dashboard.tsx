@@ -1,3 +1,4 @@
+import { KiorexHomeCard } from "@/pages/KiorexFrontDoor";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ChevronRight, PackagePlus, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -29,6 +30,7 @@ export function Dashboard() {
         {can("inventory.receive") && <Link to="/receiving" className={buttonClass({ variant: "outline" })}><PackagePlus aria-hidden className="size-4" />{t("nav.receiving")}</Link>}
         {can("pos.sell") && <Link to="/pos" className={buttonClass()}><ShoppingCart aria-hidden className="size-4" />{t("dash.newSale")}</Link>}
       </>} />
+      <KiorexHomeCard />
       {q.isLoading && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <div key={i} className="kx-skeleton h-24 rounded-xl" />)}</div>}
       <ErrorNote error={q.error} />
       {d && (

@@ -1,0 +1,16 @@
+import { defineConfig } from "@playwright/test";
+
+/**
+ * The state-aware Connect to Kiorex front door against an ALREADY RUNNING dev stack (web :5192, its API behind the Vite proxy); starts nothing, so it never collides with another checkout's ports.
+ *   KIOREX_TAB_BASE_URL=http://localhost:5192 SIGNIN_SHOTS_DIR=/path/to/shots npx playwright test -c playwright.signin.config.ts
+ * Covers e2e/signin-*.spec.ts (preselected-method rules, layout 360 to 2560, Arabic, dark, axe).
+ */
+export default defineConfig({
+  testDir: "./e2e",
+  testMatch: /kiorex-tab\.spec\.ts/,
+  timeout: 90_000,
+  workers: 1,
+  retries: 1,
+  reporter: [["list"]],
+  use: { baseURL: process.env.KIOREX_TAB_BASE_URL ?? "http://localhost:5192", channel: "chrome", locale: "en", trace: "retain-on-failure" },
+});

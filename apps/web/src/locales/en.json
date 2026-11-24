@@ -1992,5 +1992,179 @@
       "PAYOUT_LABEL_INVALID": "Enter a short label (2 to 40 characters)",
       "TERMS_VERSION_MISMATCH": "The terms changed: reload the page"
     }
+  },
+  "kiorexMarketing": {
+    "headline": "Reach more customers with Kiorex",
+    "intro": "Your pharmacy keeps working exactly as it does today. Kiorex is an optional way for people nearby to find you and order.",
+    "benefitsTitle": "What you get",
+    "benefits": {
+      "search": {
+        "title": "Found in Kiorex search",
+        "body": "People near you find your branches on Kiorex, with your opening hours and delivery area."
+      },
+      "orders": {
+        "title": "Online orders for pickup or delivery",
+        "body": "Customers send an order from Kiorex and choose to collect it or have it delivered."
+      },
+      "prepaid": {
+        "title": "Orders can arrive already paid",
+        "body": "Kiorex orders can be paid online before you prepare them."
+      },
+      "queue": {
+        "title": "Same workflow, no double entry",
+        "body": "Kiorex orders arrive in your Orders screen next to your normal work."
+      },
+      "rx": {
+        "title": "You stay in charge of prescriptions",
+        "body": "A pharmacist decides on every prescription order, and controlled medicines are never accepted online."
+      }
+    },
+    "howTitle": "How it works",
+    "how": {
+      "prepare": {
+        "title": "Get ready",
+        "body": "Finish the checklist below: branches, priced catalogue, opening hours and delivery area, licence and terms."
+      },
+      "request": {
+        "title": "Ask to go live",
+        "body": "Accept the marketplace terms and send your request."
+      },
+      "review": {
+        "title": "Kiorex reviews",
+        "body": "The Kiorex team reviews your request. You can see the status here."
+      },
+      "live": {
+        "title": "Go live",
+        "body": "Your doctors appear in Kiorex search and patients can book."
+      }
+    },
+    "readinessTitle": "Your readiness",
+    "readinessProgress": "{{done}} of {{total}} steps already done",
+    "readinessDone": "Done",
+    "readinessMissing": "Still to do",
+    "feeTitle": "Fees",
+    "fee": "Kiorex charges {{fee}} for each new patient who books through Kiorex and attends the visit. This is the fee published for your market; you see and accept the exact terms before anything goes live.",
+    "feeUnconfigured": "Fees are confirmed by the Kiorex team before you go live. You will see and accept them before anything is published.",
+    "reassureTitle": "You stay in control",
+    "reassure": {
+      "optional": "Connecting is optional. Your practice works fully without it.",
+      "reversible": "It is reversible: you can pause your listing at any time.",
+      "data": "You keep your data and your sign-in. Nothing is moved or copied away.",
+      "choose": "You choose which branches take Kiorex orders."
+    },
+    "start": "Start connecting",
+    "continue": "Continue connecting",
+    "talk": "Talk to us",
+    "talkTitle": "Talk to the Kiorex team",
+    "talkIntro": "Leave your details and someone from Kiorex will contact you at the time you choose. Nothing is changed in your account.",
+    "form": {
+      "name": "Your name",
+      "role": "Your role",
+      "phone": "Phone",
+      "email": "E-mail",
+      "time": "Best time to contact you",
+      "note": "Anything you would like us to know (optional)",
+      "consent": "I agree that Kiorex may contact me about connecting my organisation.",
+      "send": "Send",
+      "cancel": "Cancel",
+      "contactHint": "Give a phone number or an e-mail (or both).",
+      "sent": "Thank you. The Kiorex team will contact you.",
+      "sentAgain": "We already have your request. Send it again to update your details.",
+      "times": {
+        "MORNING": "Morning",
+        "AFTERNOON": "Afternoon",
+        "EVENING": "Evening",
+        "ANYTIME": "Any time"
+      }
+    },
+    "errors": {
+      "CONSENT_REQUIRED": "Please agree to be contacted.",
+      "CONTACT_REQUIRED": "Give a phone number or an e-mail.",
+      "INVALID_FIELD": "Please check the highlighted field.",
+      "KIOREX_UNREACHABLE": "Kiorex could not be reached. Nothing was sent. Try again.",
+      "KIOREX_BUSY": "Too many requests. Try again in a few minutes.",
+      "KIOREX_REJECTED_REQUEST": "Kiorex could not accept the request. Try again later.",
+      "KIOREX_NOT_CONFIGURED": "This installation is not connected to Kiorex.",
+      "generic": "Something went wrong. Nothing was sent."
+    },
+    "homeCard": {
+      "title": "Connect to Kiorex",
+      "body": "Optional: let people nearby find your pharmacy and order on Kiorex. Your pharmacy keeps working as it does today.",
+      "open": "Learn more",
+      "dismiss": "Hide this card",
+      "show": "Show the Kiorex card on the home page again",
+      "shown": "The card will show on your home page again."
+    }
+  },
+  "kiorexDoor": {
+    "state": {
+      "NOT_CONNECTED": "Not connected",
+      "IN_PROGRESS": "Connecting",
+      "WAITING": "Waiting for Kiorex",
+      "LIVE": "Live on Kiorex",
+      "ATTENTION": "Needs attention"
+    },
+    "progress": {
+      "title": "Your connection to Kiorex",
+      "next": "Next step",
+      "allDone": "Every step is done",
+      "open": "Open the full checklist",
+      "step": "Step {{n}}",
+      "of": "{{done}} of {{total}} done"
+    },
+    "waiting": {
+      "title": "Kiorex is reviewing your request",
+      "body": "You do not need to do anything. Kiorex reviews it and your listings go live automatically once approved. This page refreshes by itself.",
+      "next": "What happens next",
+      "n1": "The Kiorex team checks your documents and details.",
+      "n2": "If something is missing they ask for a change and you see it here.",
+      "n3": "When approved, your doctors appear in Kiorex search."
+    },
+    "attention": {
+      "PAUSED": "Your Kiorex listing is paused",
+      "CHANGES_REQUESTED": "Kiorex asked for changes",
+      "REJECTED": "Your request was not approved",
+      "fix": "What is missing",
+      "howTo": "Fix the open steps in the checklist, then send the request again.",
+      "howToPaused": "Contact Kiorex support to resume. Patients cannot book you meanwhile."
+    },
+    "live": {
+      "title": "Kiorex at a glance",
+      "month": "This month",
+      "listings": "Branches",
+      "listingsHint": "Per branch",
+      "recent": "Recent Kiorex orders",
+      "noRecent": "No Kiorex orders yet.",
+      "pause": "Pause",
+      "resume": "Resume",
+      "pausedByYou": "Paused by you",
+      "settings": "Connection settings",
+      "when": "When",
+      "via": "Method",
+      "appt": {
+        "SCHEDULED": "Scheduled",
+        "CONFIRMED": "Confirmed",
+        "CHECKED_IN": "Checked in",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled",
+        "NO_SHOW": "No show",
+        "IN_PROGRESS": "In progress",
+        "RESCHEDULED": "Rescheduled"
+      },
+      "tile": {
+        "orders": "Kiorex orders",
+        "completed": "Dispensed",
+        "rejected": "Declined",
+        "value": "Dispensed value"
+      },
+      "status": "Status",
+      "where": "Branch",
+      "delivery": {
+        "PICKUP": "Pickup",
+        "DELIVERY": "Delivery"
+      }
+    },
+    "unavailable": "Kiorex information is available to clinic owners and managers.",
+    "loading": "Loading"
   }
 }
