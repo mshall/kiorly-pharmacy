@@ -1905,7 +1905,7 @@
       },
       "hours_delivery": {
         "title": "Hours, delivery and map pin",
-        "hint": "Each opted-in branch needs opening hours, a map pin and its delivery or collection settings."
+        "hint": "Each opted-in branch needs opening hours, a map pin and its delivery or collection settings. Set them in the branch form under step 2."
       },
       "licence": {
         "title": "Licence documents",
@@ -1963,6 +1963,12 @@
     "enrolment": {"label": "Enrolment code from Kiorex", "hint": "Kiorex gives you a one-time code to start the connection. Paste it here. It is used once and is not stored.", "placeholder": "kxe_..."},
     "refresh": "Refresh status",
     "rotate": "Rotate credentials",
+    "decision": {
+      "CHANGES_REQUESTED": "Kiorex asked for changes before it can approve your request. The details were sent to the contact e-mail of your request. Fix the open steps, then send the request again.",
+      "REJECTED": "Kiorex did not approve this request. Your organisation keeps working on its own. Contact Kiorex support if you think this is a mistake.",
+      "PAUSED": "Kiorex paused your listing. Patients cannot book you until it is resumed. Contact Kiorex support."
+    },
+    "dismiss": "Done, I have copied them",
     "rotated": "New credentials were sent to Kiorex. Copy them now: they are shown once.",
     "secretsOnce": "Shown once. Store them in your password manager.",
     "clientKey": "Client key",

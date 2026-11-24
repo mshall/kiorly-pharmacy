@@ -19,4 +19,11 @@ describe("pharmacy Connect to Kiorex wizard", () => {
     const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "KiorexConnect.tsx"), "utf8");
     assert.doesNotMatch(src, /#[0-9a-fA-F]{6}\b/); assert.doesNotMatch(src, /\b(ml|mr|pl|pr|text-left|text-right)-/);
   });
+  it("browser-walk regressions: AA colours, decision banner, rotation is not a new request, labelled branch fields, step 4 points to the form", () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "KiorexConnect.tsx"), "utf8");
+    assert.match(src, /text-amber-700 dark:text-amber-400/); assert.doesNotMatch(src, /text-(emerald|amber|sky)-600/);
+    for (const s of ["CHANGES_REQUESTED", "REJECTED", "PAUSED"]) assert.ok((en.decision as Record<string, string>)[s] && (ar.decision as Record<string, string>)[s], s);
+    assert.match(src, /connect-decision/); assert.match(src, /const rotate = /); assert.match(src, /aria-label=\{t\("kiorexConnect\.licenceUpload\.choose"\)\}/);
+    assert.doesNotMatch(src, /<Input aria-label=\{t\("kiorexConnect\.branch\.(licenceNo|radius|lat|lng)"\)\} placeholder/); // visible labels, not placeholder-only
+  });
 });

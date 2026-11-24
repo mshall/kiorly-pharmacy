@@ -97,10 +97,12 @@ export class KiorexConnectService {
     if (code && !isEnrolmentCode(code)) throw badRequest("ENROLMENT_CODE_INVALID", "That enrolment code is not valid. Copy it exactly as Kiorex gave it to you");
     if (!code && !intakeKey) throw conflict("ENROLMENT_CODE_REQUIRED", "Enter the enrolment code Kiorex gave you");
     const t = await this.tenant(u.orgId); const host = kiorexHost();
+    // partner notifications (submitted / changes / live) go to the person who asked, unless a contact was given
+    const contact = o.contactEmail ?? d0?.contactEmail ?? (await this.prisma.staffUser.findUnique({ where: { id: u.userId }, select: { email: true } }))?.email ?? undefined;
     const clientKey = newClientKey("kp"); const clientSecret = newSecret(); const webhookSecret = newSecret();
     await this.prisma.integrationClient.create({ data: { orgId: u.orgId, key: clientKey, secretEnc: seal(clientSecret), webhookSecretEnc: seal(webhookSecret), kiorexBaseUrl: host } });
     const body = JSON.stringify({
-      nonce: newIntakeNonce(), statusToken: deriveStatusToken(kek(), u.orgId), kind: "PHARMACY", orgRef: u.orgId, name: t.name, market: t.marketCode, locale: "en", contactEmail: o.contactEmail ?? d0?.contactEmail,
+      nonce: newIntakeNonce(), statusToken: deriveStatusToken(kek(), u.orgId), kind: "PHARMACY", orgRef: u.orgId, name: t.name, market: t.marketCode, locale: "en", contactEmail: contact,
       baseUrl: publicApiBase(), clientKey, clientSecret, webhookSecret,
       readiness: { counts: { branches: state.steps.find((s) => s.key === "branch_optin")?.detail?.branches, items: state.steps.find((s) => s.key === "catalogue")?.detail?.priced }, documents: { licence: state.steps.find((s) => s.key === "licence")?.status === "done" }, termsAcceptedAt: d0?.terms?.at, termsVersion: d0?.terms?.version, steps: state.steps.map((s) => ({ key: s.key, status: s.status })) },
     });
