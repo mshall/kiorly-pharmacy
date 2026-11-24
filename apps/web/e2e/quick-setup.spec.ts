@@ -220,3 +220,27 @@ test("Pharmacy completion state, dismissal remembered per organisation, Arabic R
   const plan = (await (await request.get(`${API}/api/v1/setup`, { headers: auth(t) })).json()) as { dismissedAt: string | null; allDone: boolean };
   expect(plan.allDone && plan.dismissedAt).toBeTruthy();
 });
+
+/** Screenshots of the checklist for the design review (QS_SHOTS_DIR=../../_docs/test-flow/quick-setup): EN/AR x light/dark x 390/1440, a fresh pharmacy with two steps done. */
+test("Pharmacy checklist screenshots", async ({ page, request }) => {
+  test.skip(!process.env.QS_SHOTS_DIR, "set QS_SHOTS_DIR to capture");
+  test.setTimeout(480_000);
+  const org = await freshPharmacy(request);
+  const H = auth(org.token);
+  await request.patch(`${API}/api/v1/branches/${org.branchId}`, { headers: H, data: { licenceNo: "EDA-QS-9", address: "9 Cairo Rd" } });
+  await request.post(`${API}/api/v1/staff`, { headers: H, data: { displayName: "QS RPh", email: `qs.rph.${uniq()}@example.com`, password: PASSWORD, role: "PHARMACIST", pharmacistLicenceNo: "SYN-1" } });
+  await uiLogin(page, org.email, "en"); // clears the one-time first-run page
+  const tok = await page.evaluate(() => localStorage.getItem("kiorly.token")!);
+  for (const lang of ["en", "ar"] as const) {
+    for (const theme of ["light", "dark"] as const) {
+      for (const width of [390, 1440]) {
+        await page.addInitScript(([t, l, th]) => { try { localStorage.setItem("kiorly.token", t!); localStorage.setItem("kiorly.lang", l!); localStorage.setItem("kx-theme", th!); } catch { /* ignore */ } }, [tok, lang, theme]);
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("/");
+        await expect(checklist(page)).toBeVisible();
+        await page.waitForTimeout(1800);
+        await checklist(page).screenshot({ path: `${process.env.QS_SHOTS_DIR}/pharmacy-${lang}-${theme}-${width}.png` });
+      }
+    }
+  }
+});
