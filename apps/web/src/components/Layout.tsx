@@ -81,7 +81,7 @@ export function Layout() {
       </nav>
       <div className="min-w-0 flex-1">
         <header className="no-print z-20 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-2 backdrop-blur-sm md:sticky md:top-0">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             {me && me.branches.length > 1 && !me.user.branchId ? (
               <label className="flex items-center gap-2 text-sm">{t("common.branch")}
                 <Select aria-label={t("common.branch")} value={branchId ?? ""} onChange={(e) => setBranchId(e.target.value)} className="w-44">{me.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>

@@ -86,7 +86,7 @@ test.describe("Growth & links (pharmacy)", () => {
     await expect(page.getByText("link limit is reached")).toBeVisible();
   });
 
-  for (const w of [360, 768, 1024, 1440, 2560]) test(`responsive ${w}px: no overflow, 44px touch targets in the table, axe-clean`, async ({ page }) => {
+  for (const w of [320, 360, 768, 1024, 1440, 2560]) test(`responsive ${w}px: no overflow, 44px touch targets in the table, axe-clean`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: 900 }); await open(page, OWNER);
     await noOverflow(page);
     const small = await page.getByTestId("growth-link-row").first().locator("button").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && (r.width < 43.5 || r.height < 43.5)).length).catch(() => 0);
@@ -99,6 +99,31 @@ test.describe("Growth & links (pharmacy)", () => {
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl"); await expect(page.getByRole("heading", { name: "النمو والروابط" }).first()).toBeVisible();
     await expect(page.getByTestId("growth-create")).toContainText("رابط جديد");
     await noOverflow(page); await shot(page, `ar-${theme}`); await axe(page);
+  });
+
+  for (const [lang, w] of [["ar", 320], ["ar", 1440], ["en", 320], ["en", 1440]] as const) test(`GRW-P4-B3 ${lang} ${w}px: five-rule suggestions and the no-commission statement placeholder, no overflow, axe-clean`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: 900 }); await open(page, OWNER, lang);
+    await expect(page.getByTestId("growth-recs")).toBeVisible(); await expect(page.getByTestId("growth-statement")).toBeVisible();
+    if (lang === "en") await expect(page.getByTestId("growth-statement")).toContainText("No commission");
+    await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+    await noOverflow(page); await axe(page);
+  });
+
+  for (const lang of ["ar", "en"] as const) test(`GRW-P4-B3 poster ${lang}: the counter card prints to a real PDF (Save as PDF), direction and QR present`, async ({ page }) => {
+    const token = await tokenOf(page, OWNER.email);
+    const h = { authorization: `Bearer ${token}` };
+    const list = await (await page.request.get(`${API}/api/v1/growth/links`, { headers: h })).json() as { items: Array<{ id: string; status: string }> };
+    let id = list.items.find((l) => l.status === "ACTIVE")?.id; let made = false;
+    if (!id) { const c = await page.request.post(`${API}/api/v1/growth/links`, { headers: h, data: { label: "Poster test", ownerScope: "ORG" } }); id = (await c.json()).id as string; made = true; }
+    try {
+      const r = await page.request.get(`${API}/api/v1/growth/links/${id}/poster?lang=${lang}&size=A4`, { headers: h });
+      expect(r.status()).toBe(200); expect(r.headers()["content-type"]).toContain("text/html");
+      await page.setContent(await r.text(), { waitUntil: "load" });
+      await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+      await expect(page.locator("svg, img").first()).toBeVisible();
+      const pdf = await page.pdf({ format: "A4", printBackground: true });
+      expect(pdf.subarray(0, 5).toString()).toBe("%PDF-"); expect(pdf.length).toBeGreaterThan(4000);
+    } finally { if (made && id) await page.request.patch(`${API}/api/v1/growth/links/${id}`, { headers: h, data: { status: "REVOKED" } }); }
   });
 
   test("English dark: axe-clean with a link modal open", async ({ page }) => {
