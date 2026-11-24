@@ -18,7 +18,7 @@
   --destructive-foreground: 0 0% 100%;
   --border: 225 38% 92%;
   --input: 226 29% 82%;
-  --ring: 9 75% 64%;
+  --ring: 244 55% 41%;
   --success: 143 64% 24%;
   --warning: 23 83% 31%;
   --info: 201 96% 32%;
@@ -45,7 +45,7 @@ html.dark {
   --destructive-foreground: 0 0% 100%;
   --border: 236 35% 25%;
   --input: 236 32% 34%;
-  --ring: 10 80% 70%;
+  --ring: 229 94% 82%;
   --success: 142 69% 58%;
   --warning: 43 96% 56%;
   --info: 198 93% 60%;
