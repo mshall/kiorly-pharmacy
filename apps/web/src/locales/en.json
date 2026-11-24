@@ -1960,6 +1960,7 @@
     },
     "request": "Request registration",
     "requested": "Request sent. Kiorex will review it.",
+    "enrolment": {"label": "Enrolment code from Kiorex", "hint": "Kiorex gives you a one-time code to start the connection. Paste it here. It is used once and is not stored.", "placeholder": "kxe_..."},
     "refresh": "Refresh status",
     "rotate": "Rotate credentials",
     "rotated": "New credentials were sent to Kiorex. Copy them now: they are shown once.",
@@ -1977,6 +1978,10 @@
     "err": {
       "CONNECT_NOT_READY": "Finish every required step first",
       "KIOREX_UNREACHABLE": "Kiorex could not be reached. Nothing was sent. Try again.",
+      "ENROLMENT_CODE_REQUIRED": "Enter the enrolment code Kiorex gave you.",
+      "ENROLMENT_CODE_INVALID": "That enrolment code is not valid. Copy it exactly as Kiorex gave it to you.",
+      "ENROLMENT_CODE_REJECTED": "Kiorex did not accept the enrolment code. Check it, or ask Kiorex for a new one.",
+      "KIOREX_BUSY": "Kiorex is busy right now. Try again shortly.",
       "PAYOUT_LOOKS_LIKE_ACCOUNT_NUMBER": "Enter a short label only. Bank details are never stored here",
       "PAYOUT_LABEL_INVALID": "Enter a short label (2 to 40 characters)",
       "TERMS_VERSION_MISMATCH": "The terms changed: reload the page"

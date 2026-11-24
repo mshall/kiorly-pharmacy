@@ -17,7 +17,7 @@ class BranchDto {
   @IsOptional() @IsNumberString() longitude?: string;
   @IsOptional() @IsString() @MaxLength(60) licenceNo?: string;
 }
-class RequestDto { @IsOptional() @IsBoolean() rotate?: boolean; @IsOptional() @IsEmail() contactEmail?: string; }
+class RequestDto { @IsOptional() @IsBoolean() rotate?: boolean; @IsOptional() @IsEmail() contactEmail?: string; /** One-time code from Kiorex ops; needed for the first request only. Never stored. */ @IsOptional() @IsString() @MaxLength(120) enrolmentCode?: string; }
 
 /** "Connect to Kiorex" for a standalone pharmacy (ADR-040): checklist, terms, licence, payout label placeholder, request registration, rotate credentials. */
 @ApiTags("kiorex-connect")
