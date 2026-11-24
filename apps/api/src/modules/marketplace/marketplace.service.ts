@@ -196,11 +196,19 @@ export class MarketplaceService implements OnModuleInit {
       items: accepted.map((a) => ({ drugId: a.line.drugId, quantity: a.qty })),
     });
     const full = accepted.length === order.lines.length && accepted.every((a) => a.qty === a.line.qtyRequested);
-    await this.prisma.$transaction(async (tx) => {
-      for (const a of accepted) await tx.kiorexOrderLine.update({ where: { id: a.line.id }, data: { qtyAccepted: a.qty } });
-      await tx.kiorexOrder.update({ where: { id }, data: { status: full ? "ACCEPTED" : "PARTIALLY_ACCEPTED", respondedAt: new Date(), respondedBy: user.userId, dispensingId: disp.id } });
-      await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "order.accept", entityType: "KiorexOrder", entityId: id, meta: { partial: !full, dispensingId: disp.id } } });
-    });
+    // Compare-and-set RECEIVED -> ACCEPTED: Kiorex may have cancelled (or the SLA sweep expired / a colleague rejected) the order while the dispensing was being built.
+    // An unconditional update here used to flip a CANCELLED order back to ACCEPTED (patient refunded, pharmacy preparing it). The loser releases its reservation.
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const won = await tx.kiorexOrder.updateMany({ where: { id, status: "RECEIVED" }, data: { status: full ? "ACCEPTED" : "PARTIALLY_ACCEPTED", respondedAt: new Date(), respondedBy: user.userId, dispensingId: disp.id } });
+        if (!won.count) throw new DomainError("BAD_STATE", "Order is no longer open (cancelled, rejected or expired while it was being accepted)", 409);
+        for (const a of accepted) await tx.kiorexOrderLine.update({ where: { id: a.line.id }, data: { qtyAccepted: a.qty } });
+        await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "order.accept", entityType: "KiorexOrder", entityId: id, meta: { partial: !full, dispensingId: disp.id } } });
+      });
+    } catch (e) {
+      await this.dispensing.cancel(user, disp.id, "Order no longer open when accepted").catch(() => undefined); // release the FEFO reservations
+      throw e;
+    }
     return { order: await this.get(user.orgId, id), dispensing: disp };
   }
 
@@ -210,7 +218,8 @@ export class MarketplaceService implements OnModuleInit {
     if (!["RECEIVED", "ACCEPTED", "PARTIALLY_ACCEPTED", "READY", "OUT_FOR_DELIVERY"].includes(order.status)) throw new DomainError("BAD_STATE", `Order is ${order.status}`, 409);
     if (order.dispensingId) await this.dispensing.cancel(user, order.dispensingId, `Order rejected: ${reason}`);
     await this.prisma.$transaction(async (tx) => {
-      await tx.kiorexOrder.update({ where: { id }, data: { status: "REJECTED", rejectionReason: reason, rejectionCode: reasonCode, respondedAt: new Date(), respondedBy: user.userId } });
+      const won = await tx.kiorexOrder.updateMany({ where: { id, status: order.status }, data: { status: "REJECTED", rejectionReason: reason, rejectionCode: reasonCode, respondedAt: new Date(), respondedBy: user.userId } }); // compare-and-set: never overwrite a concurrent cancel
+      if (!won.count) throw new DomainError("BAD_STATE", "Order changed while it was being rejected; reload", 409);
       await this.outbox.enqueue({ orgId: user.orgId, type: "OrderRejected", aggregateId: order.externalOrderId, dedupeKey: `OrderRejected:${order.id}`, data: { orderId: order.externalOrderId, pharmacyId: await this.pharmacyId(tx, user.orgId), rejectedAt: new Date().toISOString(), reason, ...(reasonCode ? { reasonCode } : {}) } }, tx);
       await tx.auditLog.create({ data: { orgId: user.orgId, actorId: user.userId, action: "order.reject", entityType: "KiorexOrder", entityId: id, meta: { reasonCode: reasonCode ?? null } } });
     });
@@ -272,18 +281,24 @@ export class MarketplaceService implements OnModuleInit {
 
   /** Kiorex cancels an order (HMAC). Releases the reservations. */
   async cancelByKiorex(orgId: string, externalOrderId: string) {
-    const order = await this.prisma.kiorexOrder.findUnique({ where: { orgId_externalOrderId: { orgId, externalOrderId } } });
-    if (!order) throw notFound("Order", externalOrderId);
-    if (order.status === "DISPENSED") throw new DomainError("ALREADY_DISPENSED", "Order already dispensed", 409);
-    // idempotent: an order that already ended (rejected by us, expired, or cancelled before) is not flipped to CANCELLED
-    if (["REJECTED", "EXPIRED", "CANCELLED"].includes(order.status)) return { status: order.status };
-    if (order.dispensingId && ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY", "OUT_FOR_DELIVERY"].includes(order.status)) {
-      const sys = await this.prisma.staffUser.findFirst({ where: { orgId, role: "OWNER" } });
-      if (sys) await this.dispensing.cancel({ userId: sys.id, orgId, role: sys.role, displayName: sys.displayName, branchId: null, market: "EG", edition: "LITE", pharmacistLicenceNo: null, mfa: false }, order.dispensingId, "Cancelled by Kiorex");
+    // Compare-and-set against the state that was read: if the pharmacist accepted (or rejected) the order between the read and the write, re-read and cancel the
+    // dispensing that appeared, instead of overwriting ACCEPTED with CANCELLED and leaving its lot reservations behind.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const order = await this.prisma.kiorexOrder.findUnique({ where: { orgId_externalOrderId: { orgId, externalOrderId } } });
+      if (!order) throw notFound("Order", externalOrderId);
+      if (order.status === "DISPENSED") throw new DomainError("ALREADY_DISPENSED", "Order already dispensed", 409);
+      // idempotent: an order that already ended (rejected by us, expired, or cancelled before) is not flipped to CANCELLED
+      if (["REJECTED", "EXPIRED", "CANCELLED"].includes(order.status)) return { status: order.status };
+      if (order.dispensingId && ["ACCEPTED", "PARTIALLY_ACCEPTED", "READY", "OUT_FOR_DELIVERY"].includes(order.status)) {
+        const sys = await this.prisma.staffUser.findFirst({ where: { orgId, role: "OWNER" } });
+        if (sys) await this.dispensing.cancel({ userId: sys.id, orgId, role: sys.role, displayName: sys.displayName, branchId: null, market: "EG", edition: "LITE", pharmacistLicenceNo: null, mfa: false }, order.dispensingId, "Cancelled by Kiorex").catch((e) => { if (e?.code !== "BAD_STATE" && e?.status !== 409) throw e; });
+      }
+      const won = await this.prisma.kiorexOrder.updateMany({ where: { id: order.id, status: order.status, dispensingId: order.dispensingId }, data: { status: "CANCELLED" } });
+      if (!won.count) continue; // the order moved while we were cancelling: look again
+      await this.prisma.auditLog.create({ data: { orgId, action: "order.cancel_by_kiorex", entityType: "KiorexOrder", entityId: order.id } });
+      return { status: "CANCELLED" };
     }
-    await this.prisma.kiorexOrder.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
-    await this.prisma.auditLog.create({ data: { orgId, action: "order.cancel_by_kiorex", entityType: "KiorexOrder", entityId: order.id } });
-    return { status: "CANCELLED" };
+    throw new DomainError("ORDER_BUSY", "The order is being changed; try again", 409);
   }
 
   /** SLA sweep: unanswered orders past their SLA are rejected with SLA_EXPIRED (event to Kiorex). */
@@ -291,7 +306,8 @@ export class MarketplaceService implements OnModuleInit {
     const overdue = await this.prisma.kiorexOrder.findMany({ where: { ...(orgId ? { orgId } : {}), status: "RECEIVED", slaDueAt: { lt: new Date() } } });
     for (const o of overdue) {
       await this.prisma.$transaction(async (tx) => {
-        await tx.kiorexOrder.update({ where: { id: o.id }, data: { status: "EXPIRED", rejectionCode: "SLA_EXPIRED", rejectionReason: "No response within SLA" } });
+        const won = await tx.kiorexOrder.updateMany({ where: { id: o.id, status: "RECEIVED" }, data: { status: "EXPIRED", rejectionCode: "SLA_EXPIRED", rejectionReason: "No response within SLA" } });
+        if (!won.count) return; // accepted, rejected or cancelled meanwhile: not expired
         await this.outbox.enqueue({ orgId: o.orgId, type: "OrderRejected", aggregateId: o.externalOrderId, dedupeKey: `OrderRejected:${o.id}`, data: { orderId: o.externalOrderId, pharmacyId: await this.pharmacyId(tx, o.orgId), rejectedAt: new Date().toISOString(), reason: "No response within SLA", reasonCode: "SLA_EXPIRED" } }, tx);
       });
     }
