@@ -9288,6 +9288,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

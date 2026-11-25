@@ -62,6 +62,8 @@ jobs:
         run: |
           npm run openapi:export -w api
           git diff --exit-code -- Docs/openapi.json
+      - name: OpenAPI document is valid (Redocly lint, structure and references)
+        run: npx --yes @redocly/cli@2.2.0 lint Docs/openapi.json --config .redocly.yaml
       - name: Build
         run: npm run build
 
