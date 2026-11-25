@@ -32,6 +32,17 @@ export function sessionMaxAge(v: string | undefined): number {
   return Number.isFinite(n) && n > 0 ? Math.min(8 * 3600, Math.max(60, Math.floor(n))) : 3600;
 }
 
+/**
+ * G-24 `OIDC_SESSION_IDLE_MINUTES`: a web session with no API call for this long is ended (revoked, reason `idle_timeout`). Default 30, clamped to 5 .. 480; `0` switches
+ * the idle limit off. Each partner product sets it on its own API (Pharmacy and Lab run separate deployments), so one partner can run a stricter limit than the other.
+ */
+export function sessionIdleMinutes(v: string | undefined): number {
+  if (v === undefined || v.trim() === "") return 30;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 30;
+  return n <= 0 ? 0 : Math.min(480, Math.max(5, Math.floor(n)));
+}
+
 export function passportConfig(env: NodeJS.ProcessEnv = process.env): PassportConfig | null {
   const issuer = (env.OIDC_ISSUER ?? env.KIOREX_OIDC_ISSUER)?.trim().replace(/\/+$/, "");
   if (!issuer) return null;

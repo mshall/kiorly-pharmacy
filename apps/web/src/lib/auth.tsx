@@ -4,6 +4,7 @@ import { api, getToken, setToken } from "@/lib/api";
 import type { Me } from "@/lib/types";
 import { takeEndSessionUrl } from "@/lib/passport";
 import { rememberSignInOrg } from "@/lib/sign-in-default";
+import { IDLE_NOTICE_KEY, idleLimitMs } from "@/lib/idle";
 import { useToast } from "@/lib/toast";
 import { useTranslation } from "react-i18next";
 
@@ -34,6 +35,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const orgId = meQ.data?.tenant.id;
   useEffect(() => { rememberSignInOrg(orgId); }, [orgId]);
   useEffect(() => { const h = (e: Event) => { setTok(null); qc.clear(); takeEndSessionUrl(); if ((e as CustomEvent<{ code?: string }>).detail?.code === "SESSION_REVOKED") toast(t("errors.codes.SESSION_REVOKED")); }; window.addEventListener("kiorly:unauthorized", h); return () => window.removeEventListener("kiorly:unauthorized", h); }, [qc, toast, t]);
+  const limit = idleLimitMs(import.meta.env.VITE_SESSION_IDLE_MINUTES as string | undefined);
+  useEffect(() => {
+    if (!token || !limit) return;
+    let last = Date.now();
+    const bump = () => { last = Date.now(); };
+    const evs = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+    for (const e of evs) window.addEventListener(e, bump, { passive: true });
+    const timer = window.setInterval(() => {
+      if (Date.now() - last < limit) return;
+      window.clearInterval(timer); setToken(null); setTok(null); qc.clear(); takeEndSessionUrl(); toast(t("errors.codes.SESSION_IDLE"));
+    }, 15_000);
+    return () => { window.clearInterval(timer); for (const e of evs) window.removeEventListener(e, bump); };
+  }, [token, limit, qc, toast, t]);
   const login = useCallback(async (email: string, password: string) => {
     const r = await api<{ accessToken: string }>("/auth/login", { body: { email, password } });
     setToken(r.accessToken); setTok(r.accessToken); await qc.invalidateQueries();

@@ -334,6 +334,8 @@ model PassportSession {
   sub           String
   sid           String?
   createdAt     DateTime  @default(now())
+  /// G-24: last authenticated API call of this web session (written at most once a minute); the idle limit reads it
+  lastSeenAt    DateTime  @default(now())
   expiresAt     DateTime
   revokedAt     DateTime?
   revokedReason String?
