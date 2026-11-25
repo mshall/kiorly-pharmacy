@@ -9,6 +9,7 @@ import { KiorexFrontDoorService } from "./kiorex-front-door.service";
 import { CatalogueModule } from "../catalogue/catalogue.module";
 import { DispensingModule } from "../dispensing/dispensing.module";
 import { InventoryModule } from "../inventory/inventory.module";
+import { GrowthModule } from "../growth/growth.module";
 
-@Module({ imports: [DispensingModule, InventoryModule, CatalogueModule], controllers: [KiorexOrdersController, MarketplaceMachineController, KiorexConnectController, KiorexFrontDoorController], providers: [MarketplaceService, MarketplaceHmacGuard, KiorexConnectService, KiorexFrontDoorService], exports: [MarketplaceService] })
+@Module({ imports: [DispensingModule, InventoryModule, CatalogueModule, GrowthModule], controllers: [KiorexOrdersController, MarketplaceMachineController, KiorexConnectController, KiorexFrontDoorController], providers: [MarketplaceService, MarketplaceHmacGuard, KiorexConnectService, KiorexFrontDoorService], exports: [MarketplaceService] })
 export class MarketplaceModule {}

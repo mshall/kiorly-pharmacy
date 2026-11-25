@@ -272,6 +272,7 @@ model Tenant {
 
   branches Branch[]
   staff    StaffUser[]
+  kiorexCommissionRateView KiorexCommissionRateView?
 }
 
 model Branch {
@@ -1264,6 +1265,19 @@ model BranchMarketplaceSetting {
   updatedAt        DateTime @default(now())
 
   @@index([orgId])
+}
+
+/// COM-2: the pharmacy's commission rate as Kiorex reports it (default for pharmacies, this pharmacy's own rate, history). Read-only here: Kiorex super admins set it (maker-checker). One row per tenant, newest `version` wins.
+model KiorexCommissionRateView {
+  id         String   @id @default(cuid())
+  orgId      String   @unique
+  product    String
+  version    BigInt
+  view       Json
+  receivedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
 /// KPMKT02: order received from Kiorex (HMAC REST). Controlled medicines are rejected at ingest (KPRX05).

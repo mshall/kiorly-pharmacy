@@ -6,6 +6,7 @@ import { CurrentUser, Perm, Public } from "../../auth/decorators";
 import type { AuthUser } from "../../auth/auth-user";
 import { RequiresFlag, RequiresFlagGuard } from "../../feature-flags/requires-flag.guard";
 import { MarketplaceService } from "./marketplace.service";
+import { CommissionRateService } from "../growth/commission-rate.service";
 import { RequiresIntegrationGuard } from "../../tenancy/requires-integration.guard";
 import { MarketplaceHmacGuard } from "./marketplace-hmac.guard";
 import { resolveBranchId } from "../../common/branch-scope";
@@ -112,7 +113,11 @@ class CancelDto { @IsOptional() @IsString() reason?: string; }
 @RequiresFlag("pharmacy.kiorex_orders")
 @Controller("marketplace/v1")
 export class MarketplaceMachineController {
-  constructor(@Inject(MarketplaceService) private readonly svc: MarketplaceService) {}
+  constructor(@Inject(MarketplaceService) private readonly svc: MarketplaceService, @Inject(CommissionRateService) private readonly rates: CommissionRateService) {}
+
+  /** COM-2 (additive, contracts 1.13.0): Kiorex reports this pharmacy's commission rate view; idempotent, newest version wins, a view addressed to another organisation is refused. */
+  @Post("commission-rates") @HttpCode(200)
+  commissionRate(@Req() req: { tenant: { id: string } }, @Body() d: Record<string, unknown>) { return this.rates.ingest(req.tenant.id, d); }
 
   @Get("pharmacies")
   pharmacies(@Req() req: { tenant: { id: string } }) { return this.svc.pharmacies(req.tenant.id); }

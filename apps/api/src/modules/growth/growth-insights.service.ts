@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { AuthUser } from "../../auth/auth-user";
 import { PrismaService } from "../../prisma/prisma.service";
 import { growthLimitsFor } from "./growth-plan-limits";
+import { CommissionRateService } from "./commission-rate.service";
 import { buildPerformance } from "./growth-metrics";
 import { THRESHOLDS, buildRecommendations } from "./growth-recommendations";
 import { utcDay } from "./link-counters";
@@ -10,7 +11,7 @@ import { ProviderLinksService } from "./provider-links.service";
 /** Performance and recommendations for the Growth workspace. Aggregates only; no order lines, no customer data and no money leave the database. */
 @Injectable()
 export class GrowthInsightsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(ProviderLinksService) private readonly links: ProviderLinksService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(ProviderLinksService) private readonly links: ProviderLinksService, @Inject(CommissionRateService) private readonly rates: CommissionRateService) {}
 
   async performance(user: AuthUser, q: { days?: number } = {}) {
     const orgId = this.links.assert(user, "view");
@@ -29,7 +30,8 @@ export class GrowthInsightsService {
       { total: byStatus.reduce((a, r) => a + r._count._all, 0), completed: n("DISPENSED"), rejectedOrCancelled: n("REJECTED", "CANCELLED", "EXPIRED") },
       { visits: daily._sum.visits ?? 0, orders: daily._sum.orders ?? 0, completed: daily._sum.completed ?? 0 },
     );
-    return { days, ...perf, statement: { configured: false, note: "No commission is configured for pharmacy orders." } };
+    const rate = await this.rates.view(orgId);
+    return { days, ...perf, statement: { configured: rate.state === "SET" } };
   }
 
   async recommendations(user: AuthUser) {

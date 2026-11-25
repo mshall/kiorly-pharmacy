@@ -6,6 +6,12 @@ const API = process.env.PHARMACY_API_ORIGIN ?? "http://127.0.0.1:3100";
 const tokens = new Map<string, string>(); // one login per user: the API throttles sign-ins per e-mail
 const tokenOf = async (page: Page, email: string) => { if (!tokens.has(email)) { const r = await page.request.post(`${API}/api/v1/auth/login`, { data: { email, password: "Demo@12345" } }); tokens.set(email, (await r.json()).accessToken as string); } return tokens.get(email)!; };
 const OWNER = { email: "owner@demo.kiorly.local" }, READER = { email: "cashier@demo.kiorly.local" }, SOLO = { email: "solo.owner@demo.kiorly.local" }; // owner: legacy-connected demo pharmacy; solo: never connected
+const spec = { feeType: "PERCENT", percentBps: 800, flatMinor: null, minMinor: 500, maxMinor: 9000, mode: null };
+const flatSpec = { feeType: "FLAT", percentBps: null, flatMinor: 2500, minMinor: null, maxMinor: null, mode: null };
+const effDefault = { state: "SET", source: "DEFAULT", version: 1, effectiveFrom: "2026-01-01T00:00:00.000Z", reason: null, spec };
+const effOwn = { state: "SET", source: "OVERRIDE", version: 1, effectiveFrom: "2026-03-01T00:00:00.000Z", reason: "volume agreement", spec: flatSpec };
+const RATE_VIEW = { known: true, product: "PHARMACY", state: "SET", effective: effOwn, default: effDefault, override: effOwn, inheriting: false, upcoming: null, receivedAt: "2026-03-01T00:00:00.000Z", history: [{ version: 1, scope: "ORG", kind: "RATE", effectiveFrom: "2026-03-01T00:00:00.000Z", reason: "volume agreement", spec: flatSpec }, { version: 1, scope: "DEFAULT", kind: "RATE", effectiveFrom: "2026-01-01T00:00:00.000Z", reason: null, spec }] };
+const RATE_NOT_SET = { known: false, product: null, state: "NOT_SET", effective: { state: "NOT_SET", source: null, version: null, effectiveFrom: null, reason: null, spec: null }, default: { state: "NOT_SET", source: null, version: null, effectiveFrom: null, reason: null, spec: null }, override: null, inheriting: true, upcoming: null, receivedAt: null, history: [] };
 const SHOTS = process.env.GROWTH_SHOTS_DIR;
 const shot = async (page: Page, name: string) => { if (!SHOTS) return; mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: join(SHOTS, `pharmacy-growth-${name}.png`), fullPage: true }); };
 const signedIn = async (page: Page, who: { email: string }, lang: "en" | "ar", theme: "light" | "dark" = "light") => {
@@ -43,7 +49,7 @@ test.describe("Growth & links (pharmacy)", () => {
     await open(page, OWNER);
     await expect(page.getByRole("heading", { name: "Growth & links", level: 1 }).or(page.getByRole("heading", { name: "Growth & links" }).first())).toBeVisible();
     for (const id of ["visits", "orders", "completed", "market"]) await expect(page.getByTestId(`growth-stat-${id}`)).toBeVisible();
-    await expect(page.getByTestId("growth-recs")).toBeVisible(); await expect(page.getByTestId("growth-statement")).toContainText("No commission");
+    await expect(page.getByTestId("growth-recs")).toBeVisible(); await expect(page.getByTestId("growth-statement")).toContainText("Rate not set");
     const name = `PW Counter ${Date.now().toString(36)}`;
     await page.getByTestId("growth-create").click();
     await expect(page.getByTestId("growth-f-submit")).toBeDisabled();
@@ -86,8 +92,8 @@ test.describe("Growth & links (pharmacy)", () => {
     await expect(page.getByText("link limit is reached")).toBeVisible();
   });
 
-  for (const w of [320, 360, 768, 1024, 1440, 2560]) test(`responsive ${w}px: no overflow, 44px touch targets in the table, axe-clean`, async ({ page }) => {
-    await page.setViewportSize({ width: w, height: 900 }); await open(page, OWNER);
+  for (const [w, h] of [[320, 900], [360, 900], [640, 450], [768, 900], [1024, 900], [1440, 900], [2560, 900]] as const) test(`responsive ${w}x${h}: no overflow, 44px touch targets in the table, axe-clean`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h }); await open(page, OWNER);
     await noOverflow(page);
     const small = await page.getByTestId("growth-link-row").first().locator("button").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && (r.width < 43.5 || r.height < 43.5)).length).catch(() => 0);
     expect(small).toBe(0);
@@ -101,12 +107,38 @@ test.describe("Growth & links (pharmacy)", () => {
     await noOverflow(page); await shot(page, `ar-${theme}`); await axe(page);
   });
 
-  for (const [lang, w] of [["ar", 320], ["ar", 1440], ["en", 320], ["en", 1440]] as const) test(`GRW-P4-B3 ${lang} ${w}px: five-rule suggestions and the no-commission statement placeholder, no overflow, axe-clean`, async ({ page }) => {
-    await page.setViewportSize({ width: w, height: 900 }); await open(page, OWNER, lang);
+  for (const [lang, w, h] of [["ar", 320, 900], ["ar", 640, 450], ["ar", 1440, 900], ["en", 320, 900], ["en", 640, 450], ["en", 1440, 900]] as const) test(`GRW-P4-B3 ${lang} ${w}x${h}: five-rule suggestions and the commission statement card, no overflow, axe-clean`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h }); await open(page, OWNER, lang);
     await expect(page.getByTestId("growth-recs")).toBeVisible(); await expect(page.getByTestId("growth-statement")).toBeVisible();
-    if (lang === "en") await expect(page.getByTestId("growth-statement")).toContainText("No commission");
+    if (lang === "en") await expect(page.getByTestId("growth-statement")).toContainText(/Rate not set|Rate in effect now|visible to/);
     await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
     await noOverflow(page); await axe(page);
+  });
+
+  // COM-2: the commission rate card is read only; Kiorex sets the rate. The API answer is stubbed so the test needs no seeded rate (and never invents one).
+  for (const [lang, w, h] of [["ar", 320, 900], ["ar", 640, 450], ["ar", 1440, 900], ["ar", 2560, 1300], ["en", 320, 900], ["en", 640, 450], ["en", 1440, 900], ["en", 2560, 1300]] as const) test(`COM-2 ${lang} ${w}x${h}: the commission rate card shows effective, default and own rate with history, no overflow, axe-clean`, async ({ page }) => {
+    await page.route(/\/api\/v1\/growth\/commission-rate$/, (r) => r.fulfill({ json: RATE_VIEW }));
+    await page.setViewportSize({ width: w, height: h }); await open(page, OWNER, lang);
+    const card = page.getByTestId("growth-rate"); await expect(card).toBeVisible();
+    await expect(page.getByTestId("growth-rate-effective")).toContainText(lang === "ar" ? "خاصة" : "Own rate"); // the source line: own rate agreed
+    await expect(page.getByTestId("growth-rate-default")).toBeVisible(); await expect(page.getByTestId("growth-rate-override")).toBeVisible();
+    await expect(card).toContainText("volume agreement");
+    expect(await card.innerText()).not.toMatch(/growth\.rate\.[a-zA-Z]+/);
+    if (lang === "ar") expect(await card.innerText()).toMatch(/[؀-ۿ]/);
+    await expect(page.locator("html")).toHaveAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+    await noOverflow(page); await axe(page);
+  });
+
+  test("COM-2: with no rate reported the card says 'Rate not set' (no invented rate), and a reader role sees the role note instead", async ({ page }) => {
+    await page.route(/\/api\/v1\/growth\/commission-rate$/, (r) => r.fulfill({ json: RATE_NOT_SET }));
+    await open(page, OWNER, "en");
+    await expect(page.getByTestId("growth-rate-effective")).toContainText("Rate not set");
+    await expect(page.getByTestId("growth-rate-override")).toContainText("follows the default");
+    await page.unroute(/\/api\/v1\/growth\/commission-rate$/);
+    await page.route(/\/api\/v1\/growth\/commission-rate$/, (r) => r.fulfill({ status: 403, json: { statusCode: 403, code: "FORBIDDEN", message: "x" } }));
+    await open(page, READER, "en");
+    await expect(page.getByTestId("growth-rate-role")).toBeVisible();
+    await expect(page.getByTestId("growth-rate")).toHaveCount(0);
   });
 
   for (const lang of ["ar", "en"] as const) test(`GRW-P4-B3 poster ${lang}: the counter card prints to a real PDF (Save as PDF), direction and QR present`, async ({ page }) => {

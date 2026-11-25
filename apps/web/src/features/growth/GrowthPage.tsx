@@ -9,6 +9,7 @@ import { fmtNum } from "@/lib/format";
 import { useToast } from "@/lib/toast";
 import { Badge, Button, buttonClass, Card, Empty, ErrorNote, Field, Input, Modal, PageHeader, Select, Spinner, Table, Td, type Tone } from "@/components/ui";
 import "./growth-strings";
+import { CommissionRateCard } from "./CommissionRateCard";
 
 /** Growth & links (GRW-P4-B1): links, QR codes and printable counter cards, counts of visits and orders, suggestions. Counts only: no customer data and no money. */
 interface LinkRow { id: string; code: string; label: string; ownerScope: "ORG" | "BRANCH" | "DESK"; channelKind: string; status: "ACTIVE" | "PAUSED" | "REVOKED"; branchId: string | null; branchName: string | null; shortUrl: string; last30: { visits: number; orders: number; completed: number } }
@@ -67,9 +68,9 @@ export function GrowthPage() {
               </tr>))}
           </Table>)}
       </Card>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card title={t("growth.recsTitle")} className="lg:col-span-2"><ul className="space-y-2" data-testid="growth-recs">{(recs.data?.items ?? []).map((r) => <li key={r.id} data-rec={r.id} className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-sm"><Badge tone={r.severity === "high" ? "bad" : r.severity === "medium" ? "warn" : "neutral"}>{t(`growth.sev.${r.severity}`, { defaultValue: r.severity })}</Badge><span>{t(`growth.rec.${r.id}`, r.params)}</span></li>)}{recs.data && !recs.data.items.length && <li className="text-sm text-muted-foreground">{t("growth.recsNone")}</li>}</ul><p className="mt-3 text-xs text-muted-foreground">{t("growth.recGuardrail")}</p></Card>
-        <Card title={t("growth.statementTitle")}><p className="text-sm text-muted-foreground" data-testid="growth-statement">{t("growth.statementNone")}</p></Card>
+        <CommissionRateCard />
       </div>
       {create && <CreateModal branches={me?.branches ?? []} ownBranch={me?.user.branchId ?? null} onClose={() => setCreate(false)} onDone={() => { setCreate(false); refresh(); }} />}
       {qr && <QrModal link={qr} onClose={() => setQr(null)} />}

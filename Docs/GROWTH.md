@@ -48,3 +48,13 @@ Kiorex decides every Pharmacy order or booking it takes (origin PROVIDER_LED, MA
 - **Rules**: only PROVIDER_LED with a code of this organisation counts; another organisation's code, a MARKETPLACE or UNATTRIBUTED origin and a Clinic client's block count nothing (Lab: only a Kiorex booking client can carry the block); no order line, test name or person is read from the block.
 - **Tests**: `test/acquisition-fact.e2e.test.ts` (3: stored and counted once with replay, ignored cases, foreign organisation and constraint) and the workspace suite `e2e/test/53-growth-product-ingest.e2e.ts` on the real stack.
 - **Gaps**: the staff-app tab (P4-B3) is not built; `growth-metrics.ts` still labels `acquisitionPending` when no link order exists yet.
+
+
+## Commission rate (COM-2, 25 Nov 2026)
+
+Kiorex sets the commission rate (default per organisation type, own rate per organisation, maker-checker, append-only, effective-dated) and reports the pharmacy's view over the signed machine API: `POST /marketplace/v1/commission-rates` (`CommissionRateView`, contracts 1.13.0; idempotent, newest `version` wins; the signed client key addresses the organisation, `orgRef` is Kiorex's own reference). Stored in `KiorexCommissionRateView`.
+
+- Read: `GET /api/v1/growth/commission-rate` for owners, branch managers and chain operations (others 403 and the page says so). It returns the effective rate now, the default, the own rate with its reason, the next change and the history; the effective rate is computed at read time from the history.
+- Web: Growth > **Commission statement** card (en + ar, RTL; 320 / 640x450 / 1440 / 2560). It replaces the old "No commission is configured" placeholder. Nothing reported = **"Rate not set"** and no commission is charged.
+- `GET /growth/performance` keeps `statement.configured` (true once a rate is in force); counts only, no money, as before.
+- Tests: `test/commission-rate.e2e.test.ts`, `src/modules/growth/commission-rate-view.node.test.ts`, `e2e/growth.spec.ts` (COM-2 cases).
