@@ -2142,3 +2142,105 @@ model ProviderReferralLinkDaily {
   @@id([linkId, date])
   @@index([orgId, date])
 }
+
+// ------------------------------------------------ SUB-01 subscription ----
+
+/// SUB-01: the organisation's recurring subscription. Tenant.edition stays the single source of truth for entitlements; this row holds the lifecycle
+/// (auto-renew, period, saved card reference, dunning counters, Lite downgrade). Card data never lands here: only a provider token reference + last4.
+model OrgSubscription {
+  id                     String    @id @default(cuid())
+  orgId                  String    @unique
+  interval               String    @default("MONTHLY")
+  /// ACTIVE | PAST_DUE (full access in both; a lapse ends in Lite, never lockout)
+  status                 String    @default("ACTIVE")
+  autoRenew              Boolean   @default(true)
+  /// Platform force: "ON" | "OFF"; while set the organisation cannot change autoRenew.
+  autoRenewForced        String?
+  autoRenewChangedAt     DateTime?
+  autoRenewChangedBy     String?
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  paymentTokenRef        String?
+  paymentBrand           String?
+  paymentLast4           String?
+  paymentExpMonth        Int?
+  paymentExpYear         Int?
+  failedAttempts         Int       @default(0)
+  firstFailedAt          DateTime?
+  nextRetryAt            DateTime?
+  downgradedToLiteAt     DateTime?
+  downgradeReason        String?
+  previousEdition        Edition?
+  liteReadOnlyGraceUntil DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([autoRenew, currentPeriodEnd])
+}
+
+model SubscriptionEvent {
+  id       String   @id @default(cuid())
+  orgId    String
+  type     String
+  fromJson Json?
+  toJson   Json?
+  actorId  String?
+  at       DateTime @default(now())
+
+  @@index([orgId, at])
+  @@index([orgId, type])
+}
+
+/// Owner notices (renewal reminder, payment failed, downgraded...). MODE=mock: the row is the dev inbox; the real e-mail/WhatsApp sender is a provider go-live task.
+model SubscriptionNotice {
+  id        String    @id @default(cuid())
+  orgId     String
+  kind      String
+  payload   Json
+  /// Quiet hours: never delivered before this instant.
+  notBefore DateTime  @default(now())
+  sentAt    DateTime?
+  dedupeKey String
+  createdAt DateTime  @default(now())
+
+  @@unique([orgId, dedupeKey])
+  @@index([orgId, createdAt])
+}
+
+model SubscriptionInvoice {
+  id          String    @id @default(cuid())
+  orgId       String
+  number      String    @unique
+  periodKey   String
+  periodStart DateTime
+  periodEnd   DateTime
+  edition     Edition
+  currency    String
+  subtotal    Decimal   @db.Decimal(14, 2)
+  /// Display tax line from the market config (rate NEEDS_HUMAN); never submitted to any authority.
+  tax         Decimal   @db.Decimal(14, 2)
+  total       Decimal   @db.Decimal(14, 2)
+  /// ISSUED | PAID | VOID
+  status      String    @default("ISSUED")
+  providerRef String?
+  attempts    Int       @default(0)
+  issuedAt    DateTime  @default(now())
+  paidAt      DateTime?
+
+  @@unique([orgId, periodKey])
+  @@index([orgId, issuedAt])
+}
+
+/// Platform plan prices per market. Empty until the founder sets prices (NEEDS_HUMAN LG-SUB-1): the UI then says "price to be confirmed" and renewals do not charge.
+model PlanPrice {
+  id        String    @id @default(cuid())
+  edition   Edition
+  marketCode String   @default("EG")
+  interval  String    @default("MONTHLY")
+  currency  String    @default("EGP")
+  amount    Decimal   @db.Decimal(14, 2)
+  validFrom DateTime  @default(now())
+  validTo   DateTime?
+
+  @@index([edition, marketCode, interval])
+}

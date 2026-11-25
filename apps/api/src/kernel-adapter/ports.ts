@@ -24,7 +24,7 @@ export interface PlansPort {
 }
 
 export interface EntitlementsPort {
-  isEntitled(orgId: string, capability: Capability): Promise<boolean>;
+  isEntitled(orgId: string, capability: Capability, opts?: { readOnlyRequest?: boolean }): Promise<boolean>;
   /** Throws nothing; returns the first violated limit or null. */
   checkLimit(orgId: string, kind: "users" | "branches", countAfter: number): Promise<{ limit: number } | null>;
 }

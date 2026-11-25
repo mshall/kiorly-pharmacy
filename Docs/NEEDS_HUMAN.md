@@ -99,3 +99,14 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 
 ## Kiorex acquisition block (GRW-P4-B2)
 - **Do Pharmacys ever owe Kiorex a commission on attribution?** Today no: the block is informational and no charge exists. A rate and basis are a founder and finance decision (launch guide 11.40). Until then nothing here may be shown to a provider as a fee.
+
+## Recurring subscription (SUB-01)
+| ID | Item | Status |
+|---|---|---|
+| LG-SUB-1 | Edition prices (`PlanPrice` is empty; the UI says "Price to be confirmed" and upgrades are disabled) | open |
+| LG-SUB-2 | Counsel: renewal notice, reminder and downgrade copy (EN + AR), what Lite keeps and loses | open |
+| LG-SUB-3 | Founder + accounting: grace days (30), downgrade after 15 days, reminders 7/3/1, proration, VAT on subscription invoices | open |
+| LG-SUB-4 | App stores: subscriptions are sold on the web only; the Kiorly app shows a read-only card | open |
+| LG-SUB-5 | PSP recurring-charge approval, hosted card capture, notice sender (`BILLING_MODE=real`) | open |
+| LG-SUB-6 | Which Lite limits (users, branches, patients) apply to Pharmacy at launch | open |
+| LG-SUB-7 | Platform-level maker-checker config catalog and force actions for Pharmacy (Kiorex control plane) | open |

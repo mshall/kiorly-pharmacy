@@ -34,11 +34,16 @@ export class LocalSubscriptions implements SubscriptionsPort {
 export class LocalEntitlements implements EntitlementsPort {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async isEntitled(orgId: string, capability: Capability): Promise<boolean> {
+  async isEntitled(orgId: string, capability: Capability, opts: { readOnlyRequest?: boolean } = {}): Promise<boolean> {
     const t = await this.prisma.tenant.findUniqueOrThrow({ where: { id: orgId } });
     if (t.subscriptionStatus === "SUSPENDED") return false;
     const plan = PLANS[t.edition];
     if (plan.capabilities.includes(capability)) return true;
+    // SUB-01: after a downgrade to Lite, capabilities of the previous edition stay READ-ONLY for the grace window (data is never deleted).
+    if (opts.readOnlyRequest) {
+      const s = await this.prisma.orgSubscription.findUnique({ where: { orgId } });
+      if (s?.previousEdition && s.liteReadOnlyGraceUntil && s.liteReadOnlyGraceUntil > new Date() && PLANS[s.previousEdition].capabilities.includes(capability)) return true;
+    }
     const addons = ((t.settings as { addOns?: string[] } | null)?.addOns ?? []) as string[];
     return plan.addOns.includes(capability) && addons.includes(capability);
   }

@@ -14,7 +14,7 @@ export const schemaSmoke = {
   /** Child/reference tables that inherit tenancy through a parent FK. */
   unscoped: [
     "Tenant", "SubstitutionGroup", "PurchaseOrderLine", "StockCountLine", "PrescriptionLine", "DispensingLine",
-    "SafetyCheckResult", "SaleLine", "SalePayment", "SaleReturn", "FlagSnapshotCache", "RfqLine", "RfqQuote", "RfqQuoteLine", "GoodsReceiptLine", "StockTransferLine", "KiorexOrderLine", "InboundEvent", "ProviderWebhookEvent", "PassportRevocation", "LogoutTokenSeen", "HandoffCode", "RateLimitBucket",
+    "SafetyCheckResult", "SaleLine", "SalePayment", "SaleReturn", "FlagSnapshotCache", "RfqLine", "RfqQuote", "RfqQuoteLine", "GoodsReceiptLine", "StockTransferLine", "KiorexOrderLine", "InboundEvent", "ProviderWebhookEvent", "PassportRevocation", "LogoutTokenSeen", "HandoffCode", "RateLimitBucket", "PlanPrice",
   ],
   async invariants(prisma: PrismaClient) {
     const seed = async (tx: Prisma.TransactionClient, lot: { status?: "AVAILABLE" | "QUARANTINE" | "RECALLED"; expiry: Date }) => {

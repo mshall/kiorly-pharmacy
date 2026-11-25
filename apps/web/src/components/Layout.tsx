@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import "@/features/subscription/subscription-strings";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -51,6 +52,7 @@ export function Layout() {
     { to: "/audit", label: t("nav.audit"), perm: "audit.read", icon: ScrollText, group: "admin" },
     { to: "/growth", label: t("nav.growth"), icon: Megaphone, group: "money" },
     { to: "/kiorex-connect", label: t("kiorexConnect.title", "Connect to Kiorex"), perm: "settings.write", icon: Link2, group: "admin" },
+    { to: "/plan", label: t("sub.nav"), perm: "settings.read", icon: Landmark, group: "admin" },
     { to: "/settings", label: t("nav.settings"), perm: "settings.read", icon: Settings, group: "admin" },
   ];
   const { pathname } = useLocation();

@@ -33,11 +33,12 @@ import { MobileModule } from "./modules/mobile/mobile.module";
 import { ProvidersModule } from "./providers/providers.module";
 import { SetupModule } from "./modules/setup/setup.module";
 import { GrowthModule } from "./modules/growth/growth.module";
+import { SubscriptionModule } from "./subscription/subscription.module";
 
 @Module({
   imports: [
     PrismaModule, HooksModule, AuditModule, OutboxModule, KernelAdapterModule, PlatformModule, FeatureFlagsModule, AuthModule, MobileModule, ApprovalModule, HealthModule, TenancyModule,
-    CatalogueModule, InventoryModule, PrescriptionsModule, DispensingModule, PosModule, SuppliersModule, MarketplaceModule, ForecastingModule, ClaimsModule, ReportsModule, DashboardModule, WebhooksModule, JobsModule, CustomersModule, ClinicalModule, ControlledModule, PurchasingModule, FinanceModule, AdminModule, ProvidersModule, SetupModule, GrowthModule,
+    CatalogueModule, InventoryModule, PrescriptionsModule, DispensingModule, PosModule, SuppliersModule, MarketplaceModule, ForecastingModule, ClaimsModule, ReportsModule, DashboardModule, WebhooksModule, JobsModule, CustomersModule, ClinicalModule, ControlledModule, PurchasingModule, FinanceModule, AdminModule, ProvidersModule, SetupModule, GrowthModule, SubscriptionModule,
   ],
 })
 export class AppModule {}

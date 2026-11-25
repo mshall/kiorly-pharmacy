@@ -16,7 +16,8 @@ describe("i18n usage", () => {
     // Quick-setup strings live in setup/setup-strings.ts and are merged at runtime (the shared locale files stay untouched): a `setup.<k>` key is covered by a `"<k>":` entry there.
     const setupSrc = readFileSync(join(root, "setup/setup-strings.ts"), "utf8");
     const growthSrc = readFileSync(join(root, "features/growth/growth-strings-data.ts"), "utf8"); // Growth strings: merged at runtime like Quick setup (GRW-P4-B1)
-    for (const f of walk(root)) for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.-]+)"/g)) { if (m[1]!.startsWith("growth.") && growthSrc.includes(`"${m[1]!.split(".").pop()}":`)) continue; if (m[1]!.startsWith("setup.") && setupSrc.includes(`"${m[1]!.split(".").pop()}":`)) continue; if (get(m[1]!) === undefined) missing.push(`${f.replace(root, "")}: ${m[1]}`); }
+    const subSrc = readFileSync(join(root, "features/subscription/subscription-strings.ts"), "utf8"); // SUB-01 strings: merged at runtime like Quick setup
+    for (const f of walk(root)) for (const m of readFileSync(f, "utf8").matchAll(/\bt\("([a-zA-Z0-9_.-]+)"/g)) { if (m[1]!.startsWith("growth.") && growthSrc.includes(`"${m[1]!.split(".").pop()}":`)) continue; if (m[1]!.startsWith("sub.") && subSrc.includes(`"${m[1]!.slice(4)}":`)) continue; if (m[1]!.startsWith("setup.") && setupSrc.includes(`"${m[1]!.split(".").pop()}":`)) continue; if (get(m[1]!) === undefined) missing.push(`${f.replace(root, "")}: ${m[1]}`); }
     assert.deepEqual(missing, []);
   });
 
