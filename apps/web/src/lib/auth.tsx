@@ -4,7 +4,7 @@ import { api, getToken, setToken } from "@/lib/api";
 import type { Me } from "@/lib/types";
 import { takeEndSessionUrl } from "@/lib/passport";
 import { rememberSignInOrg } from "@/lib/sign-in-default";
-import { IDLE_NOTICE_KEY, idleLimitMs } from "@/lib/idle";
+import { idleLimitMs } from "@/lib/idle";
 import { useToast } from "@/lib/toast";
 import { useTranslation } from "react-i18next";
 

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "check:dev-test-users": "node scripts/check-no-dev-test-users.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "test": "node --import tsx --test \"src/**/*.node.test.ts\"",
     "e2e": "playwright test"
   },

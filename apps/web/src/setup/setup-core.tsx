@@ -245,7 +245,7 @@ export function SetupBar({ onEntity }: { onEntity?: (id: string) => void } = {})
   useEffect(() => {
     if (!session || !step || !session.startedPending || status !== "done" || leaving.current) return;
     leaving.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setSuccess(true); write(JUST, { key: session.key, entity: session.entity });
     const timer = window.setTimeout(() => { leaving.current = false; setSuccess(false); setSession(null); nav(session.returnTo || "/"); }, reduced() ? 400 : 1500);
     return () => window.clearTimeout(timer);
