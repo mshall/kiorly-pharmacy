@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { NO_RATE_PARAMS, parseCounselStatus, parseDisclosure, rateParamsOf, rateViewProblems, type RateSpecView } from "./commission-rate-view";
+import type { CommissionRateSpec as RateSpecView } from "@kiorex/contracts";
+import { NO_RATE_PARAMS, parseCounselStatus, parseDisclosure, rateParamsOf, rateViewProblems } from "./commission-rate-view";
 import { normalizeStatement, periodRange } from "./commission-statement";
 
 const spec = (o: Partial<RateSpecView> = {}): RateSpecView => ({ feeType: "PERCENT", percentBps: 800, flatMinor: null, minMinor: null, maxMinor: null, mode: null, ...o });

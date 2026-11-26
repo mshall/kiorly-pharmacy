@@ -1,32 +1,9 @@
+import type { CommissionRateSpec } from "@kiorex/contracts";
 /**
- * COM-2 provider-side rate view (pure; the same file ships in Clinic, Pharmacy and Lab). Kiorex sets the commission rate (default per organisation type, override per organisation, maker-checker); this product only displays it.
+ * COM-2 provider-side rate view (pure). The rate vocabulary and the resolution at an instant (`effectiveCommissionRate`) come from @kiorex/contracts 1.13.0; this file keeps only the push validation and the tolerant readers. Kiorex sets the commission rate (default per organisation type, override per organisation, maker-checker); this product only displays it.
  * The history rows arrive with their start time, so the effective rate is computed here at read time: a change that was future-dated takes effect by itself, and an old instant keeps the old rate.
  * Nothing here is a rate of its own: with no active row the answer is NOT_SET (no commission is charged, "rate not set").
  */
-/** COM-3 (all optional, tolerant: absent or malformed reads as null = "Kiorex sets nothing here"): see the Clinic copy of this file. */
-export type RateSpecView = {
-  feeType: "PERCENT" | "FLAT"; percentBps: number | null; flatMinor: number | null; minMinor: number | null; maxMinor: number | null; mode: string | null;
-  currency?: string | null; rounding?: "HALF_UP" | "DOWN" | "UP" | null; minCollectMinor?: number | null; graceDays?: number | null; retryDays?: number[] | null; invoiceDueDays?: number | null;
-  reminderDays?: number[] | null; disputeWindowDays?: number | null; savedMethodChargeAllowed?: boolean | null;
-};
-export type RateHistoryRow = { version: number; scope: "DEFAULT" | "ORG"; kind: "RATE" | "INHERIT"; effectiveFrom: string; reason: string | null; spec: RateSpecView | null };
-export type EffectiveRateView = { state: "SET" | "NOT_SET"; source: "OVERRIDE" | "DEFAULT" | null; version: number | null; effectiveFrom: string | null; reason: string | null; spec: RateSpecView | null };
-export const NOT_SET_VIEW: EffectiveRateView = { state: "NOT_SET", source: null, version: null, effectiveFrom: null, reason: null, spec: null };
-
-const inForce = (rows: RateHistoryRow[], at: Date): RateHistoryRow | null => {
-  const live = rows.filter((r) => new Date(r.effectiveFrom).getTime() <= at.getTime());
-  live.sort((a, b) => new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime() || b.version - a.version);
-  return live[0] ?? null;
-};
-
-export function effectiveRateAt(history: RateHistoryRow[], at: Date): EffectiveRateView {
-  const o = inForce(history.filter((r) => r.scope === "ORG"), at);
-  if (o && o.kind === "RATE" && o.spec) return { state: "SET", source: "OVERRIDE", version: o.version, effectiveFrom: o.effectiveFrom, reason: o.reason, spec: o.spec };
-  const d = inForce(history.filter((r) => r.scope === "DEFAULT"), at);
-  if (d && d.kind === "RATE" && d.spec) return { state: "SET", source: "DEFAULT", version: d.version, effectiveFrom: d.effectiveFrom, reason: null, spec: d.spec };
-  return NOT_SET_VIEW;
-}
-
 /** Validation of what Kiorex pushes: a malformed view is refused whole rather than shown half. */
 export function rateViewProblems(b: unknown): string[] {
   if (!b || typeof b !== "object") return ["body must be an object"];
@@ -53,7 +30,7 @@ const dayList = (v: unknown, min: number, max: number, maxLen: number): number[]
 /** The configurable collection parameters of the rate in force; every one is null when Kiorex does not set it (then the Clinic default applies). Never throws on a malformed value. */
 export type RateParams = { graceDays: number | null; retryDays: number[] | null; invoiceDueDays: number | null; reminderDays: number[] | null; disputeWindowDays: number | null; savedMethodChargeAllowed: boolean | null };
 export const NO_RATE_PARAMS: RateParams = { graceDays: null, retryDays: null, invoiceDueDays: null, reminderDays: null, disputeWindowDays: null, savedMethodChargeAllowed: null };
-export function rateParamsOf(spec: RateSpecView | null | undefined): RateParams {
+export function rateParamsOf(spec: CommissionRateSpec | null | undefined): RateParams {
   if (!spec || typeof spec !== "object") return NO_RATE_PARAMS;
   return {
     graceDays: wholeDays(spec.graceDays, 0, 30), retryDays: dayList(spec.retryDays, 1, 60, 6), invoiceDueDays: wholeDays(spec.invoiceDueDays, 1, 90),

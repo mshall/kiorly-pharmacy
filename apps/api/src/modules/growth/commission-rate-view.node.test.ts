@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { NOT_SET_VIEW, effectiveRateAt, rateViewProblems, type RateHistoryRow, type RateSpecView } from "./commission-rate-view";
+import { COMMISSION_RATE_NOT_SET as NOT_SET_VIEW, effectiveCommissionRate as effectiveRateAt, type CommissionRateHistoryRow as RateHistoryRow, type CommissionRateSpec as RateSpecView } from "@kiorex/contracts";
+import { rateViewProblems } from "./commission-rate-view";
 
 /** COM-2 provider-side rate view (pure). Every number is a TEST placeholder. */
 const pct: RateSpecView = { feeType: "PERCENT", percentBps: 1000, flatMinor: null, minMinor: null, maxMinor: null, mode: null };

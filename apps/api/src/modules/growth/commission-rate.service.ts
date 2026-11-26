@@ -1,7 +1,15 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import type { AuthUser } from "../../auth/auth-user";
 import { PrismaService } from "../../prisma/prisma.service";
-import { effectiveRateAt, parseCounselStatus, parseDisclosure, rateParamsOf, rateViewProblems, type RateHistoryRow } from "./commission-rate-view";
+import { effectiveCommissionRate, type CommissionRateHistoryRow, type EffectiveCommissionRate } from "@kiorex/contracts";
+import { parseCounselStatus, parseDisclosure, rateParamsOf, rateViewProblems, type RateParams } from "./commission-rate-view";
+
+/** The read-only rate card of one organisation (explicit so the contracts types stay nameable in declaration emit). */
+export interface CommissionRateCard {
+  known: boolean; product: string | null; state: "SET" | "NOT_SET"; effective: EffectiveCommissionRate; default: EffectiveCommissionRate; override: EffectiveCommissionRate | null; inheriting: boolean;
+  upcoming: CommissionRateHistoryRow | null; history: CommissionRateHistoryRow[]; receivedAt: unknown;
+  disclosure: { rateDisclosure: { en: string; ar: string }; termsSummary: { en: string; ar: string } } | null; counsel: { status: string } | null; params: RateParams;
+}
 
 /** Roles that may see the commission rate (money): owner, branch manager and chain operations. Cashiers, pharmacists and assistants do not. */
 export const RATE_ROLES = new Set(["OWNER", "BRANCH_MANAGER", "CHAIN_OPS"]);
@@ -17,7 +25,7 @@ export class CommissionRateService {
   async ingest(orgId: string, body: unknown) {
     const problems = rateViewProblems(body);
     if (problems.length) throw new BadRequestException({ code: "INVALID_RATE_VIEW", problems });
-    const v = body as { orgRef: string; product: string; version: string; history: RateHistoryRow[]; mode?: string | null };
+    const v = body as { orgRef: string; product: string; version: string; history: CommissionRateHistoryRow[]; mode?: string | null };
     // `orgRef` is Kiorex's own reference to this organisation (its partner registration id); the signed client key, not this field, addresses the organisation, so a view is only ever stored for the organisation that signed.
     const have = await this.prisma.kiorexCommissionRateView.findUnique({ where: { orgId } });
     if (have && have.version >= BigInt(v.version)) return { applied: false };
@@ -37,19 +45,19 @@ export class CommissionRateService {
     return typeof ref === "string" && ref ? ref : null;
   }
 
-  async rate(user: AuthUser, now = new Date()) {
+  async rate(user: AuthUser, now = new Date()): Promise<CommissionRateCard> {
     if (!RATE_ROLES.has(user.role)) throw new ForbiddenException("The commission rate is visible to owners, branch managers and chain operations");
     return this.view(user.orgId, now);
   }
 
   /** The view of one organisation (also embedded in the growth statement). */
-  async view(orgId: string, now = new Date()) {
+  async view(orgId: string, now = new Date()): Promise<CommissionRateCard> {
     const row = await this.prisma.kiorexCommissionRateView.findUnique({ where: { orgId } });
-    const stored = (row?.view ?? null) as { history?: RateHistoryRow[]; disclosure?: unknown; counsel?: unknown } | null;
+    const stored = (row?.view ?? null) as { history?: CommissionRateHistoryRow[]; disclosure?: unknown; counsel?: unknown } | null;
     const disclosure = parseDisclosure(stored?.disclosure); const counsel = parseCounselStatus(stored?.counsel);
     const history = (stored?.history ?? []).slice().sort((a, b) => new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime() || b.version - a.version);
-    const effective = effectiveRateAt(history, now);
-    const defaultOnly = effectiveRateAt(history.filter((r) => r.scope === "DEFAULT"), now);
+    const effective = effectiveCommissionRate(history, now);
+    const defaultOnly = effectiveCommissionRate(history.filter((r) => r.scope === "DEFAULT"), now);
     const upcoming = history.filter((r) => new Date(r.effectiveFrom) > now).sort((a, b) => new Date(a.effectiveFrom).getTime() - new Date(b.effectiveFrom).getTime())[0] ?? null;
     return {
       known: !!row, product: row?.product ?? null, state: effective.state, effective, default: defaultOnly, override: effective.source === "OVERRIDE" ? effective : null, inheriting: effective.source !== "OVERRIDE", upcoming, history, receivedAt: row?.updatedAt ?? null,
