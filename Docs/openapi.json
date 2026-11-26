@@ -6897,6 +6897,64 @@
         ]
       }
     },
+    "/api/v1/growth/commission-statement": {
+      "get": {
+        "operationId": "ProviderLinksController_commissionStatement",
+        "parameters": [
+          {
+            "name": "period",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "COM-3: settlement statement of one period (YYYY-MM): the same figures Kiorex finance sees (read only; owner, branch manager, chain operations)",
+        "tags": [
+          "growth"
+        ]
+      }
+    },
+    "/api/v1/growth/commission-statement/{period}/export.csv": {
+      "get": {
+        "operationId": "ProviderLinksController_commissionStatementCsv",
+        "parameters": [
+          {
+            "name": "period",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "COM-3: settlement statement CSV of one period (audited)",
+        "tags": [
+          "growth"
+        ]
+      }
+    },
     "/api/v1/growth/performance": {
       "get": {
         "operationId": "ProviderLinksController_performance",

@@ -5,6 +5,7 @@ import type { AuthUser } from "../../auth/auth-user";
 import { CurrentUser } from "../../auth/decorators";
 import { RequiresFlag, RequiresFlagGuard } from "../../feature-flags/requires-flag.guard";
 import { CommissionRateService } from "./commission-rate.service";
+import { CommissionStatementService } from "./commission-statement.service";
 import { GrowthInsightsService } from "./growth-insights.service";
 import { GROWTH_FLAG, ProviderLinksService, type CreateLinkBody, type UpdateLinkBody } from "./provider-links.service";
 
@@ -14,7 +15,7 @@ import { GROWTH_FLAG, ProviderLinksService, type CreateLinkBody, type UpdateLink
 @UseGuards(RequiresFlagGuard)
 @Controller("growth")
 export class ProviderLinksController {
-  constructor(@Inject(ProviderLinksService) private readonly links: ProviderLinksService, @Inject(GrowthInsightsService) private readonly insights: GrowthInsightsService, @Inject(CommissionRateService) private readonly rates: CommissionRateService) {}
+  constructor(@Inject(ProviderLinksService) private readonly links: ProviderLinksService, @Inject(GrowthInsightsService) private readonly insights: GrowthInsightsService, @Inject(CommissionRateService) private readonly rates: CommissionRateService, @Inject(CommissionStatementService) private readonly statements: CommissionStatementService) {}
 
   @Get("access") @ApiOperation({ summary: "What the signed-in user can do in Growth, plan limits, whether the pharmacy is connected to Kiorex" })
   access(@CurrentUser() u: AuthUser) { return this.links.access(u); }
@@ -52,6 +53,14 @@ export class ProviderLinksController {
 
   @Get("commission-rate") @ApiOperation({ summary: "COM-2: the pharmacy's effective Kiorex commission rate, the default, any own rate and the history (read only; set by Kiorex; owner, branch manager, chain operations)" })
   commissionRate(@CurrentUser() u: AuthUser) { return this.rates.rate(u); }
+  @Get("commission-statement") @ApiOperation({ summary: "COM-3: settlement statement of one period (YYYY-MM): the same figures Kiorex finance sees (read only; owner, branch manager, chain operations)" })
+  commissionStatement(@CurrentUser() u: AuthUser, @Query("period") period?: string) { return this.statements.statement(u, period); }
+  @Get("commission-statement/:period/export.csv") @ApiOperation({ summary: "COM-3: settlement statement CSV of one period (audited)" })
+  async commissionStatementCsv(@CurrentUser() u: AuthUser, @Param("period") period: string, @Res({ passthrough: true }) res: Response) {
+    const r = await this.statements.exportCsv(u, period);
+    res.setHeader("content-type", "text/csv; charset=utf-8"); res.setHeader("content-disposition", `attachment; filename="${r.filename}"`);
+    return new StreamableFile(Buffer.from(r.body, "utf8"));
+  }
 
   @Get("performance") @ApiOperation({ summary: "Orders originated through your links versus the Kiorex marketplace (counts only, no money)" })
   performance(@CurrentUser() u: AuthUser, @Query("days") days?: string) { return this.insights.performance(u, { days: days ? Number(days) : undefined }); }
