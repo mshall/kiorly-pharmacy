@@ -6,6 +6,7 @@ import { kiorexMode } from "../../outbox/outbox-delivery.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CommissionRateService, RATE_ROLES } from "./commission-rate.service";
 import { normalizeStatement, periodRange, type StatementView } from "./commission-statement";
+import { renderStatementHtml } from "./statement-html";
 
 /**
  * COM-3: the settlement statement of one period, the same figures Kiorex finance sees for this organisation (read only). Kiorex pays providers by bank transfer only and never holds or pays cash; fees are netted at order release.
@@ -46,7 +47,16 @@ export class CommissionStatementService {
     }
   }
 
-  async statement(user: AuthUser, period?: string): Promise<StatementView & { period: StatementView["period"] & { key: string } }> {
+  /**
+   * Marketplace fees netted at order release, from this pharmacy's own settlement ledger (`SettlementEntry`, one row per fulfilled Kiorex order, written by the local kernel).
+   * Used only when Kiorex sent no fees figure; null when the ledger has no row in the period (nothing is estimated or invented).
+   */
+  private async ledgerFeesMinor(orgId: string, r: { from: Date; to: Date }): Promise<number | null> {
+    const a = await this.prisma.settlementEntry.aggregate({ where: { orgId, createdAt: { gte: r.from, lt: r.to } }, _sum: { feeAmount: true }, _count: true });
+    return a._count > 0 ? Math.round(Number(a._sum.feeAmount?.toString() ?? "0") * 100) : null;
+  }
+
+  async statement(user: AuthUser, period?: string): Promise<StatementView & { period: StatementView["period"] & { key: string }; feesSource: "KIOREX" | "PRODUCT_LEDGER" | null }> {
     this.need(user);
     const r = periodRange(period); if (!r) throw new BadRequestException("period must be YYYY-MM");
     const ref = (await this.rates.kiorexOrgRef(user.orgId)) ?? user.orgId;
@@ -54,7 +64,17 @@ export class CommissionStatementService {
     const v = normalizeStatement(body, { orgRef: ref, from: r.from, to: r.to });
     if (!v) throw new ServiceUnavailableException({ code: "STATEMENT_UNAVAILABLE", message: "Kiorex sent an unreadable statement" });
     await this.prisma.auditLog.create({ data: { orgId: user.orgId, action: "kiorex.commission_statement.viewed", entityType: "KiorexCommissionStatement", entityId: r.key, meta: { by: user.userId } } as never }).catch(() => undefined);
-    return { ...v, orgRef: ref, period: { ...v.period, key: r.key } };
+    let feesSource: "KIOREX" | "PRODUCT_LEDGER" | null = v.deductions.feesMinor === null ? null : "KIOREX";
+    if (v.deductions.feesMinor === null) { const f = await this.ledgerFeesMinor(user.orgId, r); if (f !== null) { v.deductions.feesMinor = f; feesSource = "PRODUCT_LEDGER"; } }
+    return { ...v, orgRef: ref, period: { ...v.period, key: r.key }, feesSource };
+  }
+
+  /** Printable statement (HTML with print CSS; the browser prints it or saves it as PDF), audited like the CSV export. */
+  async printHtml(user: AuthUser, period: string, o: { lang?: string; print?: boolean } = {}): Promise<string> {
+    const s = await this.statement(user, period);
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: user.orgId }, select: { name: true } });
+    await this.prisma.auditLog.create({ data: { orgId: user.orgId, action: "kiorex.commission_statement.printed", entityType: "KiorexCommissionStatement", entityId: s.period.key, meta: { by: user.userId } } as never }).catch(() => undefined);
+    return renderStatementHtml({ product: "PHARMACY", lang: o.lang === "en" ? "en" : "ar", periodKey: s.period.key, organisation: tenant?.name ?? s.orgRef, statement: s, autoPrint: o.print });
   }
 
   async exportCsv(user: AuthUser, period: string) {

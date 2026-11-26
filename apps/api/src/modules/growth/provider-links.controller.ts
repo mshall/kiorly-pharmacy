@@ -62,6 +62,10 @@ export class ProviderLinksController {
     return new StreamableFile(Buffer.from(r.body, "utf8"));
   }
 
+  @Get("commission-statement/:period/print") @ApiOperation({ summary: "COM-3: printable settlement statement of one period (HTML; print or Save as PDF; audited)" })
+  async commissionStatementPrint(@CurrentUser() u: AuthUser, @Param("period") period: string, @Res({ passthrough: true }) res: Response, @Query("lang") lang?: string, @Query("print") print?: string) {
+    const html = await this.statements.printHtml(u, period, { lang, print: print === "1" }); res.type("text/html; charset=utf-8").setHeader("Cache-Control", "no-store"); return html;
+  }
   @Get("performance") @ApiOperation({ summary: "Orders originated through your links versus the Kiorex marketplace (counts only, no money)" })
   performance(@CurrentUser() u: AuthUser, @Query("days") days?: string) { return this.insights.performance(u, { days: days ? Number(days) : undefined }); }
 

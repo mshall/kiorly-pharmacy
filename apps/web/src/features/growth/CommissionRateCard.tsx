@@ -51,13 +51,15 @@ function SettlementStatement() {
   const q = useQuery({ queryKey: ["growth", "commission-statement", period], queryFn: () => api<Statement>("/growth/commission-statement", { query: { period } }), retry: false, enabled: /^\d{4}-\d{2}$/.test(period) });
   const m = (n: number | null) => money(i18n.language, q.data?.currency ?? "EGP", n);
   const csv = async () => { const b = await fetchBlob(`/growth/commission-statement/${period}/export.csv`); const url = URL.createObjectURL(b); const a = document.createElement("a"); a.href = url; a.download = `settlement-${period}.csv`; a.click(); URL.revokeObjectURL(url); };
+  const printPdf = async () => { const b = await fetchBlob(`/growth/commission-statement/${period}/print`, { lang: i18n.language.startsWith("ar") ? "ar" : "en" }); window.open(URL.createObjectURL(b), "_blank", "noopener"); };
   const notConnected = q.error instanceof ApiError && q.error.code === "STATEMENT_NOT_CONNECTED";
   const s = q.data;
   const cards: [string, string][] = s ? [["cOnline", m(s.onlineCollectionsMinor)], ["cCashAccrued", m(s.cashVisitCommissionAccruedMinor)], ["cCashNetted", m(s.cashVisitCommissionNettedMinor)], ["cCashOpen", m(s.cashVisitCommissionOpenMinor)], ["cDedCommission", m(s.deductions.commissionMinor)], ["cDedFees", m(s.deductions.feesMinor)], ["cDedRefunds", m(s.deductions.refundsMinor)], ["cDedChargebacks", m(s.deductions.chargebacksMinor)], ["cNet", m(s.netPayableMinor)], ["cPaid", m(s.paidByBankTransferMinor)]] : [];
   return (
     <div className="space-y-3" data-testid="growth-settlement">
       <div className="flex flex-wrap items-end gap-3"><label className="text-sm">{t("growth.stmt.period")}<input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="mt-1 block h-11 rounded-md border bg-background px-2" data-testid="growth-stmt-period" /></label>
-        {s && <button type="button" onClick={() => void csv()} className="min-h-11 rounded-md border px-3 text-sm" data-testid="growth-stmt-csv">{t("growth.stmt.export")}</button>}</div>
+        {s && <button type="button" onClick={() => void csv()} className="min-h-11 rounded-md border px-3 text-sm" data-testid="growth-stmt-csv">{t("growth.stmt.export")}</button>}
+        {s && <button type="button" onClick={() => void printPdf()} className="min-h-11 rounded-md border px-3 text-sm" data-testid="growth-stmt-print">{t("growth.stmt.print")}</button>}</div>
       {q.isLoading && <Spinner />}
       {q.isError && <p role="alert" className="text-sm" data-testid="growth-stmt-unavailable">{t(notConnected ? "growth.stmt.notConnected" : "growth.stmt.unavailable")}</p>}
       {s && (

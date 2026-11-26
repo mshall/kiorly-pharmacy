@@ -22,6 +22,12 @@ export class GrowthMobileController {
   @Get("links") @ApiOperation({ summary: "My provider links with last-30-day counts" })
   links(@CurrentUser() u: AuthUser) { return this.svc.linksOnly(u); }
 
+  @Get("commission-rate") @ApiOperation({ summary: "COM-2: the Kiorex commission rate, read only (owner, branch manager, chain operations)" })
+  commissionRate(@CurrentUser() u: AuthUser) { return this.svc.commissionRate(u); }
+
+  @Get("commission-statement") @ApiOperation({ summary: "COM-3: settlement statement of one period YYYY-MM, read only (owner, branch manager, chain operations)" })
+  commissionStatement(@CurrentUser() u: AuthUser, @Query("period") period?: string) { return this.svc.commissionStatement(u, period); }
+
   @Get("qr") @ApiOperation({ summary: "QR (SVG) of a link" })
   async qr(@CurrentUser() u: AuthUser, @Res({ passthrough: true }) res: Response, @Query("linkId") linkId?: string, @Query("format") format?: string) {
     if (!linkId) throw badRequest("GROWTH_LINK_INVALID", "linkId is required");

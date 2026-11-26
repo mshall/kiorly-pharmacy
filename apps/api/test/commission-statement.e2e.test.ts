@@ -8,7 +8,8 @@ import { auth, bootApp, seedTenant, type Fixture, type TestApp } from "./helpers
 /** COM-3 (pharmacy): disclosure and counsel status with the rate view, and the settlement statement through the signed Kiorex statement API (an in-process fake). Every text and figure is a TEST placeholder. */
 describe("COM-3 pharmacy: disclosure, counsel status, settlement statement", () => {
   let t: TestApp, f: Fixture, other: Fixture, fake: Server; const seen: { url: string; headers: Record<string, string | string[] | undefined> }[] = [];
-  const statement = (ref: string) => ({ orgRef: ref, period: { from: "2026-12-01T00:00:00.000Z", to: "2027-01-01T00:00:00.000Z" }, currency: "EGP", payoutMethod: "BANK_TRANSFER", onlineCollectionsMinor: 9000, cashVisitCommissionAccruedMinor: 0, cashVisitCommissionNettedMinor: 0, cashVisitCommissionOpenMinor: 0, cashVisitCharges: 0, deductions: { commissionMinor: 900, feesMinor: 100, refundsMinor: 0, chargebacksMinor: 0 }, commission: { totalMinor: 900, collectedMinor: 900, openMinor: 0, disputedOpen: 0 }, netPayableMinor: 8000, paidByBankTransferMinor: 8000, payouts: [{ payoutRef: "po1", paidAt: "2026-12-04T00:00:00.000Z", cashMinor: 8000, commissionDeductedMinor: 900, bankReference: "po1", reconciliation: "MATCHED" }], reconciliation: "MATCHED", future: { x: 1 } });
+  let fees: number | null = 100;
+  const statement = (ref: string) => ({ orgRef: ref, period: { from: "2026-12-01T00:00:00.000Z", to: "2027-01-01T00:00:00.000Z" }, currency: "EGP", payoutMethod: "BANK_TRANSFER", onlineCollectionsMinor: 9000, cashVisitCommissionAccruedMinor: 0, cashVisitCommissionNettedMinor: 0, cashVisitCommissionOpenMinor: 0, cashVisitCharges: 0, deductions: { commissionMinor: 900, feesMinor: fees, refundsMinor: 0, chargebacksMinor: 0 }, commission: { totalMinor: 900, collectedMinor: 900, openMinor: 0, disputedOpen: 0 }, netPayableMinor: 8000, paidByBankTransferMinor: 8000, payouts: [{ payoutRef: "po1", paidAt: "2026-12-04T00:00:00.000Z", cashMinor: 8000, commissionDeductedMinor: 900, bankReference: "po1", reconciliation: "MATCHED" }], reconciliation: "MATCHED", future: { x: 1 } });
   before(async () => {
     t = await bootApp(); f = await seedTenant(t); other = await seedTenant(t);
     fake = createServer((req, res) => { seen.push({ url: req.url ?? "", headers: req.headers }); const ref = String(req.headers["x-kiorly-org-ref"] ?? ""); const csv = (req.url ?? "").includes("/export"); res.setHeader("content-type", csv ? "text/csv" : "application/json"); res.end(csv ? "item,amount,deducted,bankReference,status\r\nnetPayable,80.00,,,\r\n" : JSON.stringify(statement(ref))); });
@@ -40,6 +41,35 @@ describe("COM-3 pharmacy: disclosure, counsel status, settlement statement", () 
     delete process.env.KIOREX_MODE;
     const r = await t.http.get("/api/v1/growth/commission-statement?period=2026-12").set(auth(f.users.owner.token));
     assert.equal(r.status, 503); assert.equal(r.body.code ?? r.body.message?.code, "STATEMENT_NOT_CONNECTED");
+  });
+
+  it("feesMinor: Kiorex figure wins; without one it is the pharmacy's own settlement ledger of the period (nothing invented); printable statement", async () => {
+    process.env.KIOREX_MODE = "real";
+    const get = (q = "2026-12") => t.http.get(`/api/v1/growth/commission-statement?period=${q}`).set(auth(f.users.owner.token));
+    let r = await get(); assert.deepEqual([r.body.deductions.feesMinor, r.body.feesSource], [100, "KIOREX"]);
+    fees = null;
+    r = await get(); assert.deepEqual([r.body.deductions.feesMinor, r.body.feesSource], [null, null]); // no ledger rows: not set, never estimated
+    await t.prisma.settlementEntry.create({ data: { orgId: f.orgId, orderRef: "T-FEE-IN-1", orderValue: "100.00", feeRate: "0.1234", feeAmount: "12.34", createdAt: new Date("2026-12-10T10:00:00Z") } });
+    await t.prisma.settlementEntry.create({ data: { orgId: f.orgId, orderRef: "T-FEE-IN-2", orderValue: "10.00", feeRate: "0.1000", feeAmount: "1.00", createdAt: new Date("2026-12-31T23:59:59Z") } });
+    await t.prisma.settlementEntry.create({ data: { orgId: f.orgId, orderRef: "T-FEE-OUT", orderValue: "50.00", feeRate: "0.1000", feeAmount: "5.00", createdAt: new Date("2027-01-01T00:00:00Z") } });
+    await t.prisma.settlementEntry.create({ data: { orgId: other.orgId, orderRef: "T-FEE-OTHER", orderValue: "50.00", feeRate: "0.1000", feeAmount: "99.00", createdAt: new Date("2026-12-10T10:00:00Z") } });
+    r = await get(); assert.deepEqual([r.body.deductions.feesMinor, r.body.feesSource], [1334, "PRODUCT_LEDGER"]);
+    fees = 250; r = await get(); assert.deepEqual([r.body.deductions.feesMinor, r.body.feesSource], [250, "KIOREX"]);
+    fees = null;
+    const ar = await t.http.get("/api/v1/growth/commission-statement/2026-12/print").set(auth(f.users.owner.token));
+    assert.equal(ar.status, 200); assert.match(ar.headers["content-type"] ?? "", /text\/html/); assert.match(ar.text, /dir="rtl"/); assert.match(ar.text, /كشف التسوية/); assert.match(ar.text, /po1/); assert.doesNotMatch(ar.text, /<script>/);
+    const en = await t.http.get("/api/v1/growth/commission-statement/2026-12/print?lang=en&print=1").set(auth(f.users.owner.token));
+    assert.match(en.text, /Settlement statement/); assert.match(en.text, /dir="ltr"/); assert.match(en.text, /window\.print/); assert.match(en.text, /13\.34/);
+    assert.equal((await t.http.get("/api/v1/growth/commission-statement/2026-12/print").set(auth(f.users.cashier.token))).status, 403);
+    assert.equal((await t.http.get("/api/v1/growth/commission-statement/2026-13/print").set(auth(f.users.owner.token))).status, 400);
+    assert.ok(await t.prisma.auditLog.findFirst({ where: { orgId: f.orgId, action: "kiorex.commission_statement.printed" } }));
+    // Kiorly staff app cards (read only): same figures through /mobile/growth, same roles
+    const mo = (token: string) => t.http.get("/api/v1/mobile/growth/commission-statement?period=2026-12").set(auth(token)).set("x-kiorly-client", "kiorly/1.0");
+    const ms = await mo(f.users.owner.token); assert.equal(ms.status, 200, JSON.stringify(ms.body)); assert.deepEqual([ms.body.deductions.feesMinor, ms.body.feesSource, ms.body.netPayableMinor], [1334, "PRODUCT_LEDGER", 8000]);
+    assert.equal((await mo(f.users.cashier.token)).status, 403);
+    const mr = await t.http.get("/api/v1/mobile/growth/commission-rate").set(auth(f.users.owner.token)).set("x-kiorly-client", "kiorly/1.0"); assert.equal(mr.status, 200); assert.ok("state" in mr.body);
+    assert.equal((await t.http.get("/api/v1/mobile/growth/commission-rate").set(auth(f.users.cashier.token)).set("x-kiorly-client", "kiorly/1.0")).status, 403);
+    fees = 100;
   });
 
   it("real mode: the statement comes from the Kiorex statement API with the partner HMAC; roles, isolation, CSV, bad period", async () => {
