@@ -6,6 +6,7 @@ Governing doc: KX-06. Status: **built to the PRD with mock providers**; human ta
 |---|---|
 | [pharmacy-cursor-build-sequence.md](./pharmacy-cursor-build-sequence.md) | 57 ordered steps derived from every PRD requirement ID + progress tracker (51 done; open: PH-D01, PH-H01-H04, PH-P01 are human tasks) |
 | [PROVIDERS.md](./PROVIDERS.md) | Provider ports, env contract, webhooks, dev-only simulator (SMS / email / WhatsApp / PSP / push) |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Runtime Docker images (API, web), entrypoint and migrations, health routes, prefix and CORS settings, storage volume, VITE build args |
 | [NEEDS_HUMAN.md](./NEEDS_HUMAN.md) | Discovery interviews, regulatory/legal items, pricing, templates, hardware, decisions |
 | [DESIGN_NOTES_FROM_2025.md](./DESIGN_NOTES_FROM_2025.md) | Entity ideas harvested from the 2025 prototypes (design only, no code) |
 | [FEATURE_MATRIX.md](./FEATURE_MATRIX.md) | Complete-pharmacy checklist (10 areas) mapped to status, files and tests |

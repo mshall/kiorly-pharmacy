@@ -4,14 +4,15 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { applyHttpHardening, swaggerEnabled } from "./common/http-hardening";
 import { AllExceptionsFilter } from "./common/db-error.filter";
 import "./common/decimal-json";
+import { apiPrefix } from "./config/runtime-env";
 
-/** Machine API outside the /api/v1 prefix (same convention as Kiorly's marketplace API). */
+/** Application prefix: API_PREFIX (default api/v1). Machine API outside the prefix (same convention as Kiorly's marketplace API). */
 export const PREFIX_EXCLUDES = ["marketplace/v1/(.*)"];
 
 /** Shared by main.ts and e2e tests so they boot identically. Create the app with `{ rawBody: true }` (webhook/HMAC verification needs raw bytes). */
 export function configureApp(app: INestApplication): void {
   applyHttpHardening(app); // security headers, no X-Powered-By, trust-proxy hops
-  app.setGlobalPrefix("api/v1", { exclude: PREFIX_EXCLUDES });
+  app.setGlobalPrefix(apiPrefix(), { exclude: PREFIX_EXCLUDES });
   app.useGlobalPipes(new RejectNulBytesPipe(), new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
   if (swaggerEnabled()) { // off in production unless SWAGGER_ENABLED=true

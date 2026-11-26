@@ -1,8 +1,12 @@
 .git
 .github
+.cursor
 **/node_modules
 **/dist
 **/dist-seed
+**/.e2e-dist
+**/.tmp-openapi
+**/.data
 **/.env
 **/.env.*
 !**/.env.example
@@ -12,3 +16,6 @@ apps/web/test-results
 apps/web/playwright-report
 apps/mobile
 .e2e
+Docs
+**/*.log
+**/err.txt

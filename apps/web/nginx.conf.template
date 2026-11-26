@@ -1,0 +1,34 @@
+# Rendered by the nginx image entrypoint (envsubst over ${API_UPSTREAM} and ${NGINX_PORT}).
+server {
+  listen ${NGINX_PORT};
+  root /usr/share/nginx/html;
+  index index.html;
+  client_max_body_size 10m;
+  include /etc/nginx/resolver.conf;
+  set $api_upstream ${API_UPSTREAM};
+
+  location = /healthz { access_log off; add_header Content-Type text/plain; return 200 "ok\n"; }
+
+  # API (same origin as the SPA): the API prefix defaults to /api/v1.
+  location /api/ {
+    proxy_pass $api_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  # Kiorex machine API (HMAC signed, outside the API prefix); the signed path must reach the API unchanged.
+  location /marketplace/ {
+    proxy_pass $api_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  # Service worker and entry document must never be cached for long; hashed assets can be.
+  location = /sw.js { add_header Cache-Control "no-cache"; try_files $uri =404; }
+  location = /index.html { add_header Cache-Control "no-cache"; }
+  location /assets/ { add_header Cache-Control "public, max-age=31536000, immutable"; try_files $uri =404; }
+
+  location / { try_files $uri $uri/ /index.html; }
+}
