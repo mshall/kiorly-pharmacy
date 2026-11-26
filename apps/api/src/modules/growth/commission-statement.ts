@@ -1,6 +1,6 @@
 /**
  * COM-3 settlement statement of one period, provider side (pure; the same file ships in Clinic, Pharmacy and Lab). Same figures and shape as the Kiorex statement
- * (`GET /api/v1/admin/commissions/settlement-statement/{orgRef}`): online collections, cash-visit commission accrued and netted (Kiorex never holds or pays cash), deductions (commission, fees, refunds, chargebacks),
+ * (ops route `GET /api/v1/admin/commissions/settlement-statement/{orgRef}`; this product reads the same statement from the signed partner route `GET /api/v1/partner/commissions/settlement-statement`): online collections, cash-visit commission accrued and netted (Kiorex never holds or pays cash), deductions (commission, fees, refunds, chargebacks),
  * net payable, payout bank reference and reconciliation (MATCHED / UNMATCHED / DISPUTED). Providers are paid by bank transfer only. Minor units. `normalizeStatement` is tolerant: unknown fields are dropped, a missing one reads as null / 0.
  */
 export type ReconciliationStatus = "MATCHED" | "UNMATCHED" | "DISPUTED";

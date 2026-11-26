@@ -31,7 +31,7 @@ export class CommissionStatementService {
     if (kiorexMode() !== "real") throw new ServiceUnavailableException({ code: "STATEMENT_NOT_CONNECTED", message: "The Kiorex statement is not connected in this environment" });
     const ref = await this.rates.kiorexOrgRef(orgId); const t = await this.target(orgId);
     if (!ref || !t) throw new ServiceUnavailableException({ code: "STATEMENT_NOT_CONNECTED", message: "The Kiorex statement is not connected yet" });
-    const url = new URL(`${t.base}/api/v1/admin/commissions/settlement-statement/${encodeURIComponent(ref)}${tail}`);
+    const url = new URL(`${t.base}/api/v1/partner/commissions/settlement-statement${tail}`);
     url.searchParams.set("from", r.from.toISOString()); url.searchParams.set("to", r.to.toISOString());
     // the signature covers the full path without the query, exactly as the partner endpoints of Kiorex verify it
     const signed = signKiorlyRequest({ clientKey: t.clientKey, clientSecret: t.secret, method: "GET", path: url.pathname, body: "" });

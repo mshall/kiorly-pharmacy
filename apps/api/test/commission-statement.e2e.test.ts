@@ -11,7 +11,7 @@ describe("COM-3 pharmacy: disclosure, counsel status, settlement statement", () 
   const statement = (ref: string) => ({ orgRef: ref, period: { from: "2026-12-01T00:00:00.000Z", to: "2027-01-01T00:00:00.000Z" }, currency: "EGP", payoutMethod: "BANK_TRANSFER", onlineCollectionsMinor: 9000, cashVisitCommissionAccruedMinor: 0, cashVisitCommissionNettedMinor: 0, cashVisitCommissionOpenMinor: 0, cashVisitCharges: 0, deductions: { commissionMinor: 900, feesMinor: 100, refundsMinor: 0, chargebacksMinor: 0 }, commission: { totalMinor: 900, collectedMinor: 900, openMinor: 0, disputedOpen: 0 }, netPayableMinor: 8000, paidByBankTransferMinor: 8000, payouts: [{ payoutRef: "po1", paidAt: "2026-12-04T00:00:00.000Z", cashMinor: 8000, commissionDeductedMinor: 900, bankReference: "po1", reconciliation: "MATCHED" }], reconciliation: "MATCHED", future: { x: 1 } });
   before(async () => {
     t = await bootApp(); f = await seedTenant(t); other = await seedTenant(t);
-    fake = createServer((req, res) => { seen.push({ url: req.url ?? "", headers: req.headers }); const ref = decodeURIComponent((req.url ?? "").split("/settlement-statement/")[1]?.split(/[/?]/)[0] ?? ""); const csv = (req.url ?? "").includes("/export"); res.setHeader("content-type", csv ? "text/csv" : "application/json"); res.end(csv ? "item,amount,deducted,bankReference,status\r\nnetPayable,80.00,,,\r\n" : JSON.stringify(statement(ref))); });
+    fake = createServer((req, res) => { seen.push({ url: req.url ?? "", headers: req.headers }); const ref = String(req.headers["x-kiorly-org-ref"] ?? ""); const csv = (req.url ?? "").includes("/export"); res.setHeader("content-type", csv ? "text/csv" : "application/json"); res.end(csv ? "item,amount,deducted,bankReference,status\r\nnetPayable,80.00,,,\r\n" : JSON.stringify(statement(ref))); });
     await new Promise<void>((r) => fake.listen(0, "127.0.0.1", r));
     await t.prisma.integrationClient.updateMany({ where: { orgId: f.orgId }, data: { kiorexBaseUrl: `http://127.0.0.1:${(fake.address() as { port: number }).port}` } });
   });
@@ -49,7 +49,7 @@ describe("COM-3 pharmacy: disclosure, counsel status, settlement statement", () 
     assert.deepEqual([ok.body.source, ok.body.orgRef, ok.body.netPayableMinor, ok.body.deductions.feesMinor, ok.body.reconciliation, ok.body.payouts[0].bankReference, ok.body.period.key], ["KIOREX", "pr_ref_1", 8000, 100, "MATCHED", "po1", "2026-12"]);
     assert.equal("future" in ok.body, false);
     const call = seen.at(-1)!; const h = call.headers; const path = call.url.split("?")[0]!;
-    assert.equal(path, "/api/v1/admin/commissions/settlement-statement/pr_ref_1"); assert.equal(h["x-kiorly-org-ref"], "pr_ref_1"); assert.equal(h["x-kiorly-client-key"], f.client.key);
+    assert.equal(path, "/api/v1/partner/commissions/settlement-statement"); assert.equal(h["x-kiorly-org-ref"], "pr_ref_1"); assert.equal(h["x-kiorly-client-key"], f.client.key);
     assert.equal(h["x-kiorly-signature"], createHmac("sha256", f.client.webhookSecret).update(`${h["x-kiorly-timestamp"]}\n${h["x-kiorly-nonce"]}\nGET\n${path}\n${createHash("sha256").update("").digest("hex")}`).digest("base64url"));
     assert.ok(call.url.includes("from=2026-12-01") && call.url.includes("to=2027-01-01"));
     assert.equal((await t.http.get("/api/v1/growth/commission-statement?period=2026-12").set(auth(f.users.manager.token))).status, 200);
