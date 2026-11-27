@@ -126,7 +126,7 @@ The founder will ask when the dummy records go. The seeds tag what they create i
 npm run demo-data:remove -w api                # DEFAULT = dry run: a rehearsal inside a rolled-back transaction, prints the exact result, writes nothing
 npm run demo-data:remove -w api -- --confirm   # deletes what the rehearsal showed, in one transaction
 npm run demo-data:remove -w api -- --mark      # one-time backfill for a database seeded before the marker existed
-# compiled (images, no ts tooling):  `npm run demo-data:remove:dist` (`dist-seed/prisma/demo/demo-data-remove.js`)
+# compiled (images, no ts tooling):  `npm run demo-data:remove:dist` (`dist/seed/demo-data-remove.js`, part of the runtime image: `docker exec <pharmacy-api container> node dist/seed/demo-data-remove.js --dry-run`)
 ```
 
 * Everything that belongs to a marked organisation is deleted children first, table by table, each in a SAVEPOINT. Ownership comes from the database catalogue (an `orgId` column, or a foreign key to a row that belongs to the organisation), not from a hand-kept list.

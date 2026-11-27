@@ -10,9 +10,9 @@
  * ...) refuse the delete by design and keep their rows; the report names them. This tool never disables a trigger. Safe to repeat.
  * Flags: --dry-run and --confirm together are refused. DATABASE_URL (or DB_SECRET_ARN via the container entrypoint) selects the database.
  */
-import { PrismaClient } from "../../src/generated/prisma/client";
-import { createPgAdapter } from "../../src/prisma/pg-adapter";
-import { formatReport, markDemoRows, parseMode, removeDemoData, type RemovalReport } from "../../src/common/demo-data";
+import { PrismaClient } from "../generated/prisma/client";
+import { createPgAdapter } from "../prisma/pg-adapter";
+import { formatReport, markDemoRows, parseMode, removeDemoData, type RemovalReport } from "../common/demo-data";
 
 class Rehearsal extends Error { constructor(public readonly report: RemovalReport) { super("rehearsal"); } }
 

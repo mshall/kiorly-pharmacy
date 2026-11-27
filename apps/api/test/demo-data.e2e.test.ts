@@ -2,7 +2,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { markDemoRows, removeDemoData } from "../src/common/demo-data";
-import { run } from "../prisma/demo/demo-data-remove";
+import { run } from "../src/seed/demo-data-remove";
 import { bootApp, receive, seedDrug, seedTenant, type Fixture, type TestApp } from "./helpers";
 
 /** demo-data:remove against a real database: only the marked organisation is touched, append-only history is never forced, the real organisation is untouched, repeat is safe. */
