@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { webBaseUrl } from "../../auth/handoff";
 import { CommissionRateService, RATE_ROLES } from "./commission-rate.service";
 import { CommissionStatementService } from "./commission-statement.service";
+import { isStatementNotConnected, periodRange } from "./commission-statement";
 import { GrowthInsightsService } from "./growth-insights.service";
 import { kiorexWebBase, PRODUCT_LANDING_PATH } from "./link-urls";
 import { ProviderLinksService, type CreateLinkBody, type UpdateLinkBody } from "./provider-links.service";
@@ -46,7 +47,17 @@ export class GrowthMobileService {
 
   /** COM-2 / COM-3 read-only cards: the Kiorex commission rate and the settlement statement of one month (owner, branch manager, chain operations; others get 403). */
   commissionRate(u: AuthUser) { return this.rates.rate(u); }
-  commissionStatement(u: AuthUser, period?: string) { return this.statements.statement(u, period); }
+  /**
+   * The staff app reads the statement on a normal screen, so "Kiorex is not connected for this organisation yet" is an ANSWER, not a server fault: 200 `{ connected: false, code: "STATEMENT_NOT_CONNECTED", period }`
+   * (the web workspace route keeps its 503 with the same code). A real failure (Kiorex unreachable, unreadable statement) and a role refusal still throw.
+   */
+  async commissionStatement(u: AuthUser, period?: string) {
+    try { return { connected: true as const, ...(await this.statements.statement(u, period)) }; }
+    catch (e) {
+      if (isStatementNotConnected(e)) return { connected: false as const, code: "STATEMENT_NOT_CONNECTED" as const, period: periodRange(period)?.key ?? null };
+      throw e;
+    }
+  }
   async linksOnly(u: AuthUser) { const o = await this.links.list(u); const a = await this.links.access(u); return { items: o.items, can: { ...a.can, revoke: false }, plan: a.plan }; }
   qr(u: AuthUser, linkId: string) { return this.links.qrSvgFor(u, linkId); }
   qrJson(u: AuthUser, linkId: string) { return this.links.qrPayloadFor(u, linkId); }
