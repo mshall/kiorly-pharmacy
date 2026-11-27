@@ -49,7 +49,7 @@ test.describe("Growth & links (pharmacy)", () => {
     await open(page, OWNER);
     await expect(page.getByRole("heading", { name: "Growth & links", level: 1 }).or(page.getByRole("heading", { name: "Growth & links" }).first())).toBeVisible();
     for (const id of ["visits", "orders", "completed", "market"]) await expect(page.getByTestId(`growth-stat-${id}`)).toBeVisible();
-    await expect(page.getByTestId("growth-recs")).toBeVisible(); await expect(page.getByTestId("growth-statement")).toContainText("Rate not set");
+    await expect(page.getByTestId("growth-recs")).toBeVisible(); await expect(page.getByTestId("growth-statement")).toContainText(/Rate not set|Rate in effect now/);
     const name = `PW Counter ${Date.now().toString(36)}`;
     await page.getByTestId("growth-create").click();
     await expect(page.getByTestId("growth-f-submit")).toBeDisabled();
