@@ -118,5 +118,20 @@ Add these to the secrets manager / task definition of the Pharmacy API. Nothing 
 
 Then: (1) if the vendor's payload or signature differs from the generic shape, edit only `src/providers/mapping/<kind>.mapping.ts`; (2) in a non-production environment `GET /api/v1/dev/providers/status` shows each kind's mode and whether its credentials are set (booleans only); (3) send one real message to your own phone and one 1.00 EGP pay link, check the `Notification` goes SENT -> DELIVERED and the `PayLink` goes PAID; (4) `PROVIDER_DEV_TOOLS=false` (already off when `NODE_ENV=production`).
 
+## Removing the demo data (`demo-data:remove`, 27 Nov 2026)
+
+The founder will ask when the dummy records go. The seeds tag what they create in the side table `DemoMarker` (root rows only: the three demo pharmacies `org_demo_kiorly`, `org_demo_solo`, `org_demo_basic` and the shared synthetic drug master `synthetic-eg:*`, the drug master only while nothing references it); removal starts ONLY from those rows, never from a name, id pattern or date, so a real organisation cannot be selected.
+
+```bash
+npm run demo-data:remove -w api                # DEFAULT = dry run: a rehearsal inside a rolled-back transaction, prints the exact result, writes nothing
+npm run demo-data:remove -w api -- --confirm   # deletes what the rehearsal showed, in one transaction
+npm run demo-data:remove -w api -- --mark      # one-time backfill for a database seeded before the marker existed
+# compiled (images, no ts tooling):  `npm run demo-data:remove:dist` (`dist-seed/prisma/demo/demo-data-remove.js`)
+```
+
+* Everything that belongs to a marked organisation is deleted children first, table by table, each in a SAVEPOINT. Ownership comes from the database catalogue (an `orgId` column, or a foreign key to a row that belongs to the organisation), not from a hand-kept list.
+* **Append-only tables stay by design** (stock movements, audit log, controlled-substance log, price history). The tool never disables a trigger or weakens an audit control: those rows, and the rows they reference through a RESTRICT foreign key, are reported as `KEPT` with the database's own message, and the organisation row stays while anything of it remains. Staff, branches, sales, orders and the like are gone; what is left is inert, unreachable history. A true wipe of a throw-away environment is to recreate the database.
+* Safe to repeat. Run the dry run first and read the `KEPT` lines.
+
 ---
 Verified: 2026-11-21 (seed scripts, `kiorly_pharmacy` database via SELECT, web dev port start-up check on 5192).

@@ -13,6 +13,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { loadEnv } from "../../src/config/env";
 import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
+import { tagDemoRows } from "../../src/common/demo-data-tag";
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { CatalogueService, type DrugInput } from "../../src/modules/catalogue/catalogue.service";
@@ -208,7 +209,7 @@ async function main() {
     const q = await prisma.$executeRawUnsafe(`UPDATE "OutboxEvent" SET status='SENT', "sentAt"=now() WHERE "orgId"='${org}' AND status<>'SENT' AND "occurredAt" >= $1`, started).catch(() => 0);
     const counts = { drugs: await prisma.drug.count(), lots: await prisma.stockLot.count({ where: { orgId: org } }), suppliers: await prisma.supplier.count({ where: { orgId: org } }), pos: await prisma.purchaseOrder.count({ where: { orgId: org } }), sales: await prisma.sale.count({ where: { orgId: org } }), rx: await prisma.prescription.count({ where: { orgId: org } }), kiorexOrders: await prisma.kiorexOrder.count({ where: { orgId: org } }) };
     console.log(`Pharmacy demo seed OK — imported ${imp.created} new drugs; totals ${JSON.stringify(counts)} (muted ${q} outbox events). Logins: *@demo.kiorly.local / Demo@12345 (DEV ONLY)`);
-  } finally { await app.close(); }
+  } finally { await app.close(); await tagDemoRows("seed-demo"); }
 }
 
 async function reset(prisma: PrismaService, org: string) {

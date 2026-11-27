@@ -2258,3 +2258,16 @@ model PlanPrice {
 
   @@index([edition, marketCode, interval])
 }
+
+/// Durable marker of seeded DEMO / dummy root rows (the demo organisations and the shared synthetic catalogue). Side table: no change to any business table, no FK.
+/// Written by the demo seeds (src/common/demo-data.ts), read ONLY by `npm run demo-data:remove`, which starts from these rows and never selects by name, id pattern or date.
+model DemoMarker {
+  tableName String
+  rowId     String
+  dataClass String   @default("DEMO")
+  batch     String   @default("seed-demo")
+  createdAt DateTime @default(now())
+
+  @@id([tableName, rowId])
+  @@index([dataClass, tableName])
+}

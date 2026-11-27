@@ -25,6 +25,7 @@ import { hashPassword } from "../src/auth/password";
 import { seal } from "../src/common/secret-box";
 import { PARTNER_DEV_DEFAULTS } from "@kiorex/contracts";
 import { marketToday } from "../src/common/dates";
+import { tagDemoRows } from "../src/common/demo-data-tag";
 import type { AuthUser } from "../src/auth/auth-user";
 
 export const DEMO_PASSWORD = "Demo@12345";
@@ -187,6 +188,7 @@ export async function seed(): Promise<{ tenantId: string }> {
     return { tenantId: org };
   } finally {
     await app.close();
+    await tagDemoRows("seed");
   }
 }
 

@@ -11,6 +11,7 @@ import { PrismaClient, type StaffRole } from "../../src/generated/prisma/client"
 import { createPgAdapter } from "../../src/prisma/pg-adapter";
 import { loadEnv } from "../../src/config/env";
 import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
+import { tagDemoRows } from "../../src/common/demo-data-tag";
 import { hashPassword } from "../../src/auth/password";
 import { marketToday } from "../../src/common/dates";
 
@@ -77,6 +78,6 @@ async function main() {
       console.log(`seed:mobile ok - ${tenant.name} (${tenant.edition})`);
     }
     console.log(`Kiorly logins (password ${DEMO_PASSWORD}, DEV ONLY): ENTERPRISE owner@/pharmacist@/cashier@/manager@demo.kiorly.local - PRO solo.owner@/solo.pharmacist@/solo.manager@/solo.cashier@demo.kiorly.local - BASIC owner.basic@/pharmacist.basic@/cashier.basic@demo.kiorly.local`);
-  } finally { await prisma.$disconnect(); }
+  } finally { await prisma.$disconnect(); await tagDemoRows("seed-mobile"); }
 }
 void main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

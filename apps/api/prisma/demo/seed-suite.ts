@@ -13,6 +13,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { loadEnv } from "../../src/config/env";
 import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
+import { tagDemoRows } from "../../src/common/demo-data-tag";
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { hashPassword } from "../../src/auth/password";
@@ -124,7 +125,7 @@ export async function seedSuite(): Promise<void> {
     await prisma.$executeRawUnsafe(`UPDATE "OutboxEvent" SET status='SENT', "sentAt"=now() WHERE status<>'SENT'`).catch(() => 0);
     const c = async (org: string) => ({ customers: await prisma.patientRef.count({ where: { orgId: org } }), rx: await prisma.prescription.count({ where: { orgId: org } }), sales: await prisma.sale.count({ where: { orgId: org } }), controlled: await prisma.controlledRegisterEntry.count({ where: { orgId: org } }), claims: await prisma.insurerClaim.count({ where: { orgId: org } }), alerts: await prisma.alert.count({ where: { orgId: org } }) });
     console.log(`Suite seed OK — main ${JSON.stringify(await c(main.id))}; solo ${JSON.stringify(await c(solo.id))}. Logins: owner@ / pharmacist@ / cashier@ / manager@ / assistant@demo.kiorly.local and solo.owner@ / solo.pharmacist@ / solo.cashier@ / solo.manager@ / solo.assistant@demo.kiorly.local — ${DEMO_PASSWORD} (DEV ONLY)`);
-  } finally { await app.close(); }
+  } finally { await app.close(); await tagDemoRows("seed-suite"); }
 }
 const pharmacist = <T extends { role: string }>(u: T) => u as T & { role: "PHARMACIST" };
 
