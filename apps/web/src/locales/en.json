@@ -6,6 +6,7 @@
     "tagline": "Pharmacy Management"
   },
   "common": {
+    "actions": "Actions",
     "noAccessTitle": "You don't have access to this page",
     "noAccessBody": "Your role does not include this area. Ask the pharmacy owner if you need it.",
     "featureOffTitle": "This feature is switched off",

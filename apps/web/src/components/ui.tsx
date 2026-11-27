@@ -89,11 +89,12 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 }
 
 export function Table({ head, children, empty, numeric = [], dense, hideOnPhone = [] }: { head: string[]; children: ReactNode; empty?: ReactNode; numeric?: number[]; dense?: boolean; hideOnPhone?: number[] }) {
+  const { t } = useTranslation();
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard-scrollable region (axe scrollable-region-focusable)
     <div className="kx-sticky-head kx-table-wrap overflow-auto" tabIndex={0} role="region" aria-label={head.filter(Boolean).slice(0, 2).join(" / ")}>
       <table className={cn("kx-table w-full text-start text-sm", dense && "kx-dense", hideOnPhone.map((n) => `kx-hp-${n}`))}>
-        <thead><tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground rtl:normal-case rtl:tracking-normal">{head.map((h, i) => <th key={`${h}-${i}`} scope="col" className={cn("whitespace-nowrap px-3 py-2.5 text-[11px] font-semibold", numeric.includes(i) ? "text-end" : "text-start")}>{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground rtl:normal-case rtl:tracking-normal">{head.map((h, i) => <th key={`${h}-${i}`} scope="col" className={cn("whitespace-nowrap px-3 py-2.5 text-[11px] font-semibold", numeric.includes(i) ? "text-end" : "text-start")}>{h || <span className="sr-only">{t("common.actions")}</span>}</th>)}</tr></thead>
         <tbody className="divide-y divide-border">{children}</tbody>
       </table>
       {empty}
