@@ -7,11 +7,14 @@ import { rememberSignInOrg } from "@/lib/sign-in-default";
 import { idleLimitMs } from "@/lib/idle";
 import { useToast } from "@/lib/toast";
 import { useTranslation } from "react-i18next";
+import { isMfaRequired } from "@/lib/mfa-required";
 
 interface AuthCtx {
   me: Me | null;
   loading: boolean;
   signedIn: boolean;
+  /** The API refused the session with 403 MFA_REQUIRED: the person has to set up a second factor in Kiorex Passport (friendly screen). */
+  mfaRequired: boolean;
   login: (email: string, password: string) => Promise<void>;
   /** Adopt a session issued after a Kiorex Passport sign-in. */
   adoptSession: (accessToken: string) => Promise<void>;
@@ -66,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return me.branches.some((b) => b.id === branch) ? branch : me.branches[0]?.id ?? null;
   }, [me, branch]);
   const value: AuthCtx = {
-    me, loading: !!token && meQ.isLoading, signedIn: !!token && !!me, login, adoptSession, logout,
+    me, loading: !!token && meQ.isLoading, signedIn: !!token && !!me, mfaRequired: !!token && isMfaRequired(meQ.error), login, adoptSession, logout,
     can: (p) => !!me?.permissions.includes(p), flag: (k) => me?.flags[k] ?? true, branchId,
     setBranchId: (id) => { setBranch(id); try { localStorage.setItem(BRANCH_KEY, id); } catch { /* ignore */ } void qc.invalidateQueries(); },
   };

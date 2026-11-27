@@ -96,7 +96,16 @@
       "org": "Choose your organisation here to continue.",
       "other": "Sign in here to continue."
     },
-    "switchProduct": "Switch product"
+    "switchProduct": "Switch product",
+    "mfaRequired": {
+      "title": "One more step: set up two-step verification",
+      "body": "Your role in this workspace needs a second factor (an authenticator code or a passkey), and your sign-in did not include one. Turn it on in your Kiorex Passport account, then sign in again here.",
+      "step1": "Open your Kiorex Passport account, go to Security and set up the authenticator app.",
+      "step2": "Come back here, sign out and sign in with Kiorex Passport again. Enter the authenticator code when asked (do not skip it).",
+      "openPassport": "Open Kiorex Passport security",
+      "signOutAgain": "Sign out and sign in again",
+      "help": "If your organisation uses a different sign-in method, ask your owner."
+    }
   },
   "roles": {
     "OWNER": "Owner",

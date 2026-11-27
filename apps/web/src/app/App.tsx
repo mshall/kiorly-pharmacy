@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui";
 import { registerServiceWorker } from "@/lib/offline";
 import { Login, Signup } from "@/pages/Login";
 import { AuthCallback } from "@/pages/AuthCallback";
+import { MfaRequired } from "@/pages/MfaRequired";
 import { Dashboard } from "@/pages/Dashboard";
 import { Catalogue } from "@/pages/Catalogue";
 import { Inventory } from "@/pages/Inventory";
@@ -36,7 +37,8 @@ const qc = new QueryClient({ /** networkMode "always": the till must keep runnin
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 15_000, networkMode: "always" }, mutations: { networkMode: "always" } } });
 
 function Guard({ children }: { children: ReactNode }) {
-  const { signedIn, loading, me } = useAuth();
+  const { signedIn, loading, me, mfaRequired } = useAuth();
+  if (mfaRequired) return <MfaRequired />;
   if (loading) return <div className="grid min-h-screen place-items-center"><Spinner /></div>;
   if (!signedIn) return <Navigate to="/login" replace />;
   if (me && !me.tenant.onboarded && me.permissions.includes("settings.write")) return <Navigate to="/onboarding" replace />;
