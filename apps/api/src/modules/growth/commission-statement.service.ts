@@ -1,5 +1,6 @@
 import { ForbiddenException, Inject, Injectable, Logger, BadRequestException, ServiceUnavailableException } from "@nestjs/common";
 import { signKiorlyRequest } from "@kiorex/contracts";
+import { QUERY_SIGNATURE_HEADER, signStatementQuery, statementSigningSecret } from "./commission-statement-signing";
 import type { AuthUser } from "../../auth/auth-user";
 import { open } from "../../common/secret-box";
 import { kiorexMode } from "../../outbox/outbox-delivery.service";
@@ -35,9 +36,12 @@ export class CommissionStatementService {
     const url = new URL(`${t.base}/api/v1/partner/commissions/settlement-statement${tail}`);
     url.searchParams.set("from", r.from.toISOString()); url.searchParams.set("to", r.to.toISOString());
     // the signature covers the full path without the query, exactly as the partner endpoints of Kiorex verify it
-    const signed = signKiorlyRequest({ clientKey: t.clientKey, clientSecret: t.secret, method: "GET", path: url.pathname, body: "" });
+    const secret = statementSigningSecret(t.secret); // per-organisation secret when configured, else the registered one
+    const signed = signKiorlyRequest({ clientKey: t.clientKey, clientSecret: secret, method: "GET", path: url.pathname, body: "" });
+    // the query string is signed separately with the request's own timestamp and nonce (X-Kiorly-Query-Signature)
+    const querySignature = signStatementQuery(secret, { timestamp: signed.timestamp, nonce: signed.nonce, method: "GET", path: url.pathname, query: url.searchParams });
     try {
-      const res = await fetch(url, { headers: { ...signed.headers, "x-kiorly-org-ref": ref, accept }, signal: AbortSignal.timeout(8000) });
+      const res = await fetch(url, { headers: { ...signed.headers, [QUERY_SIGNATURE_HEADER]: querySignature, "x-kiorly-org-ref": ref, accept }, signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new ServiceUnavailableException({ code: "STATEMENT_UNAVAILABLE", message: `Kiorex answered ${res.status}` });
       return res;
     } catch (e) {
