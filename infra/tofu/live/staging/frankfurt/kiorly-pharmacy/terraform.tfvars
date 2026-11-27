@@ -47,7 +47,8 @@ use_cmk            = true
 log_retention_days = 30
 alarm_emails       = [] # NEEDS_HUMAN
 
-enable_demo_seed = true # Q10: staging demo data (non-production only; seeded by hand via scripts/seed-staging.sh)
+enable_demo_seed           = true # Q10: staging demo data (non-production only; seeded by hand via scripts/seed-staging.sh)
+seed_ensure_demo_passwords = true # explicit opt-in: this staging stack IS a demo stack (published demo password on demo accounts); default false everywhere else
 
 # ADR-040 front door: EMPTY container /kiorly-pharmacy/staging/kiorex-lead-signing. Founder steps (docs: kiorex-platform Docs/NEEDS_HUMAN.md "Partner lead signing secret"):
 #   1. tofu apply (creates the container)  2. kiorex-platform/scripts/setup-partner-lead-secret.sh staging  3. set lead_signing_secret_inject = true and apply.
