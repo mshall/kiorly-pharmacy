@@ -21,7 +21,7 @@ import { ShiftsService } from "../src/modules/pos/shifts.service";
 import { CustomersService } from "../src/modules/pos/customers.service";
 import { PrescriptionsService } from "../src/modules/prescriptions/prescriptions.service";
 import { MarketplaceService } from "../src/modules/marketplace/marketplace.service";
-import { hashPassword } from "../src/auth/password";
+import { demoPasswordHash } from "../src/common/demo-password";
 import { seal } from "../src/common/secret-box";
 import { PARTNER_DEV_DEFAULTS } from "@kiorex/contracts";
 import { marketToday } from "../src/common/dates";
@@ -91,7 +91,7 @@ export async function seed(): Promise<{ tenantId: string }> {
 
     // 2) demo tenant (idempotent)
     let tenant = await prisma.tenant.findUnique({ where: { externalOrgId: "org_demo_kiorly" } });
-    const demoHash = await hashPassword(DEMO_PASSWORD);
+    const demoHash = await demoPasswordHash(DEMO_PASSWORD); // null on a deployed environment (ADR-061)
     if (!tenant) {
       tenant = await prisma.tenant.create({ data: { name: "Kiorly Demo Pharmacy", externalOrgId: "org_demo_kiorly", edition: "CHAIN", marketCode: "EG", onboardedAt: new Date(), settings: { ownerPhone: "+201000000000", defaultLocale: "ar", addOns: ["insurer_claims"], receiptFooter: "شكراً لزيارتكم" } } });
     }

@@ -12,7 +12,7 @@ import { createPgAdapter } from "../../src/prisma/pg-adapter";
 import { loadEnv } from "../../src/config/env";
 import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
 import { tagDemoRows } from "../../src/common/demo-data-tag";
-import { hashPassword } from "../../src/auth/password";
+import { demoPasswordHash } from "../../src/common/demo-password";
 import { marketToday } from "../../src/common/dates";
 
 const DEMO_PASSWORD = "Demo@12345";
@@ -23,7 +23,7 @@ async function main() {
   loadEnv();
   const prisma = new PrismaClient({ adapter: createPgAdapter() });
   try {
-    const hash = await hashPassword(DEMO_PASSWORD);
+    const hash = await demoPasswordHash(DEMO_PASSWORD);
     const mkStaff = async (orgId: string, email: string, role: StaffRole, displayName: string, extra: object = {}) =>
       (await prisma.staffUser.findUnique({ where: { email } })) ?? prisma.staffUser.create({ data: { orgId, email, passwordHash: hash, displayName, role, ...extra } });
 

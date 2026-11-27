@@ -16,7 +16,7 @@ import { assertDemoSeedAllowed } from "../../src/common/demo-seed-guard";
 import { tagDemoRows } from "../../src/common/demo-data-tag";
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
-import { hashPassword } from "../../src/auth/password";
+import { demoPasswordHash } from "../../src/common/demo-password";
 import { marketToday } from "../../src/common/dates";
 import type { AuthUser } from "../../src/auth/auth-user";
 import { CustomerRegistryService } from "../../src/modules/customers/customer-registry.service";
@@ -86,7 +86,7 @@ export async function seedSuite(): Promise<void> {
     const prisma = app.get(PrismaService);
     const main = await prisma.tenant.findUnique({ where: { externalOrgId: "org_demo_kiorly" } });
     if (!main) throw new Error("base demo tenant missing: run `npm run seed -w api` and `npm run seed:demo -w api` first");
-    const hash = await hashPassword(DEMO_PASSWORD);
+    const hash = await demoPasswordHash(DEMO_PASSWORD);
     const au = (org: string, u: { id: string; role: AuthUser["role"]; displayName: string; branchId: string | null; pharmacistLicenceNo: string | null }): AuthUser => ({ userId: u.id, orgId: org, role: u.role, displayName: u.displayName, branchId: u.branchId, market: "EG", edition: "CHAIN", pharmacistLicenceNo: u.pharmacistLicenceNo, mfa: false });
     const mkStaff = async (org: string, email: string, role: AuthUser["role"], displayName: string, extra: object = {}) => (await prisma.staffUser.findUnique({ where: { email } })) ?? prisma.staffUser.create({ data: { orgId: org, email, passwordHash: hash, displayName, role, ...extra } });
 
