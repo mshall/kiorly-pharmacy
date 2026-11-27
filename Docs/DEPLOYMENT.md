@@ -68,7 +68,7 @@ docker build -f apps/web/Dockerfile -t kiorly-pharmacy-web \
 docker run -d -p 8080:8080 -e API_UPSTREAM=http://kiorly-pharmacy-api:3100 kiorly-pharmacy-web
 ```
 
-- Vite inlines `VITE_*` at **build** time, so they are build args: `VITE_KIORLY_HOME_URL` (Kiorly Home link; unset hides the switch link outside dev), `VITE_SESSION_IDLE_MINUTES`, `VITE_DEV_TEST_USERS` (leave empty outside dev). Without Docker: `VITE_KIORLY_HOME_URL=... npm run build -w web` writes `apps/web/dist`.
+- Vite inlines `VITE_*` at **build** time, so they are build args: `VITE_KIORLY_HOME_URL` (Kiorly Home link; unset hides the switch link outside dev), `VITE_SESSION_IDLE_MINUTES`. Without Docker: `VITE_KIORLY_HOME_URL=... npm run build -w web` writes `apps/web/dist`.
 - The image is nginx serving the SPA with an `index.html` fallback and a proxy of `/api/` to `API_UPSTREAM` and `/marketplace/` (the Kiorex machine API, path unchanged), so the browser is same-origin (no CORS). `API_UPSTREAM` is resolved at request time (the container starts before the API); override the resolver with `NGINX_RESOLVER`, the listen port with `NGINX_PORT` (default 8080).
 - Behind CloudFront or another CDN you can serve `dist/` from object storage instead and route `/api/*` to the API.
 

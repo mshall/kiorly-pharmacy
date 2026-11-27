@@ -1,5 +1,5 @@
 import { KxBrandBackdrop } from "@/brand/components/web/KxBrandBackdrop";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -16,10 +16,6 @@ import { currentOrgHint } from "@/lib/sign-in-default";
 import { SwitchProductLink } from "@/components/switch-product-link";
 import { SignInMethodTabs } from "@/components/sign-in-method-tabs";
 import { useSignInMethod } from "@/components/use-sign-in-method";
-
-// DEV ONLY quick-pick test users. Keep the condition inline: Vite folds `import.meta.env.DEV` to false in production builds, which drops the
-// dynamic import and the whole ../dev folder (asserted by scripts/check-no-dev-test-users.mjs).
-const DevTestUsers = import.meta.env.DEV && import.meta.env.VITE_DEV_TEST_USERS !== "false" ? lazy(() => import("@/dev/dev-test-users")) : null;
 
 function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
@@ -108,7 +104,6 @@ export function Login() {
         <p className="text-center text-sm text-muted-foreground">{t("auth.noAccount")} <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">{t("auth.signUp")}</Link></p>
       </form> : null}
       <p className="mt-6 text-center"><SwitchProductLink /></p>
-      {DevTestUsers ? <Suspense fallback={null}><DevTestUsers busy={busy} onPick={(em, pw) => { setEmail(em); setPassword(pw); void signInWith(em, pw); }} /></Suspense> : null}
     </Shell>
   );
 }

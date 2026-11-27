@@ -67,7 +67,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Production-bundle hygiene: the DEV ONLY "Test users" panel, synthetic logins and any localhost URL must not be in a production build (builds production + development, asserts the check is not vacuous).
+  # Production-bundle hygiene: no test-users panel or synthetic logins in any build, and no localhost URL in a production build (builds production + development).
   web-bundle:
     name: web production bundle (no dev-only feature, no localhost)
     runs-on: ubuntu-latest
