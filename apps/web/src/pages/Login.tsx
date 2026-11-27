@@ -9,13 +9,13 @@ import { Button, ErrorNote, Field, Input } from "@/components/ui";
 import { KiorlyBrandLockup, KiorlyFootText, KxControlPair, LanguageToggle, Pulse, ThemeToggle } from "@/brand/ui-kit";
 import { KiorexLogo } from "@/brand/components";
 import { setLang } from "@/lib/i18n";
-import { fetchAuthConfig, startPassportSignIn } from "@/lib/passport";
+import { fetchAuthConfig, startPassportSignIn, stashOwnerClaim } from "@/lib/passport";
 import { currentNavigationType, readHandoff, wantsPassportAutostart, withoutHandoff } from "@/lib/kiorly-home";
 import { rememberSignInMethod } from "@/lib/sign-in-method";
 import { currentOrgHint } from "@/lib/sign-in-default";
 import { SwitchProductLink } from "@/components/switch-product-link";
-import { SignInMethodTabs } from "@/components/sign-in-method-tabs";
-import { useSignInMethod } from "@/components/use-sign-in-method";
+import { UnifiedSignIn } from "@/components/unified-sign-in";
+import { ApiError } from "@/lib/api";
 
 function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
@@ -52,12 +52,9 @@ export function Login() {
   // The login page is pre-auth: the org is identified by `?org=`, a tenant subdomain or the org remembered on this browser; the API answers uniformly for unknown orgs.
   const orgHint = useMemo(() => currentOrgHint(), []);
   const cfg = useQuery({ queryKey: ["auth-config", orgHint], queryFn: () => fetchAuthConfig(orgHint), staleTime: 60_000 });
-  const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
-  const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
   const { search } = useLocation();
   const passport = cfg.data?.passport ?? null;
-  // Two methods only: Kiorex Passport (default) and Password; the last method that signed this browser in is preselected. No Passport on the API: password only.
-  const sim = useSignInMethod(cfg.isPending ? undefined : passport !== null, cfg.data?.defaultMethod);
   // Kiorly Home sends `?sso=passport`: start "Sign in with Kiorex Passport" by itself (once per page load; the Passport SSO session makes it silent).
   const autostarted = useRef(false);
   // Kiorly Home password handoff: redeem the single-use code once, strip it from the address bar first, then adopt the normal session.
@@ -73,43 +70,31 @@ export function Login() {
       .then(async (r) => { await adoptSession(r.accessToken); rememberSignInMethod("password"); nav("/", { replace: true }); })
       .catch(() => { setHandoffBusy(false); setErr(new Error(t("auth.handoffFailed"))); });
   }, [handoff, adoptSession, nav, t]);
-  // the handoff could not complete (second factor, expired password, organisation): show the product's own password form
-  useEffect(() => { if (handoff.reason && sim.ready) sim.choose("password"); }, [handoff.reason, sim.ready]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (signedIn || handoff.code || !passport || autostarted.current || !wantsPassportAutostart(search, currentNavigationType())) return;
     autostarted.current = true; void startPassportSignIn(passport, i18n.language);
   }, [signedIn, passport, search, i18n.language, handoff.code]);
   if (signedIn) return <Navigate to="/" replace />;
   const localLogin = cfg.data?.localLogin ?? true;
-  const method = localLogin ? sim.method : "passport"; // a Passport-only deployment has no Password option
-  const signInWith = async (em: string, pw: string) => { setBusy(true); setErr(null); try { await login(em, pw); rememberSignInMethod("password"); nav("/"); } catch (x) { setErr(x); } finally { setBusy(false); } };
-  const submit = async (e: FormEvent) => { e.preventDefault(); await signInWith(email, password); };
+  const signInWith = async (em: string, pw: string) => { setErr(null); try { await login(em, pw); rememberSignInMethod("password"); nav("/"); } catch (x) { setErr(x); throw x; } };
   return (
     <Shell title={t("auth.signIn")} subtitle={t("auth.signInLede")}>
       {handoffBusy ? <p role="status" data-testid="handoff-busy" className="mb-4 text-sm text-muted-foreground">{t("auth.handoffBusy")}</p> : null}
       {handoff.reason ? <p role="status" data-testid="handoff-reason" className="mb-4 rounded-lg border border-border bg-muted/50 p-3 text-sm">{t(`auth.handoffReason.${handoff.reason}`, { defaultValue: t("auth.handoffReason.other") })}</p> : null}
-      {!sim.ready ? <div role="status" aria-busy="true" aria-label={t("auth.signIn")} data-testid="signin-loading" className="h-40 animate-pulse rounded-xl bg-muted/60" /> : null}
-      {sim.ready && passport && localLogin ? <SignInMethodTabs className="mb-6" value={method} onChange={sim.choose} labels={{ group: t("auth.method"), passport: t("auth.methodPassport"), password: t("auth.methodPassword") }} /> : null}
-      {sim.ready && passport && method === "passport" ? (
-        <div role="tabpanel" id="signin-panel-passport" className="space-y-3" data-testid="signin-passport-panel">
-          <Button type="button" size="lg" className="w-full" data-testid="signin-passport" onClick={() => void startPassportSignIn(passport, i18n.language)}>{t("auth.passport")}</Button>
-          <p className="text-center text-xs text-muted-foreground">{t("auth.passportHint")}</p>
-        </div>
-      ) : null}
-      {sim.ready && localLogin && (!passport || method === "password") ? <form onSubmit={submit} role={passport ? "tabpanel" : undefined} id="signin-panel-password" className="space-y-4" data-testid="signin-password-panel">
-        <Field label={t("auth.email")}>{(id) => <Input id={id} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
-        <Field label={t("auth.password")}>{(id) => <Input id={id} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />}</Field>
-        <ErrorNote error={err} />
-        <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? <Pulse size={16} loop /> : null}{t("auth.signIn")}</Button>
-        <p className="text-center text-sm text-muted-foreground">{t("auth.noAccount")} <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">{t("auth.signUp")}</Link></p>
-      </form> : null}
-      <p className="mt-6 text-center"><SwitchProductLink /></p>
+      <UnifiedSignIn
+        lang={i18n.language.startsWith("ar") ? "ar" : "en"}
+        loading={cfg.isPending}
+        passport={{ available: passport !== null, onStart: () => passport && void startPassportSignIn(passport, i18n.language) }}
+        local={{ enabled: localLogin, onSubmit: (v) => signInWith(v.email, v.password) }}
+        error={err ? { code: err instanceof ApiError ? err.code : undefined, message: err instanceof Error ? err.message : undefined } : null}
+        footer={<><p className="text-sm text-muted-foreground">{t("auth.noAccount")} <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/signup">{t("auth.signUp")}</Link></p><p className="mt-3"><SwitchProductLink /></p></>}
+      />
     </Shell>
   );
 }
 
 export function Signup() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { login } = useAuth();
   const nav = useNavigate();
   const [f, setF] = useState({ pharmacyName: "", ownerName: "", email: "", password: "", pharmacistLicenceNo: "" });
@@ -117,7 +102,13 @@ export function Signup() {
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setErr(null);
-    try { await api("/onboarding/signup", { body: { ...f, pharmacistLicenceNo: f.pharmacistLicenceNo || undefined } }); await login(f.email, f.password); nav("/onboarding"); }
+    try {
+      const r = await api<{ ownerClaim?: string }>("/onboarding/signup", { body: { ...f, pharmacistLicenceNo: f.pharmacistLicenceNo || undefined } });
+      // Passport available: the owner continues with Kiorex Passport and the sign-up claim binds the owner to the verified phone (no manual linking step).
+      const cfg = await fetchAuthConfig(null);
+      if (cfg.passport && r.ownerClaim) { stashOwnerClaim(r.ownerClaim); await startPassportSignIn(cfg.passport, i18n.language); return; }
+      await login(f.email, f.password); nav("/onboarding");
+    }
     catch (x) { setErr(x); } finally { setBusy(false); }
   };
   return (

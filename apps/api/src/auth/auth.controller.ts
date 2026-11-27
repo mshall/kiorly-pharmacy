@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { CurrentUser, Public } from "./decorators";
 import type { AuthUser } from "./auth-user";
-import { TokenVerifier, authMode } from "./token-verifier";
+import { TokenVerifier, localLoginEnabled, mfaEnforced } from "./token-verifier";
+import { PRIVILEGED_ROLES } from "./permissions";
 import { verifyPassword } from "./password";
 import { PermissionsService } from "./permissions.service";
 import { TenantModeService } from "../tenancy/tenant-mode.service";
@@ -40,6 +41,8 @@ class OidcExchangeDto {
   @IsString() @MinLength(43) @MaxLength(128) codeVerifier!: string;
   @IsString() @MaxLength(512) redirectUri!: string;
   @IsString() @MaxLength(256) nonce!: string;
+  /** Owner sign-up claim (from `onboarding/signup`): binds the new owner to this Passport identity. */
+  @IsOptional() @IsString() @MaxLength(2048) claim?: string;
 }
 
 class HandoffLoginDto {
@@ -52,11 +55,23 @@ class HandoffExchangeDto {
 
 /** Sign-in throttle: 10 attempts per key per minute, counted in Postgres so it holds across API instances. */
 let pgLimiter: PgRateLimiter | undefined;
-async function throttle(prisma: PrismaService, key: string) {
+async function throttle(prisma: PrismaService, key: string, perMinute = Number(process.env.SIGNIN_RATE_PER_MINUTE) || 10) {
   pgLimiter ??= new PgRateLimiter(prisma as unknown as RawSql);
-  const r = await pgLimiter.hit(`signin:${key}`, Number(process.env.SIGNIN_RATE_PER_MINUTE) || 10, 60_000);
+  const r = await pgLimiter.hit(`signin:${key}`, perMinute, 60_000);
   if (!r.ok) throw new DomainError("RATE_LIMITED", "Too many login attempts, try again in a minute", 429, { retryAfterSec: r.retryAfterSec });
 }
+
+/**
+ * AUTH_MODE=both in production: a privileged role (owner, pharmacist, branch manager, chain ops) signs in with Kiorex Passport, where the MFA policy applies.
+ * A password session would carry no MFA claim and every privileged route would answer MFA_REQUIRED anyway, so say so up front (after the password was verified: no oracle).
+ */
+export function passwordRoleRefusal(role: string): DomainError | null {
+  return mfaEnforced() && (PRIVILEGED_ROLES as readonly string[]).includes(role)
+    ? new DomainError("PASSPORT_REQUIRED_FOR_ROLE", "This role signs in with Kiorex Passport (two-step verification). Use Sign in with Kiorex Passport.", 403)
+    : null;
+}
+/** Per client address, on top of the per e-mail limit: blunts password spraying across many addresses. */
+const IP_SIGNIN_PER_MINUTE = () => Number(process.env.SIGNIN_RATE_PER_IP_PER_MINUTE) || 30;
 
 @ApiTags("auth")
 @Controller("auth")
@@ -112,11 +127,14 @@ export class AuthController {
   @Post("login")
   @Public()
   @HttpCode(200)
-  async login(@Body() dto: LoginDto) {
-    if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    if (!localLoginEnabled()) throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
+    await throttle(this.prisma, `ip:${req.ip ?? "anon"}`, IP_SIGNIN_PER_MINUTE());
     await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (!(await passwordOk(dto.password, staff)) || !staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
+    const refusal = passwordRoleRefusal(staff.role);
+    if (refusal) throw refusal;
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id });
     return { accessToken: await this.tokens.issueLocal(staff.id) };
@@ -129,13 +147,16 @@ export class AuthController {
   @Post("handoff/login")
   @Public()
   @HttpCode(200)
-  async handoffLogin(@Body() dto: HandoffLoginDto, @Headers("origin") origin: string | undefined, @Res({ passthrough: true }) res: Response) {
+  async handoffLogin(@Body() dto: HandoffLoginDto, @Headers("origin") origin: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     res.setHeader("Cache-Control", "no-store");
     if (!isHomeOrigin(origin)) throw new DomainError("HANDOFF_ORIGIN_NOT_ALLOWED", "This sign-in start is not allowed from here", 403);
-    if (authMode() !== "local") throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
+    if (!localLoginEnabled()) throw new DomainError("LOCAL_LOGIN_DISABLED", "Sign in with Kiorex Passport", 404);
+    await throttle(this.prisma, `ip:${req.ip ?? "anon"}`, IP_SIGNIN_PER_MINUTE());
     await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (!(await passwordOk(dto.password, staff)) || !staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
+    const refusal = passwordRoleRefusal(staff.role);
+    if (refusal) throw refusal;
     const { code, expiresInSeconds } = await this.handoffCodes().issue({ subjectId: staff.id, origin: origin! });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.handoff_issued", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home" } });
     const web = webBaseUrl();
@@ -153,6 +174,8 @@ export class AuthController {
     catch (e) { if (e instanceof HandoffError) throw new UnauthorizedException({ statusCode: 401, code: e.code, message: e.message }); throw e; }
     const staff = await this.prisma.staffUser.findUnique({ where: { id: subjectId } });
     if (!staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "HANDOFF_INVALID", message: "The sign-in link is invalid or expired. Sign in again." });
+    const refusal = passwordRoleRefusal(staff.role);
+    if (refusal) throw refusal;
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home-handoff" } });
     return { accessToken: await this.tokens.issueLocal(staff.id) };

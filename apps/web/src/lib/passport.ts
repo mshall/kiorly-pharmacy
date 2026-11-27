@@ -15,6 +15,9 @@ export interface AuthConfig {
 
 const TXN_KEY = "kiorly.passport.txn";
 const END_SESSION_KEY = "kiorly.passport.endSession";
+const CLAIM_KEY = "kiorly.passport.ownerClaim";
+/** Sign-up claim of a freshly created organisation: kept for this tab only and sent once with the next Passport code exchange. */
+export const stashOwnerClaim = (c: string) => { try { sessionStorage.setItem(CLAIM_KEY, c); } catch { /* storage unavailable: the owner can still sign in by verified phone */ } };
 export const CALLBACK_PATH = "/auth/callback";
 
 const rand = (bytes: number) => { const a = new Uint8Array(bytes); crypto.getRandomValues(a); return b64url(a); };
@@ -53,10 +56,11 @@ export async function completePassportSignIn(search: string): Promise<{ accessTo
   if (p.get("error")) throw new ApiError(401, "PASSPORT_DENIED", p.get("error_description") ?? p.get("error")!);
   const txn = raw ? (JSON.parse(raw) as { state: string; nonce: string; verifier: string; redirectUri: string }) : null;
   const code = p.get("code");
+  let claim: string | null = null; try { claim = sessionStorage.getItem(CLAIM_KEY); sessionStorage.removeItem(CLAIM_KEY); } catch { /* ignore */ }
   if (!txn || !code || p.get("state") !== txn.state) throw new ApiError(400, "PASSPORT_STATE", "The sign-in attempt expired. Please start again.");
   const res = await fetch("/api/v1/auth/oidc/exchange", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ code, codeVerifier: txn.verifier, redirectUri: txn.redirectUri, nonce: txn.nonce }),
+    body: JSON.stringify({ code, codeVerifier: txn.verifier, redirectUri: txn.redirectUri, nonce: txn.nonce, ...(claim ? { claim } : {}) }),
   });
   const data = (await res.json().catch(() => ({}))) as { accessToken?: string; endSessionUrl?: string; code?: string; message?: string };
   if (!res.ok || !data.accessToken) throw new ApiError(res.status, data.code ?? "PASSPORT_FAILED", data.message ?? "Kiorex Passport sign-in failed");

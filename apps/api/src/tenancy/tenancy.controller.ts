@@ -13,6 +13,7 @@ import { RequiresFlag, RequiresFlagGuard } from "../feature-flags/requires-flag.
 import { StaffRole } from "../generated/prisma/client";
 import { normalizePhone } from "../auth/passport";
 import { PassportSessions } from "../auth/passport-sessions.service";
+import { TokenVerifier } from "../auth/token-verifier";
 import { effectiveOrgDefault, type SignInDefaultMethod } from "../auth/sign-in-default";
 import { tenantLinkedToKiorex } from "../auth/sign-in-config";
 
@@ -103,6 +104,7 @@ export class TenancyController {
     @Inject(KERNEL.entitlements) private readonly ent: EntitlementsPort,
     @Inject(KERNEL.marketPacks) private readonly packs: MarketPackPort,
     @Inject(PassportSessions) private readonly sessions: PassportSessions,
+    @Inject(TokenVerifier) private readonly tokens: TokenVerifier,
   ) {}
 
   /** Staff phone: strict E.164 (formatting characters tolerated), unique inside the tenant. Returns null for "clear". Never logged. */
@@ -132,7 +134,8 @@ export class TenancyController {
       await this.audit.record({ orgId: tenant.id, actorId: owner.id, action: "tenant.signup", entityType: "Tenant", entityId: tenant.id }, tx);
       return { tenantId: tenant.id, branchId: branch.id, ownerId: owner.id };
     });
-    return r;
+    // the browser that created the organisation can bind its owner to a Kiorex Passport at the next step (no manual linking, no unverified phone)
+    return { ...r, ownerClaim: await this.tokens.issueOwnerClaim(r.ownerId) };
   }
 
   @Post("onboarding/complete")

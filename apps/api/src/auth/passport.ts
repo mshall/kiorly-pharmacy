@@ -6,6 +6,7 @@ import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify, type JWTPayload }
  * Modes (AUTH_MODE):
  *  - `local` (default; dev/demo/E2E): staff e-mail + password. Passport sign-in is ALSO accepted when AUTH_ACCEPT_PASSPORT=true and
  *    OIDC_ISSUER is set ("dual"), never when NODE_ENV=production.
+ *  - `both`: e-mail + password AND Passport side by side (explicit per-environment choice, allowed in production). Privileged roles must use Passport (MFA).
  *  - `oidc`: Passport only. `/auth/login` is disabled; bearer tokens are Passport access tokens (staff mobile app) or the short
  *    product session issued by `/auth/oidc/exchange` after a verified Passport code exchange (web).
  */
@@ -47,7 +48,7 @@ export function passportConfig(env: NodeJS.ProcessEnv = process.env): PassportCo
   const issuer = (env.OIDC_ISSUER ?? env.KIOREX_OIDC_ISSUER)?.trim().replace(/\/+$/, "");
   if (!issuer) return null;
   const prod = env.NODE_ENV === "production";
-  const oidc = env.AUTH_MODE === "oidc";
+  const oidc = env.AUTH_MODE === "oidc" || env.AUTH_MODE === "both";
   if (!oidc && (prod || env.AUTH_ACCEPT_PASSPORT !== "true")) return null;
   const webClientId = env.OIDC_WEB_CLIENT_ID?.trim() || "kiorly-pharmacy-web";
   return {

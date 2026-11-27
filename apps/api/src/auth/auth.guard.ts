@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Inject, Injectable, Optional, Unauthoriz
 import { Reflector } from "@nestjs/core";
 import { PrismaService } from "../prisma/prisma.service";
 import { IS_PUBLIC, REQUIRES_PERM } from "./decorators";
-import { authMode, TokenVerifier } from "./token-verifier";
+import { authMode, mfaEnforced, TokenVerifier } from "./token-verifier";
 import { PassportService } from "./passport.service";
 import { PassportSessions } from "./passport-sessions.service";
 import { passportConfig } from "./passport";
@@ -50,11 +50,11 @@ export class AuthGuard implements CanActivate {
     const staff = verified.passport && cfg && this.passport
       ? await this.passport.resolveStaff(verified.claims, cfg)
       : await this.prisma.staffUser.findFirst({
-        where: verified.staffId ? { id: verified.staffId } : authMode() === "local" ? { id: verified.sub } : { subject: verified.sub },
+        where: verified.staffId ? { id: verified.staffId } : authMode() !== "oidc" && !verified.passport ? { id: verified.sub } : { subject: verified.sub },
         include: { tenant: true },
       });
     if (!staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "UNKNOWN_STAFF", message: "No active staff account" });
-    if (process.env.NODE_ENV === "production" && authMode() === "oidc" && PRIVILEGED_ROLES.includes(staff.role) && !verified.mfa) {
+    if (mfaEnforced() && PRIVILEGED_ROLES.includes(staff.role) && !verified.mfa) {
       throw forbidden("MFA_REQUIRED", "Privileged roles require multi-factor authentication");
     }
     const user: AuthUser = {
