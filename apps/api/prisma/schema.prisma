@@ -2245,17 +2245,26 @@ model SubscriptionInvoice {
   @@index([orgId, issuedAt])
 }
 
-/// Platform plan prices per market. Empty until the founder sets prices (NEEDS_HUMAN LG-SUB-1): the UI then says "price to be confirmed" and renewals do not charge.
+/// Platform plan prices per market: append-only, effective-dated, versioned per (edition, market, interval). EMPTY until someone publishes a price through the Kiorly admin
+/// (maker-checker in the Kiorex platform, signed route /marketplace/v1/plans; LG-SUB-1). The UI then says "price to be confirmed" and renewals do not charge.
+/// A row never changes except `validTo` (set once when a newer version starts); the database trigger `PlanPrice_append_only` enforces it.
 model PlanPrice {
-  id        String    @id @default(cuid())
-  edition   Edition
-  marketCode String   @default("EG")
-  interval  String    @default("MONTHLY")
-  currency  String    @default("EGP")
-  amount    Decimal   @db.Decimal(14, 2)
-  validFrom DateTime  @default(now())
-  validTo   DateTime?
+  id         String    @id @default(cuid())
+  edition    Edition
+  marketCode String    @default("EG")
+  interval   String    @default("MONTHLY")
+  currency   String    @default("EGP")
+  amount     Decimal   @db.Decimal(14, 2)
+  validFrom  DateTime  @default(now())
+  validTo    DateTime?
+  priceVersion Int      @default(1)
+  /// Kiorex proposal that was approved to publish this version (idempotency key of the signed publish) and the two people behind it.
+  proposalId String?   @unique
+  proposedBy String?
+  publishedBy String?
+  createdAt  DateTime  @default(now())
 
+  @@unique([edition, marketCode, interval, priceVersion])
   @@index([edition, marketCode, interval])
 }
 
