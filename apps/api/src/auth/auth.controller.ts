@@ -6,6 +6,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CurrentUser, Public } from "./decorators";
 import type { AuthUser } from "./auth-user";
 import { TokenVerifier, localLoginEnabled, mfaEnforced } from "./token-verifier";
+import { mfaMandatoryForRole } from "./mfa-policy";
 import { PRIVILEGED_ROLES } from "./permissions";
 import { verifyPassword } from "./password";
 import { PermissionsService } from "./permissions.service";
@@ -62,11 +63,13 @@ async function throttle(prisma: PrismaService, key: string, perMinute = Number(p
 }
 
 /**
- * AUTH_MODE=both in production: a privileged role (owner, pharmacist, branch manager, chain ops) signs in with Kiorex Passport, where the MFA policy applies.
- * A password session would carry no MFA claim and every privileged route would answer MFA_REQUIRED anyway, so say so up front (after the password was verified: no oracle).
+ * AUTH_MODE=both in production: a privileged role (owner, pharmacist, branch manager, chain ops) may sign in with e-mail + password ONLY while the Passport MFA policy is OFF
+ * for the pharmacy type (and the server allows `both`, which is the only way a password route is reachable). With the policy ON (or unknown: fail closed, or only some
+ * organisations covered) it signs in with Kiorex Passport, where the factor is enforced. A password session never carries the MFA claim, so say so up front
+ * (after the password was verified: no oracle). Other roles are never refused.
  */
-export function passwordRoleRefusal(role: string): DomainError | null {
-  return mfaEnforced() && (PRIVILEGED_ROLES as readonly string[]).includes(role)
+export async function passwordRoleRefusal(role: string): Promise<DomainError | null> {
+  return mfaEnforced() && (PRIVILEGED_ROLES as readonly string[]).includes(role) && await mfaMandatoryForRole(role, true)
     ? new DomainError("PASSPORT_REQUIRED_FOR_ROLE", "This role signs in with Kiorex Passport (two-step verification). Use Sign in with Kiorex Passport.", 403)
     : null;
 }
@@ -133,7 +136,7 @@ export class AuthController {
     await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (!(await passwordOk(dto.password, staff)) || !staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
-    const refusal = passwordRoleRefusal(staff.role);
+    const refusal = await passwordRoleRefusal(staff.role);
     if (refusal) throw refusal;
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id });
@@ -155,7 +158,7 @@ export class AuthController {
     await throttle(this.prisma, dto.email.toLowerCase());
     const staff = await this.prisma.staffUser.findUnique({ where: { email: dto.email.toLowerCase() } });
     if (!(await passwordOk(dto.password, staff)) || !staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "BAD_CREDENTIALS", message: "Invalid email or password" });
-    const refusal = passwordRoleRefusal(staff.role);
+    const refusal = await passwordRoleRefusal(staff.role);
     if (refusal) throw refusal;
     const { code, expiresInSeconds } = await this.handoffCodes().issue({ subjectId: staff.id, origin: origin! });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.handoff_issued", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home" } });
@@ -174,7 +177,7 @@ export class AuthController {
     catch (e) { if (e instanceof HandoffError) throw new UnauthorizedException({ statusCode: 401, code: e.code, message: e.message }); throw e; }
     const staff = await this.prisma.staffUser.findUnique({ where: { id: subjectId } });
     if (!staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "HANDOFF_INVALID", message: "The sign-in link is invalid or expired. Sign in again." });
-    const refusal = passwordRoleRefusal(staff.role);
+    const refusal = await passwordRoleRefusal(staff.role);
     if (refusal) throw refusal;
     await this.prisma.staffUser.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ orgId: staff.orgId, actorId: staff.id, action: "auth.login", entityType: "StaffUser", entityId: staff.id, meta: { via: "kiorly-home-handoff" } });

@@ -3,6 +3,7 @@ import { Reflector } from "@nestjs/core";
 import { PrismaService } from "../prisma/prisma.service";
 import { IS_PUBLIC, REQUIRES_PERM } from "./decorators";
 import { authMode, mfaEnforced, TokenVerifier } from "./token-verifier";
+import { mfaMandatoryForRole } from "./mfa-policy";
 import { PassportService } from "./passport.service";
 import { PassportSessions } from "./passport-sessions.service";
 import { passportConfig } from "./passport";
@@ -54,8 +55,9 @@ export class AuthGuard implements CanActivate {
         include: { tenant: true },
       });
     if (!staff || !staff.active) throw new UnauthorizedException({ statusCode: 401, code: "UNKNOWN_STAFF", message: "No active staff account" });
-    if (mfaEnforced() && PRIVILEGED_ROLES.includes(staff.role) && !verified.mfa) {
-      throw forbidden("MFA_REQUIRED", "Privileged roles require multi-factor authentication");
+    // two-step verification follows the Passport MFA policy for the pharmacy type (mfa-policy.ts): OFF = a Passport (or permitted password) session without the factor works
+    if (mfaEnforced() && PRIVILEGED_ROLES.includes(staff.role) && !verified.mfa && await mfaMandatoryForRole(staff.role)) {
+      throw forbidden("MFA_REQUIRED", "Two-step verification is required by the Kiorex Passport policy for this role");
     }
     const user: AuthUser = {
       userId: staff.id, orgId: staff.orgId, role: staff.role, displayName: staff.displayName, branchId: staff.branchId,

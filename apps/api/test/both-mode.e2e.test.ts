@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { SignJWT, exportJWK, generateKeyPair, type JWK } from "jose";
 import { randomUUID } from "node:crypto";
+import { resetMfaPolicyCache } from "../src/auth/mfa-policy";
 import { auth, bootApp, seedTenant, PASSWORD, type Fixture, type TestApp } from "./helpers";
 
 /**
@@ -14,6 +15,9 @@ describe("AUTH_MODE=both", () => {
   let t: TestApp, f: Fixture, server: http.Server, issuer = "", priv: CryptoKey, jwk: JWK;
   const saved = { ...process.env };
   let SUB = "", PHONE = "", VERIFIED = true;
+  /** What the fake Passport answers at /.well-known/kiorex-mfa-policy: null = 404 (unreachable policy). */
+  let POLICY: unknown = null;
+  const policy = (pharmacyMandatory: string[], partial: string[] = []) => { POLICY = { enabled: pharmacyMandatory.length + partial.length > 0, version: 1, types: { pharmacy: { mandatory: pharmacyMandatory, partial } } }; resetMfaPolicyCache(); };
   const sign = (claims: Record<string, unknown>, aud: string) => new SignJWT(claims).setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(issuer).setAudience(aud).setSubject(SUB).setIssuedAt().setExpirationTime("10m").sign(priv);
   const fresh = () => { SUB = `SUB-${Math.random().toString(36).slice(2, 12)}`; PHONE = `+2011${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`; VERIFIED = true; };
 
@@ -24,6 +28,7 @@ describe("AUTH_MODE=both", () => {
       const chunks: Buffer[] = []; for await (const c of req) chunks.push(c as Buffer);
       res.setHeader("content-type", "application/json");
       if (req.url === "/.well-known/openid-configuration") return void res.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/auth`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks` }));
+      if (req.url === "/.well-known/kiorex-mfa-policy") { if (!POLICY) { res.statusCode = 404; return void res.end("{}"); } return void res.end(JSON.stringify(POLICY)); }
       if (req.url === "/jwks") return void res.end(JSON.stringify({ keys: [jwk] }));
       if (req.url === "/token") {
         const p = new URLSearchParams(Buffer.concat(chunks).toString());
@@ -59,6 +64,30 @@ describe("AUTH_MODE=both", () => {
       const owner = await t.http.post("/api/v1/auth/login").send({ email: f.users.owner.email, password: PASSWORD });
       assert.equal(owner.status, 403); assert.equal(owner.body.code, "PASSPORT_REQUIRED_FOR_ROLE");
       assert.equal((await t.http.post("/api/v1/auth/login").send({ email: f.users.cashier.email, password: "wrong-password" })).status, 401);
+    });
+  });
+
+  it("MFA follows the Passport policy: OFF = the owner may sign in with a password and works; ON for the role = Passport is required; unknown policy = fail closed", async () => {
+    await prod(async () => {
+      const login = (u: { email: string }) => t.http.post("/api/v1/auth/login").send({ email: u.email, password: PASSWORD });
+      policy([]); // policy off (default)
+      const off = await login(f.users.owner);
+      assert.equal(off.status, 200);
+      assert.equal((await t.http.get("/api/v1/auth/me").set(auth(off.body.accessToken))).status, 200, "a privileged owner without the MFA claim works while the policy is off");
+      const ph = await login(f.users.pharmacist); assert.equal(ph.status, 200);
+      policy(["owner"]); // mandatory for owners only
+      const on = await login(f.users.owner);
+      assert.equal(on.status, 403); assert.equal(on.body.code, "PASSPORT_REQUIRED_FOR_ROLE");
+      assert.equal((await login(f.users.pharmacist)).status, 200, "a role the rule does not name is not affected");
+      assert.equal((await t.http.get("/api/v1/auth/me").set(auth(off.body.accessToken))).status, 403, "a password session started before the policy was turned on is refused (MFA_REQUIRED)");
+      policy([], ["*"]); // only some organisations covered: the password path takes the safe answer, the token path does not lock others out
+      assert.equal((await login(f.users.owner)).status, 403);
+      POLICY = null; resetMfaPolicyCache(); // unreachable policy: fail closed, as before this change
+      assert.equal((await login(f.users.owner)).status, 403);
+      assert.equal((await login(f.users.cashier)).status, 200);
+      process.env.MFA_POLICY_SOURCE = "always"; policy([]);
+      assert.equal((await login(f.users.owner)).status, 403, "MFA_POLICY_SOURCE=always pins the hard rule");
+      delete process.env.MFA_POLICY_SOURCE;
     });
   });
 
