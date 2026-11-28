@@ -19,7 +19,16 @@ function initialLang(): Lang {
   } catch {
     /* storage unavailable */
   }
-  return "ar"; // Arabic (RTL) is the default; English is one tap away
+  // No saved choice: follow the browser language (first Arabic or English entry of navigator.languages); Arabic (RTL) when it says neither. The AR/EN switch is always visible.
+  try {
+    for (const l of navigator.languages ?? [navigator.language]) {
+      const base = String(l).toLowerCase().split("-")[0];
+      if (base === "ar" || base === "en") return base;
+    }
+  } catch {
+    /* no navigator */
+  }
+  return "ar";
 }
 
 export function setLang(lang: Lang): void {
