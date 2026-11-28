@@ -30,9 +30,10 @@ export async function login(page: Page, email: string, lang: "en" | "ar" = "en")
   await page.addInitScript((l) => { try { localStorage.setItem("kiorly.lang", l); } catch { /* ignore */ } }, lang);
   await page.goto("/login");
   await showPasswordForm(page);
-  await page.getByLabel(lang === "en" ? "Email" : "البريد الإلكتروني").fill(email);
-  await page.getByLabel(lang === "en" ? "Password" : "كلمة المرور").fill(DEMO_PASSWORD);
-  await page.getByRole("button", { name: lang === "en" ? "Sign in" : "تسجيل الدخول", exact: true }).click(); // exact: the page also offers "Sign in with Kiorex Passport"
+  // the unified sign-in card (ADR-061) shows both methods at once: fields by test id, not by label text ("E-mail" in the card)
+  await page.getByTestId("signin-email").fill(email);
+  await page.getByTestId("signin-password").fill(DEMO_PASSWORD);
+  await page.getByTestId("signin-submit").click();
   await expect(page.getByRole("navigation")).toBeVisible();
 }
 

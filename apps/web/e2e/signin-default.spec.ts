@@ -32,20 +32,21 @@ async function mockConfig(page: Page, opts: { passport?: boolean; deployment?: "
   });
   return asked;
 }
-const selected = (page: Page, m: "passport" | "password") => expect(page.getByTestId(`signin-method-${m}`)).toHaveAttribute("aria-selected", "true");
+// ADR-061 (28 Nov 2026): the unified card shows BOTH methods at once, so "preselected" now means: both panels are present and there are no method tabs. The per-organisation default only matters to Kiorly Home.
+const selected = async (page: Page, _m: "passport" | "password") => { await expect(page.getByTestId("unified-signin")).toBeVisible(); await expect(page.getByTestId("signin-password-panel")).toBeVisible(); await expect(page.getByTestId("signin-passport-panel")).toBeVisible(); };
 const tabs = (page: Page) => page.getByRole("tab");
 
 test.describe("preselected method: remembered > org default > deployment default", () => {
   test("no org, nothing remembered: the deployment default", async ({ page }) => {
     await mockConfig(page, { deployment: "PASSWORD" });
     await page.goto(LOGIN);
-    await selected(page, "password"); await expect(tabs(page)).toHaveCount(2);
+    await selected(page, "password"); await expect(tabs(page)).toHaveCount(0);
     const p2 = await page.context().newPage(); await mockConfig(p2, { deployment: "PASSPORT" }); await p2.goto(LOGIN); await selected(p2, "passport");
   });
   test("?org= PASSWORD vs PASSPORT preselects accordingly, and both methods stay available", async ({ page }) => {
     const asked = await mockConfig(page);
-    await page.goto(`${LOGIN}?org=pw-org`); await selected(page, "password"); await expect(tabs(page)).toHaveCount(2);
-    await page.goto(`${LOGIN}?org=pp-org`); await selected(page, "passport"); await expect(tabs(page)).toHaveCount(2);
+    await page.goto(`${LOGIN}?org=pw-org`); await selected(page, "password"); await expect(tabs(page)).toHaveCount(0);
+    await page.goto(`${LOGIN}?org=pp-org`); await selected(page, "passport"); await expect(tabs(page)).toHaveCount(0);
     expect(asked).toContain("pw-org"); expect(asked).toContain("pp-org");
   });
   test("the org remembered on this browser is used when the URL has none", async ({ page }) => {
@@ -87,12 +88,13 @@ test.describe("layout and accessibility", () => {
       await page.goto(`${LOGIN}?org=pp-org`);
       if ((await page.locator("html").getAttribute("dir")) === "rtl") await pickLanguage(page, "en"); // the screenshots for this case are English
       await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-      await expect(page.getByTestId("signin-method")).toBeVisible();
+      await expect(page.getByTestId("unified-signin")).toBeVisible();
       const panel = page.getByTestId("login-brand-panel");
       if (w >= 1024) await expect(panel).toBeVisible(); else await expect(panel).toBeHidden();
       if (w >= 1024) await expect(panel).toContainText(/Kiorly Pharmacy|كيورلي|الصيدل/i);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await expect(page.getByTestId("switch-product")).toBeVisible();
+      await page.waitForTimeout(600); // let the page-in cross-fade finish before axe measures contrast (flaky color-contrast otherwise)
       const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
       expect(r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
       if (SHOTS) { mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: `${SHOTS}/pharmacy-${w}-en-light.png` }); }
@@ -110,7 +112,7 @@ test.describe("layout and accessibility", () => {
         const themeBtn = page.locator('[data-kx-control="theme"]').first();
         if (theme === "dark" && (await themeBtn.getAttribute("data-theme-mode")) !== "dark") await themeBtn.click();
         if (theme === "dark") { await expect(themeBtn).toHaveAttribute("data-theme-mode", "dark"); await page.waitForTimeout(500); } // let the 240 ms theme cross-fade finish before axe measures contrast
-        await expect(page.getByTestId("signin-method")).toBeVisible();
+        await expect(page.getByTestId("unified-signin")).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
         expect(r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
@@ -150,7 +152,7 @@ const EMAIL = "owner@demo.kiorly.local", PW = "Demo@12345";
     await page.goto(`${LOGIN}?org=${org}`); await selected(page, "password");
     await setDefault(request, "PASSPORT");
     await page.goto(`${LOGIN}?org=${org}`); await selected(page, "passport");
-    await expect(tabs(page)).toHaveCount(2);
+    await expect(tabs(page)).toHaveCount(0);
   });
   test("an unknown org answers exactly like no org", async ({ request }) => {
     const a = await (await request.get("/api/v1/auth/config?org=no-such-org-xyz")).json();

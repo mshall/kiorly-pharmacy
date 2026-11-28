@@ -1,0 +1,1 @@
+{"version":3,"file":"ports.js","sourceRoot":"","sources":["../../src/kernel-adapter/ports.ts"],"names":[],"mappings":";;;AA+Da,QAAA,MAAM,GAAG;IACpB,KAAK,EAAE,MAAM,CAAC,cAAc,CAAC;IAC7B,YAAY,EAAE,MAAM,CAAC,qBAAqB,CAAC;IAC3C,aAAa,EAAE,MAAM,CAAC,sBAAsB,CAAC;IAC7C,MAAM,EAAE,MAAM,CAAC,eAAe,CAAC;IAC/B,UAAU,EAAE,MAAM,CAAC,mBAAmB,CAAC;IACvC,WAAW,EAAE,MAAM,CAAC,qBAAqB,CAAC;CAClC,CAAC"}

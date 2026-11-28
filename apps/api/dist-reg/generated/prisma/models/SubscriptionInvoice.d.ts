@@ -1,0 +1,760 @@
+import type * as runtime from "@prisma/client/runtime/client";
+import type * as $Enums from "../enums";
+import type * as Prisma from "../internal/prismaNamespace";
+export type SubscriptionInvoiceModel = runtime.Types.Result.DefaultSelection<Prisma.$SubscriptionInvoicePayload>;
+export type AggregateSubscriptionInvoice = {
+    _count: SubscriptionInvoiceCountAggregateOutputType | null;
+    _avg: SubscriptionInvoiceAvgAggregateOutputType | null;
+    _sum: SubscriptionInvoiceSumAggregateOutputType | null;
+    _min: SubscriptionInvoiceMinAggregateOutputType | null;
+    _max: SubscriptionInvoiceMaxAggregateOutputType | null;
+};
+export type SubscriptionInvoiceAvgAggregateOutputType = {
+    subtotal: runtime.Decimal | null;
+    tax: runtime.Decimal | null;
+    total: runtime.Decimal | null;
+    attempts: number | null;
+};
+export type SubscriptionInvoiceSumAggregateOutputType = {
+    subtotal: runtime.Decimal | null;
+    tax: runtime.Decimal | null;
+    total: runtime.Decimal | null;
+    attempts: number | null;
+};
+export type SubscriptionInvoiceMinAggregateOutputType = {
+    id: string | null;
+    orgId: string | null;
+    number: string | null;
+    periodKey: string | null;
+    periodStart: Date | null;
+    periodEnd: Date | null;
+    edition: $Enums.Edition | null;
+    currency: string | null;
+    subtotal: runtime.Decimal | null;
+    tax: runtime.Decimal | null;
+    total: runtime.Decimal | null;
+    status: string | null;
+    providerRef: string | null;
+    attempts: number | null;
+    issuedAt: Date | null;
+    paidAt: Date | null;
+};
+export type SubscriptionInvoiceMaxAggregateOutputType = {
+    id: string | null;
+    orgId: string | null;
+    number: string | null;
+    periodKey: string | null;
+    periodStart: Date | null;
+    periodEnd: Date | null;
+    edition: $Enums.Edition | null;
+    currency: string | null;
+    subtotal: runtime.Decimal | null;
+    tax: runtime.Decimal | null;
+    total: runtime.Decimal | null;
+    status: string | null;
+    providerRef: string | null;
+    attempts: number | null;
+    issuedAt: Date | null;
+    paidAt: Date | null;
+};
+export type SubscriptionInvoiceCountAggregateOutputType = {
+    id: number;
+    orgId: number;
+    number: number;
+    periodKey: number;
+    periodStart: number;
+    periodEnd: number;
+    edition: number;
+    currency: number;
+    subtotal: number;
+    tax: number;
+    total: number;
+    status: number;
+    providerRef: number;
+    attempts: number;
+    issuedAt: number;
+    paidAt: number;
+    _all: number;
+};
+export type SubscriptionInvoiceAvgAggregateInputType = {
+    subtotal?: true;
+    tax?: true;
+    total?: true;
+    attempts?: true;
+};
+export type SubscriptionInvoiceSumAggregateInputType = {
+    subtotal?: true;
+    tax?: true;
+    total?: true;
+    attempts?: true;
+};
+export type SubscriptionInvoiceMinAggregateInputType = {
+    id?: true;
+    orgId?: true;
+    number?: true;
+    periodKey?: true;
+    periodStart?: true;
+    periodEnd?: true;
+    edition?: true;
+    currency?: true;
+    subtotal?: true;
+    tax?: true;
+    total?: true;
+    status?: true;
+    providerRef?: true;
+    attempts?: true;
+    issuedAt?: true;
+    paidAt?: true;
+};
+export type SubscriptionInvoiceMaxAggregateInputType = {
+    id?: true;
+    orgId?: true;
+    number?: true;
+    periodKey?: true;
+    periodStart?: true;
+    periodEnd?: true;
+    edition?: true;
+    currency?: true;
+    subtotal?: true;
+    tax?: true;
+    total?: true;
+    status?: true;
+    providerRef?: true;
+    attempts?: true;
+    issuedAt?: true;
+    paidAt?: true;
+};
+export type SubscriptionInvoiceCountAggregateInputType = {
+    id?: true;
+    orgId?: true;
+    number?: true;
+    periodKey?: true;
+    periodStart?: true;
+    periodEnd?: true;
+    edition?: true;
+    currency?: true;
+    subtotal?: true;
+    tax?: true;
+    total?: true;
+    status?: true;
+    providerRef?: true;
+    attempts?: true;
+    issuedAt?: true;
+    paidAt?: true;
+    _all?: true;
+};
+export type SubscriptionInvoiceAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    orderBy?: Prisma.SubscriptionInvoiceOrderByWithRelationInput | Prisma.SubscriptionInvoiceOrderByWithRelationInput[];
+    cursor?: Prisma.SubscriptionInvoiceWhereUniqueInput;
+    take?: number;
+    skip?: number;
+    _count?: true | SubscriptionInvoiceCountAggregateInputType;
+    _avg?: SubscriptionInvoiceAvgAggregateInputType;
+    _sum?: SubscriptionInvoiceSumAggregateInputType;
+    _min?: SubscriptionInvoiceMinAggregateInputType;
+    _max?: SubscriptionInvoiceMaxAggregateInputType;
+};
+export type GetSubscriptionInvoiceAggregateType<T extends SubscriptionInvoiceAggregateArgs> = {
+    [P in keyof T & keyof AggregateSubscriptionInvoice]: P extends '_count' | 'count' ? T[P] extends true ? number : Prisma.GetScalarType<T[P], AggregateSubscriptionInvoice[P]> : Prisma.GetScalarType<T[P], AggregateSubscriptionInvoice[P]>;
+};
+export type SubscriptionInvoiceGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    orderBy?: Prisma.SubscriptionInvoiceOrderByWithAggregationInput | Prisma.SubscriptionInvoiceOrderByWithAggregationInput[];
+    by: Prisma.SubscriptionInvoiceScalarFieldEnum[] | Prisma.SubscriptionInvoiceScalarFieldEnum;
+    having?: Prisma.SubscriptionInvoiceScalarWhereWithAggregatesInput;
+    take?: number;
+    skip?: number;
+    _count?: SubscriptionInvoiceCountAggregateInputType | true;
+    _avg?: SubscriptionInvoiceAvgAggregateInputType;
+    _sum?: SubscriptionInvoiceSumAggregateInputType;
+    _min?: SubscriptionInvoiceMinAggregateInputType;
+    _max?: SubscriptionInvoiceMaxAggregateInputType;
+};
+export type SubscriptionInvoiceGroupByOutputType = {
+    id: string;
+    orgId: string;
+    number: string;
+    periodKey: string;
+    periodStart: Date;
+    periodEnd: Date;
+    edition: $Enums.Edition;
+    currency: string;
+    subtotal: runtime.Decimal;
+    tax: runtime.Decimal;
+    total: runtime.Decimal;
+    status: string;
+    providerRef: string | null;
+    attempts: number;
+    issuedAt: Date;
+    paidAt: Date | null;
+    _count: SubscriptionInvoiceCountAggregateOutputType | null;
+    _avg: SubscriptionInvoiceAvgAggregateOutputType | null;
+    _sum: SubscriptionInvoiceSumAggregateOutputType | null;
+    _min: SubscriptionInvoiceMinAggregateOutputType | null;
+    _max: SubscriptionInvoiceMaxAggregateOutputType | null;
+};
+export type GetSubscriptionInvoiceGroupByPayload<T extends SubscriptionInvoiceGroupByArgs> = Prisma.PrismaPromise<Array<Prisma.PickEnumerable<SubscriptionInvoiceGroupByOutputType, T['by']> & {
+    [P in ((keyof T) & (keyof SubscriptionInvoiceGroupByOutputType))]: P extends '_count' ? T[P] extends boolean ? number : Prisma.GetScalarType<T[P], SubscriptionInvoiceGroupByOutputType[P]> : Prisma.GetScalarType<T[P], SubscriptionInvoiceGroupByOutputType[P]>;
+}>>;
+export type SubscriptionInvoiceWhereInput = {
+    AND?: Prisma.SubscriptionInvoiceWhereInput | Prisma.SubscriptionInvoiceWhereInput[];
+    OR?: Prisma.SubscriptionInvoiceWhereInput[];
+    NOT?: Prisma.SubscriptionInvoiceWhereInput | Prisma.SubscriptionInvoiceWhereInput[];
+    id?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    orgId?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    number?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    periodKey?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    periodStart?: Prisma.DateTimeFilter<"SubscriptionInvoice"> | Date | string;
+    periodEnd?: Prisma.DateTimeFilter<"SubscriptionInvoice"> | Date | string;
+    edition?: Prisma.EnumEditionFilter<"SubscriptionInvoice"> | $Enums.Edition;
+    currency?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    subtotal?: Prisma.DecimalFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    providerRef?: Prisma.StringNullableFilter<"SubscriptionInvoice"> | string | null;
+    attempts?: Prisma.IntFilter<"SubscriptionInvoice"> | number;
+    issuedAt?: Prisma.DateTimeFilter<"SubscriptionInvoice"> | Date | string;
+    paidAt?: Prisma.DateTimeNullableFilter<"SubscriptionInvoice"> | Date | string | null;
+};
+export type SubscriptionInvoiceOrderByWithRelationInput = {
+    id?: Prisma.SortOrder;
+    orgId?: Prisma.SortOrder;
+    number?: Prisma.SortOrder;
+    periodKey?: Prisma.SortOrder;
+    periodStart?: Prisma.SortOrder;
+    periodEnd?: Prisma.SortOrder;
+    edition?: Prisma.SortOrder;
+    currency?: Prisma.SortOrder;
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    status?: Prisma.SortOrder;
+    providerRef?: Prisma.SortOrderInput | Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+    issuedAt?: Prisma.SortOrder;
+    paidAt?: Prisma.SortOrderInput | Prisma.SortOrder;
+};
+export type SubscriptionInvoiceWhereUniqueInput = Prisma.AtLeast<{
+    id?: string;
+    number?: string;
+    orgId_periodKey?: Prisma.SubscriptionInvoiceOrgIdPeriodKeyCompoundUniqueInput;
+    AND?: Prisma.SubscriptionInvoiceWhereInput | Prisma.SubscriptionInvoiceWhereInput[];
+    OR?: Prisma.SubscriptionInvoiceWhereInput[];
+    NOT?: Prisma.SubscriptionInvoiceWhereInput | Prisma.SubscriptionInvoiceWhereInput[];
+    orgId?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    periodKey?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    periodStart?: Prisma.DateTimeFilter<"SubscriptionInvoice"> | Date | string;
+    periodEnd?: Prisma.DateTimeFilter<"SubscriptionInvoice"> | Date | string;
+    edition?: Prisma.EnumEditionFilter<"SubscriptionInvoice"> | $Enums.Edition;
+    currency?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    subtotal?: Prisma.DecimalFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringFilter<"SubscriptionInvoice"> | string;
+    providerRef?: Prisma.StringNullableFilter<"SubscriptionInvoice"> | string | null;
+    attempts?: Prisma.IntFilter<"SubscriptionInvoice"> | number;
+    issuedAt?: Prisma.DateTimeFilter<"SubscriptionInvoice"> | Date | string;
+    paidAt?: Prisma.DateTimeNullableFilter<"SubscriptionInvoice"> | Date | string | null;
+}, "id" | "number" | "orgId_periodKey">;
+export type SubscriptionInvoiceOrderByWithAggregationInput = {
+    id?: Prisma.SortOrder;
+    orgId?: Prisma.SortOrder;
+    number?: Prisma.SortOrder;
+    periodKey?: Prisma.SortOrder;
+    periodStart?: Prisma.SortOrder;
+    periodEnd?: Prisma.SortOrder;
+    edition?: Prisma.SortOrder;
+    currency?: Prisma.SortOrder;
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    status?: Prisma.SortOrder;
+    providerRef?: Prisma.SortOrderInput | Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+    issuedAt?: Prisma.SortOrder;
+    paidAt?: Prisma.SortOrderInput | Prisma.SortOrder;
+    _count?: Prisma.SubscriptionInvoiceCountOrderByAggregateInput;
+    _avg?: Prisma.SubscriptionInvoiceAvgOrderByAggregateInput;
+    _max?: Prisma.SubscriptionInvoiceMaxOrderByAggregateInput;
+    _min?: Prisma.SubscriptionInvoiceMinOrderByAggregateInput;
+    _sum?: Prisma.SubscriptionInvoiceSumOrderByAggregateInput;
+};
+export type SubscriptionInvoiceScalarWhereWithAggregatesInput = {
+    AND?: Prisma.SubscriptionInvoiceScalarWhereWithAggregatesInput | Prisma.SubscriptionInvoiceScalarWhereWithAggregatesInput[];
+    OR?: Prisma.SubscriptionInvoiceScalarWhereWithAggregatesInput[];
+    NOT?: Prisma.SubscriptionInvoiceScalarWhereWithAggregatesInput | Prisma.SubscriptionInvoiceScalarWhereWithAggregatesInput[];
+    id?: Prisma.StringWithAggregatesFilter<"SubscriptionInvoice"> | string;
+    orgId?: Prisma.StringWithAggregatesFilter<"SubscriptionInvoice"> | string;
+    number?: Prisma.StringWithAggregatesFilter<"SubscriptionInvoice"> | string;
+    periodKey?: Prisma.StringWithAggregatesFilter<"SubscriptionInvoice"> | string;
+    periodStart?: Prisma.DateTimeWithAggregatesFilter<"SubscriptionInvoice"> | Date | string;
+    periodEnd?: Prisma.DateTimeWithAggregatesFilter<"SubscriptionInvoice"> | Date | string;
+    edition?: Prisma.EnumEditionWithAggregatesFilter<"SubscriptionInvoice"> | $Enums.Edition;
+    currency?: Prisma.StringWithAggregatesFilter<"SubscriptionInvoice"> | string;
+    subtotal?: Prisma.DecimalWithAggregatesFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalWithAggregatesFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalWithAggregatesFilter<"SubscriptionInvoice"> | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringWithAggregatesFilter<"SubscriptionInvoice"> | string;
+    providerRef?: Prisma.StringNullableWithAggregatesFilter<"SubscriptionInvoice"> | string | null;
+    attempts?: Prisma.IntWithAggregatesFilter<"SubscriptionInvoice"> | number;
+    issuedAt?: Prisma.DateTimeWithAggregatesFilter<"SubscriptionInvoice"> | Date | string;
+    paidAt?: Prisma.DateTimeNullableWithAggregatesFilter<"SubscriptionInvoice"> | Date | string | null;
+};
+export type SubscriptionInvoiceCreateInput = {
+    id?: string;
+    orgId: string;
+    number: string;
+    periodKey: string;
+    periodStart: Date | string;
+    periodEnd: Date | string;
+    edition: $Enums.Edition;
+    currency: string;
+    subtotal: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: string;
+    providerRef?: string | null;
+    attempts?: number;
+    issuedAt?: Date | string;
+    paidAt?: Date | string | null;
+};
+export type SubscriptionInvoiceUncheckedCreateInput = {
+    id?: string;
+    orgId: string;
+    number: string;
+    periodKey: string;
+    periodStart: Date | string;
+    periodEnd: Date | string;
+    edition: $Enums.Edition;
+    currency: string;
+    subtotal: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: string;
+    providerRef?: string | null;
+    attempts?: number;
+    issuedAt?: Date | string;
+    paidAt?: Date | string | null;
+};
+export type SubscriptionInvoiceUpdateInput = {
+    id?: Prisma.StringFieldUpdateOperationsInput | string;
+    orgId?: Prisma.StringFieldUpdateOperationsInput | string;
+    number?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodKey?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    periodEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    edition?: Prisma.EnumEditionFieldUpdateOperationsInput | $Enums.Edition;
+    currency?: Prisma.StringFieldUpdateOperationsInput | string;
+    subtotal?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringFieldUpdateOperationsInput | string;
+    providerRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    attempts?: Prisma.IntFieldUpdateOperationsInput | number;
+    issuedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+};
+export type SubscriptionInvoiceUncheckedUpdateInput = {
+    id?: Prisma.StringFieldUpdateOperationsInput | string;
+    orgId?: Prisma.StringFieldUpdateOperationsInput | string;
+    number?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodKey?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    periodEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    edition?: Prisma.EnumEditionFieldUpdateOperationsInput | $Enums.Edition;
+    currency?: Prisma.StringFieldUpdateOperationsInput | string;
+    subtotal?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringFieldUpdateOperationsInput | string;
+    providerRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    attempts?: Prisma.IntFieldUpdateOperationsInput | number;
+    issuedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+};
+export type SubscriptionInvoiceCreateManyInput = {
+    id?: string;
+    orgId: string;
+    number: string;
+    periodKey: string;
+    periodStart: Date | string;
+    periodEnd: Date | string;
+    edition: $Enums.Edition;
+    currency: string;
+    subtotal: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total: runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: string;
+    providerRef?: string | null;
+    attempts?: number;
+    issuedAt?: Date | string;
+    paidAt?: Date | string | null;
+};
+export type SubscriptionInvoiceUpdateManyMutationInput = {
+    id?: Prisma.StringFieldUpdateOperationsInput | string;
+    orgId?: Prisma.StringFieldUpdateOperationsInput | string;
+    number?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodKey?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    periodEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    edition?: Prisma.EnumEditionFieldUpdateOperationsInput | $Enums.Edition;
+    currency?: Prisma.StringFieldUpdateOperationsInput | string;
+    subtotal?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringFieldUpdateOperationsInput | string;
+    providerRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    attempts?: Prisma.IntFieldUpdateOperationsInput | number;
+    issuedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+};
+export type SubscriptionInvoiceUncheckedUpdateManyInput = {
+    id?: Prisma.StringFieldUpdateOperationsInput | string;
+    orgId?: Prisma.StringFieldUpdateOperationsInput | string;
+    number?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodKey?: Prisma.StringFieldUpdateOperationsInput | string;
+    periodStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    periodEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    edition?: Prisma.EnumEditionFieldUpdateOperationsInput | $Enums.Edition;
+    currency?: Prisma.StringFieldUpdateOperationsInput | string;
+    subtotal?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    tax?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    total?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string;
+    status?: Prisma.StringFieldUpdateOperationsInput | string;
+    providerRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null;
+    attempts?: Prisma.IntFieldUpdateOperationsInput | number;
+    issuedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string;
+    paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null;
+};
+export type SubscriptionInvoiceOrgIdPeriodKeyCompoundUniqueInput = {
+    orgId: string;
+    periodKey: string;
+};
+export type SubscriptionInvoiceCountOrderByAggregateInput = {
+    id?: Prisma.SortOrder;
+    orgId?: Prisma.SortOrder;
+    number?: Prisma.SortOrder;
+    periodKey?: Prisma.SortOrder;
+    periodStart?: Prisma.SortOrder;
+    periodEnd?: Prisma.SortOrder;
+    edition?: Prisma.SortOrder;
+    currency?: Prisma.SortOrder;
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    status?: Prisma.SortOrder;
+    providerRef?: Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+    issuedAt?: Prisma.SortOrder;
+    paidAt?: Prisma.SortOrder;
+};
+export type SubscriptionInvoiceAvgOrderByAggregateInput = {
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+};
+export type SubscriptionInvoiceMaxOrderByAggregateInput = {
+    id?: Prisma.SortOrder;
+    orgId?: Prisma.SortOrder;
+    number?: Prisma.SortOrder;
+    periodKey?: Prisma.SortOrder;
+    periodStart?: Prisma.SortOrder;
+    periodEnd?: Prisma.SortOrder;
+    edition?: Prisma.SortOrder;
+    currency?: Prisma.SortOrder;
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    status?: Prisma.SortOrder;
+    providerRef?: Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+    issuedAt?: Prisma.SortOrder;
+    paidAt?: Prisma.SortOrder;
+};
+export type SubscriptionInvoiceMinOrderByAggregateInput = {
+    id?: Prisma.SortOrder;
+    orgId?: Prisma.SortOrder;
+    number?: Prisma.SortOrder;
+    periodKey?: Prisma.SortOrder;
+    periodStart?: Prisma.SortOrder;
+    periodEnd?: Prisma.SortOrder;
+    edition?: Prisma.SortOrder;
+    currency?: Prisma.SortOrder;
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    status?: Prisma.SortOrder;
+    providerRef?: Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+    issuedAt?: Prisma.SortOrder;
+    paidAt?: Prisma.SortOrder;
+};
+export type SubscriptionInvoiceSumOrderByAggregateInput = {
+    subtotal?: Prisma.SortOrder;
+    tax?: Prisma.SortOrder;
+    total?: Prisma.SortOrder;
+    attempts?: Prisma.SortOrder;
+};
+export type SubscriptionInvoiceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean;
+    orgId?: boolean;
+    number?: boolean;
+    periodKey?: boolean;
+    periodStart?: boolean;
+    periodEnd?: boolean;
+    edition?: boolean;
+    currency?: boolean;
+    subtotal?: boolean;
+    tax?: boolean;
+    total?: boolean;
+    status?: boolean;
+    providerRef?: boolean;
+    attempts?: boolean;
+    issuedAt?: boolean;
+    paidAt?: boolean;
+}, ExtArgs["result"]["subscriptionInvoice"]>;
+export type SubscriptionInvoiceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean;
+    orgId?: boolean;
+    number?: boolean;
+    periodKey?: boolean;
+    periodStart?: boolean;
+    periodEnd?: boolean;
+    edition?: boolean;
+    currency?: boolean;
+    subtotal?: boolean;
+    tax?: boolean;
+    total?: boolean;
+    status?: boolean;
+    providerRef?: boolean;
+    attempts?: boolean;
+    issuedAt?: boolean;
+    paidAt?: boolean;
+}, ExtArgs["result"]["subscriptionInvoice"]>;
+export type SubscriptionInvoiceSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean;
+    orgId?: boolean;
+    number?: boolean;
+    periodKey?: boolean;
+    periodStart?: boolean;
+    periodEnd?: boolean;
+    edition?: boolean;
+    currency?: boolean;
+    subtotal?: boolean;
+    tax?: boolean;
+    total?: boolean;
+    status?: boolean;
+    providerRef?: boolean;
+    attempts?: boolean;
+    issuedAt?: boolean;
+    paidAt?: boolean;
+}, ExtArgs["result"]["subscriptionInvoice"]>;
+export type SubscriptionInvoiceSelectScalar = {
+    id?: boolean;
+    orgId?: boolean;
+    number?: boolean;
+    periodKey?: boolean;
+    periodStart?: boolean;
+    periodEnd?: boolean;
+    edition?: boolean;
+    currency?: boolean;
+    subtotal?: boolean;
+    tax?: boolean;
+    total?: boolean;
+    status?: boolean;
+    providerRef?: boolean;
+    attempts?: boolean;
+    issuedAt?: boolean;
+    paidAt?: boolean;
+};
+export type SubscriptionInvoiceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orgId" | "number" | "periodKey" | "periodStart" | "periodEnd" | "edition" | "currency" | "subtotal" | "tax" | "total" | "status" | "providerRef" | "attempts" | "issuedAt" | "paidAt", ExtArgs["result"]["subscriptionInvoice"]>;
+export type $SubscriptionInvoicePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "SubscriptionInvoice";
+    objects: {};
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+        id: string;
+        orgId: string;
+        number: string;
+        periodKey: string;
+        periodStart: Date;
+        periodEnd: Date;
+        edition: $Enums.Edition;
+        currency: string;
+        subtotal: runtime.Decimal;
+        tax: runtime.Decimal;
+        total: runtime.Decimal;
+        status: string;
+        providerRef: string | null;
+        attempts: number;
+        issuedAt: Date;
+        paidAt: Date | null;
+    }, ExtArgs["result"]["subscriptionInvoice"]>;
+    composites: {};
+};
+export type SubscriptionInvoiceGetPayload<S extends boolean | null | undefined | SubscriptionInvoiceDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload, S>;
+export type SubscriptionInvoiceCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = Omit<SubscriptionInvoiceFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+    select?: SubscriptionInvoiceCountAggregateInputType | true;
+};
+export interface SubscriptionInvoiceDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: {
+        types: Prisma.TypeMap<ExtArgs>['model']['SubscriptionInvoice'];
+        meta: {
+            name: 'SubscriptionInvoice';
+        };
+    };
+    findUnique<T extends SubscriptionInvoiceFindUniqueArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceFindUniqueArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>;
+    findUniqueOrThrow<T extends SubscriptionInvoiceFindUniqueOrThrowArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceFindUniqueOrThrowArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>;
+    findFirst<T extends SubscriptionInvoiceFindFirstArgs>(args?: Prisma.SelectSubset<T, SubscriptionInvoiceFindFirstArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>;
+    findFirstOrThrow<T extends SubscriptionInvoiceFindFirstOrThrowArgs>(args?: Prisma.SelectSubset<T, SubscriptionInvoiceFindFirstOrThrowArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>;
+    findMany<T extends SubscriptionInvoiceFindManyArgs>(args?: Prisma.SelectSubset<T, SubscriptionInvoiceFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>;
+    create<T extends SubscriptionInvoiceCreateArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceCreateArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>;
+    createMany<T extends SubscriptionInvoiceCreateManyArgs>(args?: Prisma.SelectSubset<T, SubscriptionInvoiceCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>;
+    createManyAndReturn<T extends SubscriptionInvoiceCreateManyAndReturnArgs>(args?: Prisma.SelectSubset<T, SubscriptionInvoiceCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>;
+    delete<T extends SubscriptionInvoiceDeleteArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceDeleteArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>;
+    update<T extends SubscriptionInvoiceUpdateArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceUpdateArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>;
+    deleteMany<T extends SubscriptionInvoiceDeleteManyArgs>(args?: Prisma.SelectSubset<T, SubscriptionInvoiceDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>;
+    updateMany<T extends SubscriptionInvoiceUpdateManyArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<Prisma.BatchPayload>;
+    updateManyAndReturn<T extends SubscriptionInvoiceUpdateManyAndReturnArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>;
+    upsert<T extends SubscriptionInvoiceUpsertArgs>(args: Prisma.SelectSubset<T, SubscriptionInvoiceUpsertArgs<ExtArgs>>): Prisma.Prisma__SubscriptionInvoiceClient<runtime.Types.Result.GetResult<Prisma.$SubscriptionInvoicePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>;
+    count<T extends SubscriptionInvoiceCountArgs>(args?: Prisma.Subset<T, SubscriptionInvoiceCountArgs>): Prisma.PrismaPromise<T extends runtime.Types.Utils.Record<'select', any> ? T['select'] extends true ? number : Prisma.GetScalarType<T['select'], SubscriptionInvoiceCountAggregateOutputType> : number>;
+    aggregate<T extends SubscriptionInvoiceAggregateArgs>(args: Prisma.Subset<T, SubscriptionInvoiceAggregateArgs>): Prisma.PrismaPromise<GetSubscriptionInvoiceAggregateType<T>>;
+    groupBy<T extends SubscriptionInvoiceGroupByArgs, HasSelectOrTake extends Prisma.Or<Prisma.Extends<'skip', Prisma.Keys<T>>, Prisma.Extends<'take', Prisma.Keys<T>>>, OrderByArg extends Prisma.True extends HasSelectOrTake ? {
+        orderBy: SubscriptionInvoiceGroupByArgs['orderBy'];
+    } : {
+        orderBy?: SubscriptionInvoiceGroupByArgs['orderBy'];
+    }, OrderFields extends Prisma.ExcludeUnderscoreKeys<Prisma.Keys<Prisma.MaybeTupleToUnion<T['orderBy']>>>, ByFields extends Prisma.MaybeTupleToUnion<T['by']>, ByValid extends Prisma.Has<ByFields, OrderFields>, HavingFields extends Prisma.GetHavingFields<T['having']>, HavingValid extends Prisma.Has<ByFields, HavingFields>, ByEmpty extends T['by'] extends never[] ? Prisma.True : Prisma.False, InputErrors extends ByEmpty extends Prisma.True ? `Error: "by" must not be empty.` : HavingValid extends Prisma.False ? {
+        [P in HavingFields]: P extends ByFields ? never : P extends string ? `Error: Field "${P}" used in "having" needs to be provided in "by".` : [
+            Error,
+            'Field ',
+            P,
+            ` in "having" needs to be provided in "by"`
+        ];
+    }[HavingFields] : 'take' extends Prisma.Keys<T> ? 'orderBy' extends Prisma.Keys<T> ? ByValid extends Prisma.True ? {} : {
+        [P in OrderFields]: P extends ByFields ? never : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`;
+    }[OrderFields] : 'Error: If you provide "take", you also need to provide "orderBy"' : 'skip' extends Prisma.Keys<T> ? 'orderBy' extends Prisma.Keys<T> ? ByValid extends Prisma.True ? {} : {
+        [P in OrderFields]: P extends ByFields ? never : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`;
+    }[OrderFields] : 'Error: If you provide "skip", you also need to provide "orderBy"' : ByValid extends Prisma.True ? {} : {
+        [P in OrderFields]: P extends ByFields ? never : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`;
+    }[OrderFields]>(args: Prisma.SubsetIntersection<T, SubscriptionInvoiceGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSubscriptionInvoiceGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>;
+    readonly fields: SubscriptionInvoiceFieldRefs;
+}
+export interface Prisma__SubscriptionInvoiceClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise";
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>;
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>;
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>;
+}
+export interface SubscriptionInvoiceFieldRefs {
+    readonly id: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly orgId: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly number: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly periodKey: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly periodStart: Prisma.FieldRef<"SubscriptionInvoice", 'DateTime'>;
+    readonly periodEnd: Prisma.FieldRef<"SubscriptionInvoice", 'DateTime'>;
+    readonly edition: Prisma.FieldRef<"SubscriptionInvoice", 'Edition'>;
+    readonly currency: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly subtotal: Prisma.FieldRef<"SubscriptionInvoice", 'Decimal'>;
+    readonly tax: Prisma.FieldRef<"SubscriptionInvoice", 'Decimal'>;
+    readonly total: Prisma.FieldRef<"SubscriptionInvoice", 'Decimal'>;
+    readonly status: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly providerRef: Prisma.FieldRef<"SubscriptionInvoice", 'String'>;
+    readonly attempts: Prisma.FieldRef<"SubscriptionInvoice", 'Int'>;
+    readonly issuedAt: Prisma.FieldRef<"SubscriptionInvoice", 'DateTime'>;
+    readonly paidAt: Prisma.FieldRef<"SubscriptionInvoice", 'DateTime'>;
+}
+export type SubscriptionInvoiceFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where: Prisma.SubscriptionInvoiceWhereUniqueInput;
+};
+export type SubscriptionInvoiceFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where: Prisma.SubscriptionInvoiceWhereUniqueInput;
+};
+export type SubscriptionInvoiceFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    orderBy?: Prisma.SubscriptionInvoiceOrderByWithRelationInput | Prisma.SubscriptionInvoiceOrderByWithRelationInput[];
+    cursor?: Prisma.SubscriptionInvoiceWhereUniqueInput;
+    take?: number;
+    skip?: number;
+    distinct?: Prisma.SubscriptionInvoiceScalarFieldEnum | Prisma.SubscriptionInvoiceScalarFieldEnum[];
+};
+export type SubscriptionInvoiceFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    orderBy?: Prisma.SubscriptionInvoiceOrderByWithRelationInput | Prisma.SubscriptionInvoiceOrderByWithRelationInput[];
+    cursor?: Prisma.SubscriptionInvoiceWhereUniqueInput;
+    take?: number;
+    skip?: number;
+    distinct?: Prisma.SubscriptionInvoiceScalarFieldEnum | Prisma.SubscriptionInvoiceScalarFieldEnum[];
+};
+export type SubscriptionInvoiceFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    orderBy?: Prisma.SubscriptionInvoiceOrderByWithRelationInput | Prisma.SubscriptionInvoiceOrderByWithRelationInput[];
+    cursor?: Prisma.SubscriptionInvoiceWhereUniqueInput;
+    take?: number;
+    skip?: number;
+    distinct?: Prisma.SubscriptionInvoiceScalarFieldEnum | Prisma.SubscriptionInvoiceScalarFieldEnum[];
+};
+export type SubscriptionInvoiceCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    data: Prisma.XOR<Prisma.SubscriptionInvoiceCreateInput, Prisma.SubscriptionInvoiceUncheckedCreateInput>;
+};
+export type SubscriptionInvoiceCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    data: Prisma.SubscriptionInvoiceCreateManyInput | Prisma.SubscriptionInvoiceCreateManyInput[];
+    skipDuplicates?: boolean;
+};
+export type SubscriptionInvoiceCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelectCreateManyAndReturn<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    data: Prisma.SubscriptionInvoiceCreateManyInput | Prisma.SubscriptionInvoiceCreateManyInput[];
+    skipDuplicates?: boolean;
+};
+export type SubscriptionInvoiceUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    data: Prisma.XOR<Prisma.SubscriptionInvoiceUpdateInput, Prisma.SubscriptionInvoiceUncheckedUpdateInput>;
+    where: Prisma.SubscriptionInvoiceWhereUniqueInput;
+};
+export type SubscriptionInvoiceUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    data: Prisma.XOR<Prisma.SubscriptionInvoiceUpdateManyMutationInput, Prisma.SubscriptionInvoiceUncheckedUpdateManyInput>;
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    limit?: number;
+};
+export type SubscriptionInvoiceUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelectUpdateManyAndReturn<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    data: Prisma.XOR<Prisma.SubscriptionInvoiceUpdateManyMutationInput, Prisma.SubscriptionInvoiceUncheckedUpdateManyInput>;
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    limit?: number;
+};
+export type SubscriptionInvoiceUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where: Prisma.SubscriptionInvoiceWhereUniqueInput;
+    create: Prisma.XOR<Prisma.SubscriptionInvoiceCreateInput, Prisma.SubscriptionInvoiceUncheckedCreateInput>;
+    update: Prisma.XOR<Prisma.SubscriptionInvoiceUpdateInput, Prisma.SubscriptionInvoiceUncheckedUpdateInput>;
+};
+export type SubscriptionInvoiceDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+    where: Prisma.SubscriptionInvoiceWhereUniqueInput;
+};
+export type SubscriptionInvoiceDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: Prisma.SubscriptionInvoiceWhereInput;
+    limit?: number;
+};
+export type SubscriptionInvoiceDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    select?: Prisma.SubscriptionInvoiceSelect<ExtArgs> | null;
+    omit?: Prisma.SubscriptionInvoiceOmit<ExtArgs> | null;
+};

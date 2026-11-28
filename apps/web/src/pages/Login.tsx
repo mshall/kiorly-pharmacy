@@ -33,7 +33,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
         <p className="relative text-xs text-white/60"><KiorlyFootText text={t("auth.heroFoot")} word={t("auth.heroFootWord")} /></p>
       </aside>
       <main className="flex min-h-screen flex-col px-5 py-6 sm:px-10">
-        <div className="flex items-center justify-between gap-3"><span className="lg:invisible"><KiorlyBrandLockup height={40} /></span>
+        <div className="flex items-center justify-between gap-3"><span className="min-w-0 lg:invisible"><span className="sm:hidden"><KiorlyBrandLockup height={28} /></span><span className="hidden sm:inline"><KiorlyBrandLockup height={40} /></span></span>
           <KxControlPair><ThemeToggle labels={{ theme: t("theme.label"), light: t("theme.light"), dark: t("theme.dark"), system: t("theme.system") }} /><LanguageToggle onChange={setLang} /></KxControlPair></div>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>

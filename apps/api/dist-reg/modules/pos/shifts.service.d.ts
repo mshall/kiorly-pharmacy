@@ -1,0 +1,105 @@
+import { PrismaService } from "../../prisma/prisma.service";
+import type { AuthUser } from "../../auth/auth-user";
+import { type MarketPackPort } from "../../kernel-adapter/ports";
+import { NotificationsService } from "../../platform/adapters/notifications.service";
+import { CashService } from "./cash.service";
+export declare class ShiftsService {
+    private readonly prisma;
+    private readonly packs;
+    private readonly notify;
+    private readonly cash;
+    constructor(prisma: PrismaService, packs: MarketPackPort, notify: NotificationsService, cash: CashService);
+    open(user: AuthUser, branchId: string, openingFloat: string): Promise<{
+        id: string;
+        orgId: string;
+        branchId: string;
+        status: import("../../generated/prisma/enums").ShiftStatus;
+        closedAt: Date | null;
+        openedBy: string;
+        closedBy: string | null;
+        openingFloat: import("@prisma/client-runtime-utils").Decimal;
+        countedCash: import("@prisma/client-runtime-utils").Decimal | null;
+        expectedCash: import("@prisma/client-runtime-utils").Decimal | null;
+        variance: import("@prisma/client-runtime-utils").Decimal | null;
+        varianceAlerted: boolean;
+        zReport: import("@prisma/client/runtime/client").JsonValue | null;
+        openedAt: Date;
+    }>;
+    current(orgId: string, branchId: string): import("../../generated/prisma/models").Prisma__ShiftClient<{
+        id: string;
+        orgId: string;
+        branchId: string;
+        status: import("../../generated/prisma/enums").ShiftStatus;
+        closedAt: Date | null;
+        openedBy: string;
+        closedBy: string | null;
+        openingFloat: import("@prisma/client-runtime-utils").Decimal;
+        countedCash: import("@prisma/client-runtime-utils").Decimal | null;
+        expectedCash: import("@prisma/client-runtime-utils").Decimal | null;
+        variance: import("@prisma/client-runtime-utils").Decimal | null;
+        varianceAlerted: boolean;
+        zReport: import("@prisma/client/runtime/client").JsonValue | null;
+        openedAt: Date;
+    } | null, null, import("@prisma/client/runtime/client").DefaultArgs, {
+        omit: import("../../generated/prisma/internal/prismaNamespace").GlobalOmitConfig | undefined;
+    }>;
+    list(orgId: string, branchId?: string): import("../../generated/prisma/internal/prismaNamespace").PrismaPromise<{
+        id: string;
+        orgId: string;
+        branchId: string;
+        status: import("../../generated/prisma/enums").ShiftStatus;
+        closedAt: Date | null;
+        openedBy: string;
+        closedBy: string | null;
+        openingFloat: import("@prisma/client-runtime-utils").Decimal;
+        countedCash: import("@prisma/client-runtime-utils").Decimal | null;
+        expectedCash: import("@prisma/client-runtime-utils").Decimal | null;
+        variance: import("@prisma/client-runtime-utils").Decimal | null;
+        varianceAlerted: boolean;
+        zReport: import("@prisma/client/runtime/client").JsonValue | null;
+        openedAt: Date;
+    }[]>;
+    zReport(orgId: string, shiftId: string, until?: Date): Promise<{
+        shiftId: string;
+        branchId: string;
+        openedAt: Date;
+        closedAt: Date | null;
+        openingFloat: string;
+        salesCount: number;
+        grossSales: string;
+        vatTotal: string;
+        discountTotal: string;
+        byMethod: Record<string, string>;
+        returnsCount: number;
+        returnsTotal: string;
+        voidsCount: number;
+        voidsTotal: string;
+        cashSales: string;
+        cashRefunds: string;
+        cashIn: string;
+        cashOut: string;
+        report: string;
+        customerCreditCollected: string;
+        expectedCash: string;
+    }>;
+    close(user: AuthUser, id: string, countedCash: string): Promise<{
+        shift: {
+            id: string;
+            orgId: string;
+            branchId: string;
+            status: import("../../generated/prisma/enums").ShiftStatus;
+            closedAt: Date | null;
+            openedBy: string;
+            closedBy: string | null;
+            openingFloat: import("@prisma/client-runtime-utils").Decimal;
+            countedCash: import("@prisma/client-runtime-utils").Decimal | null;
+            expectedCash: import("@prisma/client-runtime-utils").Decimal | null;
+            variance: import("@prisma/client-runtime-utils").Decimal | null;
+            varianceAlerted: boolean;
+            zReport: import("@prisma/client/runtime/client").JsonValue | null;
+            openedAt: Date;
+        };
+        zReport: import("@prisma/client/runtime/client").JsonValue;
+        varianceAlert: boolean;
+    }>;
+}

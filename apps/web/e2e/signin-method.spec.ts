@@ -6,32 +6,25 @@ const PASSPORT = { issuer: "http://localhost:4400", clientId: "x", authorization
 const config = (page: Page, passport: boolean) => page.route("**/api/v1/auth/config*", (r) => r.fulfill({ json: { localLogin: true, passport: passport ? PASSPORT : null, passportAvailable: passport, defaultMethod: passport ? "PASSPORT" : "PASSWORD" } }));
 
 test.describe("Login: Passport default, password toggle, last-method memory", () => {
-  test("a fresh browser lands on Kiorex Passport; Password is one click away", async ({ page }) => {
+  test("a fresh browser shows Kiorex Passport and the password form together (unified card, ADR-061: no tabs, no toggle)", async ({ page }) => {
     await config(page, true);
     await page.goto("/login");
-    await expect(page.getByTestId("signin-method-passport")).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tab")).toHaveCount(2);
+    await expect(page.getByTestId("unified-signin")).toBeVisible();
+    await expect(page.getByRole("tab")).toHaveCount(0);
     await expect(page.getByTestId("signin-passport")).toBeVisible();
-    await expect(page.getByTestId("signin-password-panel")).toHaveCount(0);
-    await page.getByTestId("signin-method-password").click();
     await expect(page.getByTestId("signin-password-panel")).toBeVisible();
-    await expect(page.getByTestId("signin-passport")).toHaveCount(0);
     expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBeNull();
-    await page.getByTestId("signin-method-password").focus();
-    await page.keyboard.press("ArrowLeft");
-    await expect(page.getByTestId("signin-method-passport")).toHaveAttribute("aria-selected", "true");
   });
 
-  test("the last method used is preselected next time; garbage falls back to Passport", async ({ page }) => {
+  test("a remembered method (old key) or garbage never hides a method", async ({ page }) => {
     await config(page, true);
     await page.goto("/login");
-    await page.evaluate((k) => localStorage.setItem(k, "password"), KEY);
-    await page.reload();
-    await expect(page.getByTestId("signin-method-password")).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByTestId("signin-password-panel")).toBeVisible();
-    await page.evaluate((k) => localStorage.setItem(k, "carrier-pigeon"), KEY);
-    await page.reload();
-    await expect(page.getByTestId("signin-method-passport")).toHaveAttribute("aria-selected", "true");
+    for (const v of ["password", "carrier-pigeon"]) {
+      await page.evaluate(([k, x]) => localStorage.setItem(k!, x!), [KEY, v]);
+      await page.reload();
+      await expect(page.getByTestId("signin-passport")).toBeVisible();
+      await expect(page.getByTestId("signin-password-panel")).toBeVisible();
+    }
   });
 
   test("when Passport is not offered only the password sign-in shows (no tabs)", async ({ page }) => {
