@@ -44,7 +44,7 @@ const AR: typeof EN = {
   "confirmTitle": "الترقية إلى {{plan}}؟", "confirmBody": "تبدأ الخطة اليوم وتتجدد تلقائياً. يمكنك إيقاف التجديد في أي وقت.", "confirm": "تأكيد الترقية", "upgraded": "تم تحديث خطتك.", "needsCard": "أضف بطاقة ليتم خصم أول تجديد.",
   "lapse": "إذا تعذّر تحصيل دفعة نعيد المحاولة ونذكّرك. بعد {{days}} يوماً تنتقل صيدليتك إلى الخطة المجانية؛ لا يُقفل شيء ولا يُحذف.", "reminders": "نذكّرك قبل كل تجديد بـ {{days}} أيام.", "tax": "تُضاف ضريبة {{rate}}% عند إصدار الفاتورة حيثما تنطبق.",
   "status_ACTIVE": "نشطة", "status_PAST_DUE": "دفعة متأخرة", "inv_PAID": "مدفوعة", "inv_ISSUED": "مستحقة", "inv_VOID": "ملغاة",
-  "cap_kiorex_orders": "طلبات كيوركس", "cap_purchasing": "المشتريات", "cap_forecasting": "التنبؤ", "cap_transfers": "التحويل بين الفروع", "cap_central_price_book": "دفتر الأسعار المركزي", "cap_insurer_claims": "مطالبات التأمين", "cap_insurer_claims (add-on)": "مطالبات التأمين (إضافة)",
+  "cap_kiorex_orders": "طلبات كيوريكس", "cap_purchasing": "المشتريات", "cap_forecasting": "التنبؤ", "cap_transfers": "التحويل بين الفروع", "cap_central_price_book": "دفتر الأسعار المركزي", "cap_insurer_claims": "مطالبات التأمين", "cap_insurer_claims (add-on)": "مطالبات التأمين (إضافة)",
   "ed_LITE": "لايت", "ed_PRO": "برو", "ed_CHAIN": "سلسلة", "ed_ENTERPRISE": "مؤسسات", "nav": "الخطة والاشتراك",
 };
 i18n.addResourceBundle("en", "translation", { sub: EN }, true, false);
