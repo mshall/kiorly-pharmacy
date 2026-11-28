@@ -1,3 +1,4 @@
+import "@/lib/western-digits"; // Western digits 0-9 by default in Arabic (founder decision 28 Nov 2026)
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@/lib/i18n";

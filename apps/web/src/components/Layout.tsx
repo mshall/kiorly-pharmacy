@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/lib/page-title";
 import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import "@/features/subscription/subscription-strings";
@@ -28,6 +29,7 @@ export function useOnline(): boolean {
 
 export function Layout() {
   const { t } = useTranslation();
+  usePageTitle(t("app.docTitle"));
   const { me, can, flag, logout, branchId, setBranchId } = useAuth();
   const switchHref = switchWorkspaceHref(homeUrlFromEnv({ VITE_KIORLY_HOME_URL: import.meta.env.VITE_KIORLY_HOME_URL as string | undefined, DEV: import.meta.env.DEV, localDefault: import.meta.env.DEV ? LOCAL_HOME_URL : undefined }));
   const online = useOnline();
