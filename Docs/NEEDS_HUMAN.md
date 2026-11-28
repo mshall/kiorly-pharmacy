@@ -103,7 +103,7 @@ Every integration sits behind an adapter with `*_MODE=mock|real` (default `mock`
 ## Recurring subscription (SUB-01)
 | ID | Item | Status |
 |---|---|---|
-| LG-SUB-1 | Edition prices (`PlanPrice` is empty; the UI says "Price to be confirmed" and upgrades are disabled) | open |
+| LG-SUB-1 | Edition prices: the price model and the Kiorly admin screens now exist (28 Nov 2026: proposed by ops or a super admin, approved by a different super admin); the VALUES are a founder decision and the table is empty until then (the UI says "Price to be confirmed", upgrades stay disabled) | open (values) |
 | LG-SUB-2 | Counsel: renewal notice, reminder and downgrade copy (EN + AR), what Lite keeps and loses | open |
 | LG-SUB-3 | Founder + accounting: grace days (30), downgrade after 15 days, reminders 7/3/1, proration, VAT on subscription invoices | open |
 | LG-SUB-4 | App stores: subscriptions are sold on the web only; the Kiorly app shows a read-only card | open |
