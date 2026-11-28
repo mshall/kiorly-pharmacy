@@ -18,7 +18,7 @@ async function freshPharmacy(request: APIRequestContext, o: { chain?: boolean } 
   const r = await request.post(`${API}/api/v1/onboarding/signup`, { data: { pharmacyName: `QS Pharmacy ${uniq().slice(-5)}`, ownerName: "QS Owner", email, password: PASSWORD } });
   expect(r.ok(), await r.text()).toBeTruthy();
   const { tenantId, branchId } = (await r.json()) as { tenantId: string; branchId: string };
-  if (o.chain) execFileSync("/Users/postgres/bin/psql", ["-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", "kiorly_pharmacy", "-c", `update "Tenant" set edition='CHAIN' where id='${tenantId}'`], { env: { ...process.env, PGPASSWORD: "postgres" }, stdio: "ignore" });
+  if (o.chain) execFileSync("/Users/postgres/bin/psql", ["-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", process.env.PHARMACY_E2E_DB ?? "kiorly_pharmacy", "-c", `update "Tenant" set edition='CHAIN' where id='${tenantId}'`], { env: { ...process.env, PGPASSWORD: "postgres" }, stdio: "ignore" });
   return { email, tenantId, branchId, token: await token(request, email) };
 }
 async function token(request: APIRequestContext, email: string) {
@@ -31,9 +31,9 @@ async function uiLogin(page: Page, email: string, lang: "en" | "ar" = "en") {
   await page.addInitScript((l) => { try { localStorage.setItem("kiorly.lang", l); } catch { /* ignore */ } }, lang);
   await page.goto("/login");
   await showPasswordForm(page);
-  await page.getByLabel(lang === "en" ? "Email" : "البريد الإلكتروني").fill(email);
-  await page.getByLabel(lang === "en" ? "Password" : "كلمة المرور").fill(PASSWORD);
-  await page.getByRole("button", { name: lang === "en" ? "Sign in" : "تسجيل الدخول", exact: true }).click();
+  await page.getByTestId("signin-email").fill(email); // the unified sign-in card (ADR-061): by test id
+  await page.getByTestId("signin-password").fill(PASSWORD);
+  await page.getByTestId("signin-submit").click();
   // a brand-new pharmacy first lands on the one-time first-run page; "Finish setup" leaves it (its branch fields are optional) and opens the dashboard
   const finish = page.getByRole("button", { name: lang === "en" ? "Finish setup" : "إنهاء الإعداد" });
   await expect(page.getByRole("navigation").or(finish).first()).toBeVisible();

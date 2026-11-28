@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
  * Crash sweep (Pharmacy): every web route as each role, English and Arabic, light and dark. Fails on console errors, React warnings (update
  * depth, hooks, keys), uncaught exceptions, an error boundary on screen and API 5xx (retried once). Narrow with SWEEP_ROLES / SWEEP_LOCALES / SWEEP_THEMES.
  */
-const API = process.env.SWEEP_API ?? "http://127.0.0.1:3100/api/v1";
+const API = process.env.SWEEP_API ?? `${process.env.PHARMACY_API_ORIGIN ?? "http://127.0.0.1:3100"}/api/v1`;
 const FATAL = /Maximum update depth|Too many re-renders|Rendered (more|fewer) hooks|Invalid hook call|Cannot update a component|Hooks can only be called|getSnapshot should be cached|Objects are not valid as a React child|The above error occurred/i;
 const IGNORED = [/Failed to load resource/i, /favicon/i, /ResizeObserver loop/i, /\[vite\]/i, /Download the React DevTools/i];
 
